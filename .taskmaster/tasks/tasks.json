@@ -1,0 +1,10 @@
+{
+  "master": {
+    "tasks": [],
+    "metadata": {
+      "version": "1.0.0",
+      "created": "2026-11-17",
+      "description": "SelfAudit 태스크 (관제만 고친다)"
+    }
+  }
+}

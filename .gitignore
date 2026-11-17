@@ -1,0 +1,24 @@
+# 비밀값
+.env
+.env.local
+
+# 세션 분업 방법론
+.lane.json
+.ops-logs/
+.claude/worktrees/
+.claude/settings.local.json
+
+# 의존성·빌드·캐시
+node_modules/
+dist/
+.venv/
+__pycache__/
+
+# 로그
+logs
+*.log
+
+# 편집기·OS
+.idea
+.vscode
+.DS_Store
