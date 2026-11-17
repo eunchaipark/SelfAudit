@@ -66,7 +66,7 @@ def run_check(check: dict, log_dir: Path) -> dict:
     secs = time.monotonic() - start
     log_dir.mkdir(parents=True, exist_ok=True)
     log = log_dir / f"{safe_name(name)}.log"
-    log.write_text(f"$ {check['명령']}  (폴더: {cwd})\n\n{text}", encoding="utf-8")
+    log.write_text(f"$ {check['명령']}  (폴더: {cwd})\n\n{text}", encoding="utf-8", newline="\n")
     return {"이름": name, "통과": ok, "초": secs, "요약": last_line(text), "메모": note, "로그": log, "출력": text}
 
 

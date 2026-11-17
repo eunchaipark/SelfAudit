@@ -23,7 +23,7 @@ def append_hook_log(root: Path, line: str) -> None:
         if log.exists() and log.stat().st_size > HOOK_LOG_MAX:
             data = log.read_bytes()
             log.write_bytes(data[len(data) // 2 :])
-        with log.open("a", encoding="utf-8") as f:
+        with log.open("a", encoding="utf-8", newline="\n") as f:
             f.write(f"{datetime.now().isoformat(timespec='seconds')} {line}\n")
     except OSError:
         pass

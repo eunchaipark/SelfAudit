@@ -165,7 +165,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     out = root / args.out
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(text, encoding="utf-8")
+    out.write_text(text, encoding="utf-8", newline="\n")  # Windows에서도 LF
     count = {k: sum(1 for it in items if it["구분"] == k) for k in KINDS}
     print(f"회고: 방법론 {count['방법론']} · 프로젝트 {count['프로젝트']} · 자주 나온 것 {len(reps)} → {args.out}")
     return 0
