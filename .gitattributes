@@ -1,0 +1,11 @@
+# 줄바꿈은 LF로 고정한다 (커밋할 때마다 줄바꿈 경고가 파일 수만큼 나와 세션 문맥을 채우지 않게, SeedLog·Portfolio와 같게)
+* text=auto eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# 바이너리
+*.png binary
+*.jpg binary
+*.webp binary
+*.pdf binary
+*.woff2 binary
