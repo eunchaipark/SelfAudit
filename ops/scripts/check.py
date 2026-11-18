@@ -54,6 +54,10 @@ def run_check(check: dict, log_dir: Path) -> dict:
     cwd = ROOT / check.get("폴더", ".")
     limit = int(check.get("제한초", 600))
     start = time.monotonic()
+    if not cwd.is_dir():
+        # Windows에서는 없는 cwd가 FileNotFoundError가 아닌 NotADirectoryError로 와서 예외로 끝났다
+        text, ok, note = f"폴더가 없습니다: {cwd}", False, "폴더 없음"
+        return _result(name, check, cwd, log_dir, start, text, ok, note)
     try:
         proc = subprocess.run(check["명령"], shell=True, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=limit)
         text, ok, note = ANSI.sub("", decode(proc.stdout)), proc.returncode == 0, ""
@@ -61,8 +65,12 @@ def run_check(check: dict, log_dir: Path) -> dict:
             note = f"종료 코드 {proc.returncode}"
     except subprocess.TimeoutExpired as e:
         text, ok, note = ANSI.sub("", decode(e.stdout or b"")), False, f"시간 초과 {limit}초"
-    except FileNotFoundError as e:
+    except OSError as e:
         text, ok, note = str(e), False, "폴더 또는 명령 없음"
+    return _result(name, check, cwd, log_dir, start, text, ok, note)
+
+
+def _result(name: str, check: dict, cwd: Path, log_dir: Path, start: float, text: str, ok: bool, note: str) -> dict:
     secs = time.monotonic() - start
     log_dir.mkdir(parents=True, exist_ok=True)
     log = log_dir / f"{safe_name(name)}.log"
