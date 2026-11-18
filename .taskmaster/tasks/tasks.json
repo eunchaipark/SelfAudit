@@ -247,11 +247,11 @@
         "id": 5,
         "title": "규칙: 공용 텍스트 도구와 비밀값 노출 (F-S01)",
         "description": "rules/text.py(위치·가린 값·근거 조각·HMAC·.map 순회)와 S01 규칙, 겹침·자리표시값·묶기",
-        "details": "영역: 규칙\n목적: 번들에서 비밀값 노출을 찾는다 (FR-03)\n읽을 문서: 기능명세 F-S01 전체, 코드규칙 3장 '정규식', 보안규칙 2장 표, NFR-03\n고칠 파일: backend/app/rules/**, backend/tests/rules/**\n계약: Finding, rules.run_rules 입력 형태(contracts/engine.py), 로컬 키는 인자\n\nCR-001 영향: 겹침 범위 = 값 범위. S01-GENERIC은 되돌아가기 폭주를 막는다(설계 보고).",
+        "details": "영역: 규칙\n목적: 번들에서 비밀값 노출을 찾는다 (FR-03)\n읽을 문서: 기능명세 F-S01 전체, 코드규칙 3장 '정규식', 보안규칙 2장 표, NFR-03\n고칠 파일: backend/app/rules/**, backend/tests/rules/**\n명세 기준: 126c805\n계약: Finding, rules.run_rules 입력 형태(contracts/engine.py), 로컬 키는 인자\n\nCR-001 반영됨(겹침 범위 = 값 범위). S01-GENERIC은 되돌아가기 폭주를 막는다(설계 보고).",
         "testStrategy": "test_F-S01_AWS_위치3_15_가린값_증거키 / test_F-S01_apiKey_AKIA는_AWS하나만 / test_F-S01_자리표시값_발견없음 / test_F-S01_5자_비밀번호_발견없음 / test_F-S01_같은키3번_횟수3 / test_F-S01_개인키2블록 / test_F-S01_map_sourcesContent_경로 / test_F-S01_원문이_결과에_없다 / test_F-S01_긴식별자_정규식_폭주없음. 화면 없음.",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
