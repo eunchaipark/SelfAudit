@@ -1,6 +1,1091 @@
 {
   "master": {
-    "tasks": [],
+    "tasks": [
+      {
+        "id": 1,
+        "title": "공통: 서버 시작 정리 (F-I01 12)",
+        "description": "서버가 시작할 때 진행 중 점검을 실패로 바꾸고 work/ 아래 폴더를 지운다",
+        "details": "영역: 공통\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02)\n읽을 문서: 기능명세 F-I01 처리 규칙 11·12, 예시 마지막 줄\n고칠 파일: backend/app/main.py, backend/tests/core/**\n계약: Scan 모델(상태·실패 이유), settings.data.work\n\n공통 파일(main.py)이라 설계가 한다. T14의 선행.",
+        "testStrategy": "test_F-I01_시작때_진행중점검이_실패로_바뀐다 / test_F-I01_시작때_work폴더가_비워진다 / test_F-I01_완료된_점검은_건드리지_않는다. 화면 없음.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "계약 확인(Scan 모델·work 경로)",
+            "description": "계약 확인(Scan 모델·work 경로)",
+            "details": "",
+            "status": "pending",
+            "dependencies": []
+          },
+          {
+            "id": 2,
+            "title": "예시 테스트",
+            "description": "예시 테스트",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              1
+            ]
+          },
+          {
+            "id": 3,
+            "title": "lifespan에 정리 함수 붙이기",
+            "description": "lifespan에 정리 함수 붙이기",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              2
+            ]
+          },
+          {
+            "id": 4,
+            "title": "검사 (check.py)",
+            "description": "검사 (check.py)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              3
+            ]
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "앱: 점검 기록 목록·앱 지우기·최근 점수 (F-P02, F-P03 앱 지우기)",
+        "description": "앱별 점검 목록(최신순), 앱 목록의 최근 점수, 앱 지우기(확인·진행 중 거부)",
+        "details": "영역: 앱\n목적: 앱별 점검 기록을 보고, 지울 수 있다 (FR-09)\n읽을 문서: 기능명세 F-P02, F-P03 처리 규칙 3·4, 화면정의 SCR-01 01-02·01-03\n고칠 파일: backend/app/apps/**, backend/tests/apps/**, frontend/src/features/apps/**\n계약: GET /apps, GET /apps/{id}/scans, DELETE /apps/{id}?confirm=true (AppListItemOut, ScanListItemOut, DeletedOut)\n\nCR-001 영향: F-P01 출처 주소 형식(apps/**). CR-001 반영 뒤 명세 기준을 잡는다. SCR-03 기록 표시는 T16. 점검 지우기 규칙은 T15와 맞춘다(중복되면 설계에 공용 함수 요청).",
+        "testStrategy": "test_F-P02_점검3개_최신순_점수_78 / test_F-P02_같은시각이면_점검ID큰것이_위 / test_F-P02_완료아님은_점수_대시 / test_F-P02_없는앱_404 / test_F-P03_앱지우기_점검2개_지운수2 / test_F-P03_진행중_점검있으면_거부. 화면: SCR-01 최근 점수·시각, 빈 상태 문구.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "계약 확인",
+            "description": "계약 확인",
+            "details": "",
+            "status": "pending",
+            "dependencies": []
+          },
+          {
+            "id": 2,
+            "title": "예시 테스트",
+            "description": "예시 테스트",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              1
+            ]
+          },
+          {
+            "id": 3,
+            "title": "엔진(정렬·요약 순수 함수)",
+            "description": "엔진(정렬·요약 순수 함수)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              2
+            ]
+          },
+          {
+            "id": 4,
+            "title": "repo·service·api",
+            "description": "repo·service·api",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              3
+            ]
+          },
+          {
+            "id": 5,
+            "title": "SCR-01 최근 점수 열",
+            "description": "SCR-01 최근 점수 열",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              4
+            ]
+          },
+          {
+            "id": 6,
+            "title": "검사 (check.py)",
+            "description": "검사 (check.py)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              5
+            ]
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "입력: 폴더 받기와 공통 분류·제한 (F-I01 B 1·4~10)",
+        "description": "receive_folder와 공통 분류: 링크 건너뜀, 개수·크기 제한, 확장자 분류, 대상만 쓰기, 건너뜀 목록",
+        "details": "영역: 입력\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02)\n읽을 문서: 기능명세 F-I01 처리 규칙 B 1·4~10, 예시(폴더·크기·확장자·대상 없음), 보안규칙 경로\n고칠 파일: backend/app/intake/**, backend/tests/intake/**, backend/tests/fixtures/**\n계약: intake.receive_folder → IntakeResult / IntakeFailed(reason), Skipped·SkipReason\n\nDB·네트워크 없음. 제한은 core/limits를 읽어 작은 값으로 시험한다.",
+        "testStrategy": "test_F-I01_APP대문자_대상 / test_F-I01_png만5개_대상없음 / test_F-I01_52428800바이트_대상_52428801_건너뜀 / test_F-I01_20000개_통과_20001개_실패 / test_F-I01_심볼릭링크_건너뜀 / test_F-I01_png는_디스크에_쓰지_않음. 화면 없음.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "계약 확인",
+            "description": "계약 확인",
+            "details": "",
+            "status": "pending",
+            "dependencies": []
+          },
+          {
+            "id": 2,
+            "title": "예시 테스트(임시 폴더 번들)",
+            "description": "예시 테스트(임시 폴더 번들)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              1
+            ]
+          },
+          {
+            "id": 3,
+            "title": "분류·제한 순수 함수",
+            "description": "분류·제한 순수 함수",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              2
+            ]
+          },
+          {
+            "id": 4,
+            "title": "폴더 읽기와 격리 폴더 쓰기",
+            "description": "폴더 읽기와 격리 폴더 쓰기",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              3
+            ]
+          },
+          {
+            "id": 5,
+            "title": "검사 (check.py)",
+            "description": "검사 (check.py)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              4
+            ]
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "입력: zip 받기와 항목 검사 (F-I01 B 2·3·5)",
+        "description": "receive_zip: 경로 탈출·Windows 이름·압축 폭탄 거부, 이름 겹침·링크 건너뜀, 맨 위 폴더 벗기기",
+        "details": "영역: 입력\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02)\n읽을 문서: 기능명세 F-I01 처리 규칙 B 2·3·5, 예외, 예시(zip 줄 전체), 보안규칙 zip 절\n고칠 파일: backend/app/intake/**, backend/tests/intake/**, backend/tests/fixtures/**\n계약: intake.receive_zip(path) → IntakeResult / IntakeFailed(reason)\n\n업로드 zip은 <데이터 폴더>/uploads/에 있다고 보고 경로를 받는다.",
+        "testStrategy": "test_F-I01_zip_경로탈출_점두개_거부 / test_F-I01_zip_역슬래시_탈출_거부 / test_F-I01_zip_드라이브경로_거부 / test_F-I01_zip_CON.js_a.js:x_nul_거부 / test_F-I01_zip_압축폭탄_200배_실패_180배_통과 / test_F-I01_zip_A.js_a.js_이름겹침 / test_F-I01_zip_맨위폴더_벗김 / test_F-I01_zip_거부시_아무것도_풀리지_않음. 화면 없음.",
+        "priority": "high",
+        "dependencies": [
+          3
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "계약 확인",
+            "description": "계약 확인",
+            "details": "",
+            "status": "pending",
+            "dependencies": []
+          },
+          {
+            "id": 2,
+            "title": "예시 테스트(zip은 코드로 만든다)",
+            "description": "예시 테스트(zip은 코드로 만든다)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              1
+            ]
+          },
+          {
+            "id": 3,
+            "title": "항목 검사 순수 함수",
+            "description": "항목 검사 순수 함수",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              2
+            ]
+          },
+          {
+            "id": 4,
+            "title": "풀기(실제 바이트 상한)",
+            "description": "풀기(실제 바이트 상한)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              3
+            ]
+          },
+          {
+            "id": 5,
+            "title": "검사 (check.py)",
+            "description": "검사 (check.py)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              4
+            ]
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "규칙: 공용 텍스트 도구와 비밀값 노출 (F-S01)",
+        "description": "rules/text.py(위치·가린 값·근거 조각·HMAC·.map 순회)와 S01 규칙, 겹침·자리표시값·묶기",
+        "details": "영역: 규칙\n목적: 번들에서 비밀값 노출을 찾는다 (FR-03)\n읽을 문서: 기능명세 F-S01 전체, 코드규칙 3장 '정규식', 보안규칙 2장 표, NFR-03\n고칠 파일: backend/app/rules/**, backend/tests/rules/**\n계약: Finding, rules.run_rules 입력 형태(contracts/engine.py), 로컬 키는 인자\n\nCR-001 영향: 겹침 범위 = 값 범위. S01-GENERIC은 되돌아가기 폭주를 막는다(설계 보고).",
+        "testStrategy": "test_F-S01_AWS_위치3_15_가린값_증거키 / test_F-S01_apiKey_AKIA는_AWS하나만 / test_F-S01_자리표시값_발견없음 / test_F-S01_5자_비밀번호_발견없음 / test_F-S01_같은키3번_횟수3 / test_F-S01_개인키2블록 / test_F-S01_map_sourcesContent_경로 / test_F-S01_원문이_결과에_없다 / test_F-S01_긴식별자_정규식_폭주없음. 화면 없음.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "계약 확인",
+            "description": "계약 확인",
+            "details": "",
+            "status": "pending",
+            "dependencies": []
+          },
+          {
+            "id": 2,
+            "title": "예시 테스트(명세 예시)",
+            "description": "예시 테스트(명세 예시)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              1
+            ]
+          },
+          {
+            "id": 3,
+            "title": "text.py",
+            "description": "text.py",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              2
+            ]
+          },
+          {
+            "id": 4,
+            "title": "S01 규칙 표·겹침·묶기",
+            "description": "S01 규칙 표·겹침·묶기",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              3
+            ]
+          },
+          {
+            "id": 5,
+            "title": "검사 (check.py)",
+            "description": "검사 (check.py)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              4
+            ]
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "규칙: 소스맵 노출과 내부 주소 (F-S02, F-S03)",
+        "description": "S02(맵 내용·경로·인라인·끊긴 참조)와 S03(URL 분류·관리 경로)",
+        "details": "영역: 규칙\n목적: 소스맵으로 원본 코드가 드러나는지 찾는다 (FR-04) / 내부 주소·개발 서버·관리자 경로가 남았는지 찾는다 (FR-05)\n읽을 문서: 기능명세 F-S02, F-S03\n고칠 파일: backend/app/rules/**, backend/tests/rules/**\n계약: Finding, SkipReason.NOT_SOURCEMAP\n\nCR-001 영향(겹침 범위).",
+        "testStrategy": "test_F-S02_맵_sourcesContent12_높음 / test_F-S02_null_빈문자열이면_PATHS_낮음 / test_F-S02_맵_밖으로_나가면_DANGLING / test_F-S02_data_URL_INLINE / test_F-S02_JSON아님_건너뜀 / test_F-S03_172_32는_URL정보 / test_F-S03_사용자정보_가림 / test_F-S03_admin경로_administrator는_없음. 화면 없음.",
+        "priority": "high",
+        "dependencies": [
+          5
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "계약 확인",
+            "description": "계약 확인",
+            "details": "",
+            "status": "pending",
+            "dependencies": []
+          },
+          {
+            "id": 2,
+            "title": "예시 테스트",
+            "description": "예시 테스트",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              1
+            ]
+          },
+          {
+            "id": 3,
+            "title": "S02",
+            "description": "S02",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              2
+            ]
+          },
+          {
+            "id": 4,
+            "title": "S03",
+            "description": "S03",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              3
+            ]
+          },
+          {
+            "id": 5,
+            "title": "검사 (check.py)",
+            "description": "검사 (check.py)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              4
+            ]
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "규칙: 취약 라이브러리 (F-S04)",
+        "description": "RetireJS 목록 읽기(없음·형식 오류), 버전 비교, S04-VULNLIB, 규칙 버전",
+        "details": "영역: 규칙\n목적: 번들 안 라이브러리 버전을 알려진 취약 목록과 대조한다 (FR-06)\n읽을 문서: 기능명세 F-S04, 용어 '규칙 버전'\n고칠 파일: backend/app/rules/**, backend/tests/rules/**, backend/tests/fixtures/**\n계약: RuleRun.rules_version, 안내 문구\n\n목록 경로는 인자로 받는다. 네트워크 없음.",
+        "testStrategy": "test_F-S04_jquery_3_4_1_중간_3_5_0이상 / test_F-S04_3_5_0_경계_발견없음 / test_F-S04_3_5_0_rc1_발견 / test_F-S04_버전비교_1_9_0b1_작다 / test_F-S04_3_5와_3_5_0_같다 / test_F-S04_목록없음_안내_r1_vulndb_none / test_F-S04_못읽는정규식_1개_건너뜀. 화면 없음.",
+        "priority": "medium",
+        "dependencies": [
+          5
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "계약 확인",
+            "description": "계약 확인",
+            "details": "",
+            "status": "pending",
+            "dependencies": []
+          },
+          {
+            "id": 2,
+            "title": "예시 테스트(가상 목록)",
+            "description": "예시 테스트(가상 목록)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              1
+            ]
+          },
+          {
+            "id": 3,
+            "title": "목록 불러오기",
+            "description": "목록 불러오기",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              2
+            ]
+          },
+          {
+            "id": 4,
+            "title": "버전 비교·범위 판정",
+            "description": "버전 비교·범위 판정",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              3
+            ]
+          },
+          {
+            "id": 5,
+            "title": "검사 (check.py)",
+            "description": "검사 (check.py)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              4
+            ]
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "규칙: 심각도·점수와 규칙 실행 연결 (F-S06)",
+        "description": "score(점수·개수·정렬)와 run_rules(S01~S04 묶기, 규칙 버전)",
+        "details": "영역: 규칙\n목적: 발견마다 심각도를 매기고 점검 점수를 낸다 (FR-08)\n읽을 문서: 기능명세 F-S06, 용어 '규칙 버전'\n고칠 파일: backend/app/rules/**, backend/tests/rules/**\n계약: rules.run_rules → RuleRun, rules.score → ScoreResult",
+        "testStrategy": "test_F-S06_높음2중간1낮음3정보5_46점 / test_F-S06_발견0_100 / test_F-S06_높음6_0점 / test_F-S06_횟수3이어도_80 / test_F-S06_정렬 / test_F-S06_대상없음_실패면_점수_대시 / test_NFR-04_같은입력_두번_같은결과. 화면 없음.",
+        "priority": "high",
+        "dependencies": [
+          5,
+          6,
+          7
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "계약 확인",
+            "description": "계약 확인",
+            "details": "",
+            "status": "pending",
+            "dependencies": []
+          },
+          {
+            "id": 2,
+            "title": "예시 테스트",
+            "description": "예시 테스트",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              1
+            ]
+          },
+          {
+            "id": 3,
+            "title": "score·정렬",
+            "description": "score·정렬",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              2
+            ]
+          },
+          {
+            "id": 4,
+            "title": "run_rules 연결",
+            "description": "run_rules 연결",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              3
+            ]
+          },
+          {
+            "id": 5,
+            "title": "검사 (check.py)",
+            "description": "검사 (check.py)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              4
+            ]
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "비교: 발견 지문 (F-C01)",
+        "description": "compare.fingerprint(해시 파일 이름 정규화, 규칙ID|경로|증거키)",
+        "details": "영역: 비교·내보내기\n목적: 같은 앱의 두 점검을 비교해 고쳐짐·남음·새로 생김과 점수 변화를 보여 준다 (FR-10)\n읽을 문서: 기능명세 F-C01\n고칠 파일: backend/app/compare/**, backend/tests/compare/**\n계약: compare.fingerprint(Finding) → str\n\n점검 흐름(T14)의 선행.",
+        "testStrategy": "test_F-C01_vite해시_제거 / test_F-C01_webpack_map_정규화 / test_F-C01_react는_그대로 / test_F-C01_폴더부분은_그대로 / test_F-C01_S01AWS_지문 / test_F-C01_S04_지문. 화면 없음.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "계약 확인",
+            "description": "계약 확인",
+            "details": "",
+            "status": "pending",
+            "dependencies": []
+          },
+          {
+            "id": 2,
+            "title": "예시 테스트",
+            "description": "예시 테스트",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              1
+            ]
+          },
+          {
+            "id": 3,
+            "title": "엔진",
+            "description": "엔진",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              2
+            ]
+          },
+          {
+            "id": 4,
+            "title": "검사 (check.py)",
+            "description": "검사 (check.py)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              3
+            ]
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "비교: 두 점검 비교와 전후 비교 화면 (F-C02, SCR-05)",
+        "description": "compare_scans, GET /compare, 전후 비교 화면",
+        "details": "영역: 비교·내보내기\n목적: 같은 앱의 두 점검을 비교해 고쳐짐·남음·새로 생김과 점수 변화를 보여 준다 (FR-10)\n읽을 문서: 기능명세 F-C02, 화면정의 SCR-05\n고칠 파일: backend/app/compare/**, backend/tests/compare/**, frontend/src/features/compare/**\n계약: GET /compare?a&b → ComparisonOut\n\n점검·발견 행은 테스트에서 모델로 직접 넣는다.",
+        "testStrategy": "test_F-C02_고쳐짐2_남음1_새로1_58에서78 / test_F-C02_같은번들_변화0 / test_F-C02_순서바꿔도_같다 / test_F-C02_규칙버전다르면_알림 / test_F-C02_다른앱_완료아님_400. 화면: SCR-05 1360·768·390, 점수 색, 빈 묶음 문구.",
+        "priority": "high",
+        "dependencies": [
+          9
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "계약 확인",
+            "description": "계약 확인",
+            "details": "",
+            "status": "pending",
+            "dependencies": []
+          },
+          {
+            "id": 2,
+            "title": "예시 테스트",
+            "description": "예시 테스트",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              1
+            ]
+          },
+          {
+            "id": 3,
+            "title": "엔진",
+            "description": "엔진",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              2
+            ]
+          },
+          {
+            "id": 4,
+            "title": "repo·service·api",
+            "description": "repo·service·api",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              3
+            ]
+          },
+          {
+            "id": 5,
+            "title": "화면",
+            "description": "화면",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              4
+            ]
+          },
+          {
+            "id": 6,
+            "title": "검사 (check.py)",
+            "description": "검사 (check.py)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              5
+            ]
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "내보내기: JSON (F-E01)",
+        "description": "export.to_json, 파일 이름 규칙, GET /scans/{id}/export.json",
+        "details": "영역: 비교·내보내기\n목적: 점검 결과를 JSON과 Markdown으로 내보낸다. Markdown에는 Claude Code에 물어볼 안내를 넣는다 (FR-11)\n읽을 문서: 기능명세 F-E01, 결정기록 D-023, 보안규칙 2장 표\n고칠 파일: backend/app/export/**, backend/tests/export/**\n계약: export.to_json → bytes, GET /scans/{id}/export.json",
+        "testStrategy": "test_F-E01_파일이름_Juice-Shop_20261118_1405 / test_F-E01_한글앱이름 / test_F-E01_느낌표만_app / test_F-E01_map발견_location_null / test_F-E01_원문키_없고_가린값만 / test_F-E01_완료아님_거부. 화면 없음.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "계약 확인",
+            "description": "계약 확인",
+            "details": "",
+            "status": "pending",
+            "dependencies": []
+          },
+          {
+            "id": 2,
+            "title": "예시 테스트",
+            "description": "예시 테스트",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              1
+            ]
+          },
+          {
+            "id": 3,
+            "title": "엔진",
+            "description": "엔진",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              2
+            ]
+          },
+          {
+            "id": 4,
+            "title": "서버",
+            "description": "서버",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              3
+            ]
+          },
+          {
+            "id": 5,
+            "title": "검사 (check.py)",
+            "description": "검사 (check.py)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              4
+            ]
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "내보내기: Markdown (F-E02)",
+        "description": "export.to_markdown(칸 이스케이프, 200자, 고정 문구), export.md",
+        "details": "영역: 비교·내보내기\n목적: 점검 결과를 JSON과 Markdown으로 내보낸다. Markdown에는 Claude Code에 물어볼 안내를 넣는다 (FR-11)\n읽을 문서: 기능명세 F-E02, 화면정의 SCR-04 'Claude Code에 물어보기', 결정기록 D-021\n고칠 파일: backend/app/export/**, backend/tests/export/**\n계약: export.to_markdown → bytes, GET /scans/{id}/export.md\n\n고정 문구를 화면정의에서 가져오는 방법은 레인이 정해 보고한다.",
+        "testStrategy": "test_F-E02_발견4개_표4행_점수68 / test_F-E02_백틱있는글_더긴백틱 / test_F-E02_200자_자름 / test_F-E02_꺾쇠_파이프_줄바꿈_이스케이프 / test_F-E02_고정문구가_화면정의와_같다 / test_F-E02_원문이_없다. 화면 없음.",
+        "priority": "medium",
+        "dependencies": [
+          11
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "계약 확인",
+            "description": "계약 확인",
+            "details": "",
+            "status": "pending",
+            "dependencies": []
+          },
+          {
+            "id": 2,
+            "title": "예시 테스트",
+            "description": "예시 테스트",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              1
+            ]
+          },
+          {
+            "id": 3,
+            "title": "엔진",
+            "description": "엔진",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              2
+            ]
+          },
+          {
+            "id": 4,
+            "title": "서버",
+            "description": "서버",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              3
+            ]
+          },
+          {
+            "id": 5,
+            "title": "검사 (check.py)",
+            "description": "검사 (check.py)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              4
+            ]
+          }
+        ]
+      },
+      {
+        "id": 13,
+        "title": "점검 흐름: REA 참고 분석 (F-S05, REA 없이 끝나는 범위)",
+        "description": "rea.analyze: 찾기·없음 처리, 명령 구성(셸 없음·120초), 결과 검사",
+        "details": "영역: 점검 흐름\n목적: REA가 설치돼 있으면 그 분석 요약을 참고로 보여 준다 (FR-07)\n읽을 문서: 기능명세 F-S05, 보안규칙 외부 프로세스 절\n고칠 파일: backend/app/rea/**, backend/tests/rea/**\n계약: rea.analyze(root) → ReaRef\n\n실제 REA 실행 확인과 JSON 필드 이름은 미결(D-024). 필드 읽기는 주입 함수로 두고 없음·가짜 JSON까지만 한다.",
+        "testStrategy": "test_F-S05_rea없음_상태없음_안내문구 / test_F-S05_가짜rea_사용함 / test_F-S05_120초초과_실패 / test_F-S05_버전형식_틀리면_실패 / test_F-S05_종료코드_0아님_실패 / test_F-S05_shell_True_없다. 화면 없음.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "계약 확인",
+            "description": "계약 확인",
+            "details": "",
+            "status": "pending",
+            "dependencies": []
+          },
+          {
+            "id": 2,
+            "title": "예시 테스트(가짜 실행 파일·주입 실행기)",
+            "description": "예시 테스트(가짜 실행 파일·주입 실행기)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              1
+            ]
+          },
+          {
+            "id": 3,
+            "title": "찾기·명령 구성",
+            "description": "찾기·명령 구성",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              2
+            ]
+          },
+          {
+            "id": 4,
+            "title": "실행·결과 검사",
+            "description": "실행·결과 검사",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              3
+            ]
+          },
+          {
+            "id": 5,
+            "title": "검사 (check.py)",
+            "description": "검사 (check.py)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              4
+            ]
+          }
+        ]
+      },
+      {
+        "id": 14,
+        "title": "점검 흐름: 점검 시작·실행·저장 (F-I01 A·11)",
+        "description": "점검 시작 API와 거부, intake→rules→score→rea→지문 잇기, 상태 전이, 격리 폴더 삭제",
+        "details": "영역: 점검 흐름\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02) / 발견마다 심각도를 매기고 점검 점수를 낸다 (FR-08)\n읽을 문서: 기능명세 F-I01 A·B 1·11, 예외·예시, F-S06 4, F-S04 안내\n고칠 파일: backend/app/scans/**, backend/tests/scans/**\n계약: POST /apps/{id}/scans/zip, POST /apps/{id}/scans/folder → ScanStartedOut, 모델 Scan·FindingRow·SkippedRow·ReaRow\n\n마이그레이션 없음. 로컬 키는 app.state.local_key.",
+        "testStrategy": "test_F-I01_zip아님_거부 / test_F-I01_209715201바이트_거부 / test_F-I01_폴더상대경로_거부 / test_F-I01_진행중_다른점검_거부 / test_F-I01_png만_대상없음 / test_F-I01_끝나면_격리폴더_삭제 / test_F-I01_intake실패_이유_저장 / test_F-S01_DB응답에_원문_없음 / test_NFR-01_네트워크_차단에서_점검됨. 화면 없음.",
+        "priority": "high",
+        "dependencies": [
+          1,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          13
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "계약 확인",
+            "description": "계약 확인",
+            "details": "",
+            "status": "pending",
+            "dependencies": []
+          },
+          {
+            "id": 2,
+            "title": "예시 테스트",
+            "description": "예시 테스트",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              1
+            ]
+          },
+          {
+            "id": 3,
+            "title": "서비스 흐름(백그라운드·상태 전이)",
+            "description": "서비스 흐름(백그라운드·상태 전이)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              2
+            ]
+          },
+          {
+            "id": 4,
+            "title": "저장소(발견·건너뜀·참고·지문)",
+            "description": "저장소(발견·건너뜀·참고·지문)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              3
+            ]
+          },
+          {
+            "id": 5,
+            "title": "업로드 api",
+            "description": "업로드 api",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              4
+            ]
+          },
+          {
+            "id": 6,
+            "title": "검사 (check.py)",
+            "description": "검사 (check.py)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              5
+            ]
+          }
+        ]
+      },
+      {
+        "id": 15,
+        "title": "점검 흐름: 점검 결과 조회·점검 지우기 (F-P03)",
+        "description": "GET /scans/{id}, DELETE /scans/{id}?confirm=true",
+        "details": "영역: 점검 흐름\n목적: 앱별 점검 기록을 보고, 지울 수 있다 (FR-09)\n읽을 문서: 기능명세 F-P03 1·2·4, F-S06 정렬, 화면정의 SCR-04 04-01~04-05·04-08·04-09\n고칠 파일: backend/app/scans/**, backend/tests/scans/**\n계약: GET /scans/{id} → ScanOut, DELETE /scans/{id} → DeletedOut\n\n앱 지우기(T2)와 삭제 규칙을 맞춘다.",
+        "testStrategy": "test_F-P03_점검지우기_발견도_지워짐 / test_F-P03_진행중_거부 / test_F-P03_없는점검_404 / test_F-P03_확인_거짓이면_422 / test_F-S06_조회_정렬 / test_F-I01_진행중_조회_상태만. 화면 없음.",
+        "priority": "medium",
+        "dependencies": [
+          14
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "계약 확인",
+            "description": "계약 확인",
+            "details": "",
+            "status": "pending",
+            "dependencies": []
+          },
+          {
+            "id": 2,
+            "title": "예시 테스트",
+            "description": "예시 테스트",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              1
+            ]
+          },
+          {
+            "id": 3,
+            "title": "서비스·저장소",
+            "description": "서비스·저장소",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              2
+            ]
+          },
+          {
+            "id": 4,
+            "title": "api",
+            "description": "api",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              3
+            ]
+          },
+          {
+            "id": 5,
+            "title": "검사 (check.py)",
+            "description": "검사 (check.py)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              4
+            ]
+          }
+        ]
+      },
+      {
+        "id": 16,
+        "title": "점검 흐름: 앱 상세 화면 (SCR-03)",
+        "description": "새 점검(zip·폴더)·점검 기록·비교 선택·앱 지우기 화면",
+        "details": "영역: 점검 흐름\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02) / 앱별 점검 기록을 보고, 지울 수 있다 (FR-09)\n읽을 문서: 화면정의 SCR-03, 기능명세 F-I01 예외, F-P02, F-P03\n고칠 파일: frontend/src/features/scans/**\n계약: POST scans/zip·folder, GET /apps/{id}/scans, DELETE /apps/{id}",
+        "testStrategy": "test_SCR-03_거부문구_버튼아래 / test_SCR-03_진행중이면_시작_비활성 / test_SCR-03_두개_고르면_비교_활성 / test_SCR-03_앱지우기_확인창. 화면: SCR-03 3개 폭, 빈 상태, 진행 중.",
+        "priority": "medium",
+        "dependencies": [
+          14,
+          2
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "계약 확인(schema.d.ts)",
+            "description": "계약 확인(schema.d.ts)",
+            "details": "",
+            "status": "pending",
+            "dependencies": []
+          },
+          {
+            "id": 2,
+            "title": "예시 테스트",
+            "description": "예시 테스트",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              1
+            ]
+          },
+          {
+            "id": 3,
+            "title": "api.ts·훅",
+            "description": "api.ts·훅",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              2
+            ]
+          },
+          {
+            "id": 4,
+            "title": "새 점검 폼",
+            "description": "새 점검 폼",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              3
+            ]
+          },
+          {
+            "id": 5,
+            "title": "기록·비교 선택·앱 지우기",
+            "description": "기록·비교 선택·앱 지우기",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              4
+            ]
+          },
+          {
+            "id": 6,
+            "title": "검사 (check.py)",
+            "description": "검사 (check.py)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              5
+            ]
+          }
+        ]
+      },
+      {
+        "id": 17,
+        "title": "점검 흐름: 점검 결과 화면 (SCR-04)",
+        "description": "점수·개수·발견 표·REA 참고·건너뜀·안내·내보내기·지우기·폴링",
+        "details": "영역: 점검 흐름\n목적: 발견마다 심각도를 매기고 점검 점수를 낸다 (FR-08) / REA가 설치돼 있으면 그 분석 요약을 참고로 보여 준다 (FR-07) / 점검 결과를 JSON과 Markdown으로 내보낸다. Markdown에는 Claude Code에 물어볼 안내를 넣는다 (FR-11)\n읽을 문서: 화면정의 SCR-04 전체, 기능명세 F-S05 안내, F-S04 안내, F-E01\n고칠 파일: frontend/src/features/scans/**\n계약: GET /scans/{id}, export.json·export.md, DELETE /scans/{id}",
+        "testStrategy": "test_SCR-04_점수_완료아니면_대시 / test_SCR-04_정보는_토글_뒤 / test_SCR-04_횟수_x2 / test_SCR-04_발견글은_HTML아닌_글자 / test_SCR-04_발견0개_문구 / test_SCR-04_진행중_폴링. 화면: SCR-04 3개 폭, 대상 없음·실패·REA 없음.",
+        "priority": "medium",
+        "dependencies": [
+          15,
+          11,
+          12,
+          16
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "계약 확인",
+            "description": "계약 확인",
+            "details": "",
+            "status": "pending",
+            "dependencies": []
+          },
+          {
+            "id": 2,
+            "title": "예시 테스트",
+            "description": "예시 테스트",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              1
+            ]
+          },
+          {
+            "id": 3,
+            "title": "api.ts·훅(폴링)",
+            "description": "api.ts·훅(폴링)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              2
+            ]
+          },
+          {
+            "id": 4,
+            "title": "점수·표·펼침",
+            "description": "점수·표·펼침",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              3
+            ]
+          },
+          {
+            "id": 5,
+            "title": "REA·건너뜀·안내·내보내기·지우기",
+            "description": "REA·건너뜀·안내·내보내기·지우기",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              4
+            ]
+          },
+          {
+            "id": 6,
+            "title": "검사 (check.py)",
+            "description": "검사 (check.py)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [
+              5
+            ]
+          }
+        ]
+      }
+    ],
     "metadata": {
       "version": "1.0.0",
       "created": "2026-11-17",
