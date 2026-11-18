@@ -82,6 +82,9 @@ def install_error_handlers(app: FastAPI) -> None:
     async def _http(_: Request, exc: StarletteHTTPException) -> JSONResponse:
         if exc.status_code == 404:
             return error_response(404, NotFound.code, MSG_NOT_FOUND)
+        if exc.status_code == 400:
+            # JSON 본문을 읽지 못한 경우 등. 원문은 돌려주지 않는다
+            return error_response(400, ValidationFailed.code, MSG_INVALID_INPUT)
         return error_response(exc.status_code, "HTTP_ERROR", MSG_INVALID_INPUT)
 
     @app.exception_handler(Exception)
