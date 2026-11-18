@@ -1,0 +1,231 @@
+"""F-S01 비밀값 노출 — 기능명세 예시를 그대로 옮긴다. 증거키는 테스트 키로 계산한 값."""
+
+from __future__ import annotations
+
+import json
+import time
+
+from app.contracts.engine import Finding, Location, Severity
+from app.rules import secrets, text
+
+KEY = b"selfaudit-test-key"  # 명세 '로컬 키'의 테스트 키 (가상)
+AWS = "AKIAIOSFODNN7EXAMPLE"
+RAW_VALUES = (AWS, "hunter2hunter2", "pw1234567", "s3cr3tPassw0rd")
+
+
+def scan(content: str, path: str = "assets/index.js") -> list[Finding]:
+    return secrets.scan_file(path, content, KEY)
+
+
+def only(content: str, path: str = "assets/index.js") -> Finding:
+    found = scan(content, path)
+    assert len(found) == 1, found
+    return found[0]
+
+
+# ---- 규칙 표와 예시 ----
+
+
+def test_F_S01_AWS_위치3_15_가린값_증거키() -> None:
+    f = only("\n\n" + " " * 13 + f'"{AWS}"')
+    assert f.rule_id == "S01-AWS"
+    assert f.severity is Severity.HIGH
+    assert f.location == Location(3, 15)
+    assert f.value == "AKIA****LE"
+    assert f.evidence_key == "ce01f31bef88"
+    assert f.count == 1
+
+
+def test_F_S01_GENERIC_password_콜론() -> None:
+    f = only('password:"hunter2hunter2"')
+    assert (f.rule_id, f.severity, f.value) == ("S01-GENERIC", Severity.MEDIUM, "****")
+    assert f.evidence_key == "08b236ad37f8"
+
+
+def test_F_S01_GENERIC_DB_PASSWORD() -> None:
+    f = only('DB_PASSWORD="s3cr3tPassw0rd"')
+    assert f.rule_id == "S01-GENERIC"
+    assert f.evidence_key == "fcbead8b6d92"
+
+
+def test_F_S01_값에_공백이면_발견없음() -> None:
+    assert scan('passwordHint:"Enter your password"') == []
+
+
+def test_F_S01_apiKey_AKIA는_AWS하나만() -> None:
+    f = only(f'apiKey:"{AWS}"')
+    assert f.rule_id == "S01-AWS"
+
+
+def test_F_S01_같은키3번_횟수3() -> None:
+    f = only(f'a="{AWS}";\nb="{AWS}";\nc="{AWS}"')
+    assert f.count == 3
+    assert f.location == Location(1, 4)
+
+
+def test_F_S01_자리표시값_발견없음() -> None:
+    assert scan('password:"changeme"') == []
+    assert scan('api_key:"xxxxxxxx"') == []
+    for v in ("your-api-key-here", "placeholder", "example-secret", "<your-secret>", "${SECRET_X}"):
+        assert scan(f'secret:"{v}"') == [], v
+    assert scan('secret:"process.env.SECRET_VALUE"') == []
+
+
+def test_F_S01_5자_비밀번호_발견없음() -> None:
+    assert scan('password:"abc12"') == []
+
+
+def test_F_S01_열은_코드포인트() -> None:
+    assert only(f'가가"{AWS}"').location == Location(1, 4)
+
+
+def test_F_S01_CRLF_2줄1열() -> None:
+    f = only(f"x;\r\n{AWS}")
+    assert f.location == Location(2, 1)
+
+
+def test_F_S01_BOM은_열에_세지_않는다() -> None:
+    assert only(f"﻿{AWS}").location == Location(1, 1)
+
+
+def test_F_S01_개인키2블록() -> None:
+    a = "-----BEGIN RSA PRIVATE KEY-----\nAAAA\n-----END RSA PRIVATE KEY-----"
+    b = "-----BEGIN RSA PRIVATE KEY-----\nBBBB\n-----END RSA PRIVATE KEY-----"
+    found = scan(f"{a}\n{b}")
+    assert [f.rule_id for f in found] == ["S01-PKEY", "S01-PKEY"]
+    assert {f.value for f in found} == {"-----BEGIN RSA PRIVATE KEY-----"}
+    assert found[0].evidence_key != found[1].evidence_key
+
+
+def test_F_S01_개인키_END없으면_4096자까지() -> None:
+    head = "-----BEGIN PRIVATE KEY-----\n"
+    body = "A" * 5000
+    f = only(head + body)
+    assert f.rule_id == "S01-PKEY"
+    expected = text.evidence_key(KEY, (head + body)[:4096])
+    assert f.evidence_key == expected
+
+
+def test_F_S01_URLCRED() -> None:
+    f = only('"https://admin:pw1234567@internal.myapp.kr"')
+    assert (f.rule_id, f.severity, f.value) == ("S01-URLCRED", Severity.HIGH, "****")
+    assert f.evidence_key == "a0897d252337"
+
+
+def test_F_S01_나머지_규칙표() -> None:
+    cases = {
+        "S01-STRIPE": ("sk_live_" + "a1B2" * 6, Severity.HIGH),
+        "S01-GHTOKEN": ("ghp_" + "a1B2c3" * 6, Severity.HIGH),
+        "S01-JWT": ("eyJhbGciOi.eyJzdWIiOiIx.abcdefghij12", Severity.MEDIUM),
+        "S01-GAPI": ("AIza" + "A" * 35, Severity.LOW),
+        "S01-STRIPE-PK": ("pk_live_" + "a1B2" * 6, Severity.INFO),
+    }
+    for rule, (raw, sev) in cases.items():
+        f = only(f'x="{raw}"')
+        assert (f.rule_id, f.severity) == (rule, sev), rule
+        assert f.value == raw[:4] + "****" + raw[-2:]
+        assert f.fix
+
+
+def test_F_S01_가린값_8자_미만은_별표() -> None:
+    assert text.mask_known("abcdefg") == "****"
+    assert text.mask_known("abcdefgh") == "abcd****gh"
+
+
+def test_F_S01_옆의_긴덩어리도_가린다() -> None:
+    f = only(f'x:"{AWS}",y:"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"')
+    assert f.rule_id == "S01-AWS"
+    assert f.snippet == 'x:"AKIA****LE",y:"wJal****"'
+
+
+def test_F_S01_근거조각_앞뒤40자와_줄바꿈() -> None:
+    f = only("a " * 25 + "\n" + f'"{AWS}"' + "\n" + "b " * 40)
+    assert f.snippet == ("a " * 25)[-38:] + ' "' + "AKIA****LE" + '" ' + ("b " * 40)[:38]
+
+
+def test_F_S01_근거조각_원문이_다른_걸림도_가린다() -> None:
+    f = scan(f'password:"hunter2hunter2",k:"{AWS}"')
+    assert len(f) == 2
+    for x in f:
+        assert "hunter2" not in x.snippet
+        assert AWS not in x.snippet
+
+
+# ---- 겹침과 묶기 ----
+
+
+def test_F_S01_겹침은_값_범위로_판정한다() -> None:
+    # GENERIC의 키 이름(secret)과 값(AWS 키)이 아니라, 값 범위가 AWS와 같아 AWS만 남는다
+    assert only(f'client_secret:"{AWS}"').rule_id == "S01-AWS"
+    # 앞 규칙의 값 범위와 겹치지 않으면 둘 다 남는다
+    found = scan(f'{AWS} password:"hunter2hunter2"')
+    assert sorted(f.rule_id for f in found) == ["S01-AWS", "S01-GENERIC"]
+
+
+def test_F_S01_같은_원문은_규칙마다_따로() -> None:
+    found = scan('password:"hunter2hunter2";\nsecret:"hunter2hunter2"')
+    assert len(found) == 1 and found[0].count == 2
+
+
+# ---- .map ----
+
+
+def map_text(content: str) -> str:
+    return json.dumps({"version": 3, "sources": ["src/api.ts"], "sourcesContent": [content]})
+
+
+def test_F_S01_map_sourcesContent_경로() -> None:
+    f = only(map_text('const x = {\n  password: "hunter2hunter2"\n}'), "assets/index.js.map")
+    assert f.rule_id == "S01-GENERIC"
+    assert f.path == "assets/index.js.map"
+    assert f.location is None
+    assert f.snippet.startswith("[src/api.ts] ")
+
+
+def test_F_S01_map_JS와_map_둘다면_발견2() -> None:
+    js = scan(f'k="{AWS}"', "a.js")
+    mp = scan(map_text(f'k="{AWS}"'), "a.js.map")
+    assert len(js) == 1 and len(mp) == 1
+    assert js[0].evidence_key == mp[0].evidence_key
+
+
+def test_F_S01_map이_JSON이_아니면_발견없음() -> None:
+    assert scan(f"not json {AWS}", "a.js.map") == []
+    assert text.parse_sourcemap("[1,2]") is None
+
+
+def test_F_S01_map_항목_이름_없거나_null_항목() -> None:
+    raw = json.dumps({"sources": ["a.ts"], "sourcesContent": [None, f'k="{AWS}"']})
+    f = only(raw, "x.map")
+    assert f.snippet.startswith("[] ")
+
+
+# ---- 원문 ----
+
+
+def test_F_S01_원문이_결과에_없다() -> None:
+    content = (
+        f'a="{AWS}";password:"hunter2hunter2";'
+        'u="https://admin:pw1234567@internal.myapp.kr";DB_PASSWORD="s3cr3tPassw0rd"'
+    )
+    dump = repr(scan(content)) + repr(scan(map_text(content), "x.map"))
+    for raw in RAW_VALUES:
+        assert raw not in dump
+
+
+# ---- 성능 ----
+
+
+def test_F_S01_긴식별자_정규식_폭주없음() -> None:
+    cases = [
+        "a" * 2_000_000,
+        "password" * 200_000,
+        'password="' + "-password" * 200_000,
+        "https://" + "a" * 1_000_000,
+        "-----BEGIN RSA PRIVATE KEY-----\n" * 50_000,
+        "secret" + " " * 1_000_000,
+    ]
+    for c in cases:
+        t0 = time.perf_counter()
+        scan(c)
+        assert time.perf_counter() - t0 < 5.0, c[:20]
