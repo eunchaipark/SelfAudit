@@ -82,6 +82,7 @@ def test_F_P01_예시_대소문자만_다른_중복_거부(client: TestClient) -
 def test_F_P01_예시_NFD_중복_거부(client: TestClient) -> None:
     register(client, "블로그")
     out = register(client, unicodedata.normalize("NFD", "블로그"))
+    assert out["status"] == 409
     assert out["message"] == "같은 이름의 앱이 있습니다"
 
 
@@ -89,6 +90,49 @@ def test_F_P01_예시_http_출처_거부(client: TestClient) -> None:
     out = register(client, "연습", kind="practice", sourceUrl="http://example.com")
     assert out["status"] == 400
     assert out["message"] == "공개 연습앱은 출처 주소(https://…)가 필요합니다"
+
+
+def test_F_P01_규칙4_공개연습앱_출처없음_거부(client: TestClient) -> None:
+    out = register(client, "연습", kind="practice")
+    assert out["status"] == 400
+    assert out["message"] == "공개 연습앱은 출처 주소(https://…)가 필요합니다"
+
+
+def test_F_P01_규칙4_내앱은_출처없이_저장(client: TestClient) -> None:
+    out = register(client, "내 앱 하나")
+    assert out["status"] == 201
+    assert out["sourceUrl"] is None
+
+
+def test_F_P01_보안_내앱의_출처는_버림(client: TestClient) -> None:
+    out = register(client, "내 앱 둘", sourceUrl="https://user:pw1234567@evil.example/x")
+    assert out["status"] == 201
+    assert out["sourceUrl"] is None
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://user:pw1234567@evil.example/x",  # 계정 정보 (가상 값)
+        "https://@evil.example",
+        "https://evil.example/a\nb",  # 개행
+        "https://evil.example/a b",  # 공백
+        "https://evil.example/\x00",  # 제어문자
+        "javascript:alert(1)",
+        "https:///path-only",
+        "https://evil.example:99999/",
+        "https://evil.example:abc/",
+    ],
+)
+def test_F_P01_보안_출처주소_형식_거부(client: TestClient, url: str) -> None:
+    out = register(client, "연습앱", kind="practice", sourceUrl=url)
+    assert out["status"] == 400
+    assert out["message"] == "공개 연습앱은 출처 주소(https://…)가 필요합니다"
+
+
+def test_F_P01_보안_출처주소_형식_통과() -> None:
+    assert engine.is_valid_source_url("https://github.com/juice-shop/juice-shop")
+    assert engine.is_valid_source_url("https://localhost:3000/")
 
 
 def test_F_P01_예시_확인거짓_거부(client: TestClient) -> None:

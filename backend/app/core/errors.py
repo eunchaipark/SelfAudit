@@ -18,6 +18,7 @@ MSG_INVALID_INPUT = "입력 형식이 맞지 않습니다"
 MSG_NOT_FOUND = "찾을 수 없습니다"
 MSG_INTERNAL = "서버 오류가 났습니다"
 MSG_NOT_IMPLEMENTED = "아직 만들지 않은 기능입니다"
+LOG_TEXT_MAX = 200
 
 
 class AppError(Exception):
@@ -89,8 +90,21 @@ def install_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(Exception)
     async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
-        # 경로와 예외 종류만 남긴다. 메시지에는 분석 대상 글이 섞일 수 있다
-        log.error(
-            "처리하지 못한 오류: %s %s (%s)", request.method, request.url.path, type(exc).__name__
-        )
+        log_unhandled(request, exc)
         return error_response(500, "INTERNAL", MSG_INTERNAL)
+
+
+def log_safe(text: str) -> str:
+    """로그에 넣을 글: 개행·제어문자는 `?`로, 길이는 상한까지 (로그 위조 방지)."""
+    cleaned = "".join(ch if ch.isprintable() else "?" for ch in text[:LOG_TEXT_MAX])
+    return cleaned + ("…" if len(text) > LOG_TEXT_MAX else "")
+
+
+def log_unhandled(request: Request, exc: Exception) -> None:
+    # 경로와 예외 종류만 남긴다. 예외 메시지에는 분석 대상 글이 섞일 수 있다
+    log.error(
+        "처리하지 못한 오류: %s %s (%s)",
+        log_safe(request.method),
+        log_safe(request.url.path),
+        type(exc).__name__,
+    )

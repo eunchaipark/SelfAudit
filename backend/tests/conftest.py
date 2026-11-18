@@ -15,7 +15,7 @@ from app.core.security import CLIENT_HEADER, CLIENT_HEADER_VALUE
 from app.main import create_app
 
 FIXED_NOW = datetime(2026, 11, 18, 5, 5, tzinfo=UTC)  # 가상 시각 (KST 14:05)
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = "http://127.0.0.1:8790"
 TEST_KEY = b"selfaudit-test-key"  # 명세 '로컬 키'의 테스트 키 (가상)
 
 

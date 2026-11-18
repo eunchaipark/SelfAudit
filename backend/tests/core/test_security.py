@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.core.config import Settings
+from app.core.errors import log_safe
 from app.core.security import CLIENT_HEADER
 from app.main import create_app
 from tests.conftest import BASE_URL
@@ -13,13 +14,13 @@ NEW_APP = {"name": "가상 앱", "kind": "mine", "consent": True}
 
 
 def test_NFR_08_다른_Host는_거부(client: TestClient) -> None:
-    res = client.get("/api/v1/health", headers={"host": "evil.example:8000"})
+    res = client.get("/api/v1/health", headers={"host": "evil.example:8790"})
     assert res.status_code == 400
     assert res.json() == {"code": "BAD_HOST", "message": "허용되지 않은 주소로 들어온 요청입니다"}
 
 
 def test_NFR_08_localhost_Host는_받음(client: TestClient) -> None:
-    assert client.get("/api/v1/health", headers={"host": "localhost:8000"}).status_code == 200
+    assert client.get("/api/v1/health", headers={"host": "localhost:8790"}).status_code == 200
 
 
 def test_NFR_08_다른_Origin의_POST는_거부(client: TestClient) -> None:
@@ -83,6 +84,20 @@ def test_오류응답_모양_처리못한_오류는_스택을_숨김(settings: S
     assert res.json() == {"code": "INTERNAL", "message": "서버 오류가 났습니다"}
     assert "secret" not in res.text
     assert "Traceback" not in res.text
+    assert res.headers["content-security-policy"].startswith("default-src 'self'")
+    assert res.headers["x-content-type-options"] == "nosniff"
+    assert res.headers["x-frame-options"] == "DENY"
+
+
+def test_로그에_넣는_글은_개행과_제어문자를_지움() -> None:
+    assert log_safe("/api/v1/x\n가짜 로그 줄\x1b[31m") == "/api/v1/x?가짜 로그 줄?[31m"
+    assert log_safe("a" * 300).endswith("…")
+
+
+def test_JSON_본문_크기_상한(client: TestClient) -> None:
+    res = client.post("/api/v1/apps", content=b"{" + b" " * 70_000 + b"}")
+    assert res.status_code == 413
+    assert res.json() == {"code": "TOO_LARGE", "message": "요청이 너무 큽니다"}
 
 
 def test_빈_API는_501_한가지_형식(client: TestClient) -> None:

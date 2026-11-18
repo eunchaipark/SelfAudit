@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 LOOPBACK_HOST = "127.0.0.1"
-DEFAULT_PORT = 8000
+DEFAULT_PORT = 8790  # 8000은 다른 로컬 앱과 자주 겹친다
 VITE_DEV_ORIGIN = "http://127.0.0.1:5173"
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
