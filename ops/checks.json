@@ -5,6 +5,8 @@
     {"이름": "서버형식", "명령": "uv run ruff format --check .", "폴더": "backend", "제한초": 300},
     {"이름": "서버타입", "명령": "uv run mypy .", "폴더": "backend", "제한초": 600},
     {"이름": "서버테스트", "명령": "uv run pytest -q", "폴더": "backend", "제한초": 900},
+    {"이름": "계약", "명령": "uv run python -m app.contracts.export_openapi --check", "폴더": "backend", "제한초": 120},
+    {"이름": "화면계약", "명령": "npm run gen:api && git diff --exit-code -- src/api/schema.d.ts", "폴더": "frontend", "제한초": 120},
     {"이름": "화면린트", "명령": "npm run lint", "폴더": "frontend", "제한초": 300},
     {"이름": "화면타입", "명령": "npm run typecheck", "폴더": "frontend", "제한초": 300},
     {"이름": "화면테스트", "명령": "npm run test -- --run", "폴더": "frontend", "제한초": 600},

@@ -22,3 +22,13 @@ logs
 .idea
 .vscode
 .DS_Store
+
+# SelfAudit 데이터 폴더 (기본은 저장소 밖 %LOCALAPPDATA%\SelfAudit. 저장소 안으로 잡아도 섞이지 않게)
+local.key
+local.key.*.tmp
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+uploads/
+work/

@@ -1,0 +1,58 @@
+[project]
+name = "selfaudit"
+version = "0.1.0"
+description = "SelfAudit 서버: 웹 번들 보안 자가진단 엔진과 로컬 API"
+requires-python = ">=3.13"
+dependencies = [
+    "alembic>=1.20.1",
+    "fastapi>=0.163.2",
+    "sqlalchemy>=2.1.9",
+    "uvicorn>=0.54.0",
+]
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "mypy>=2.4.1",
+    "pytest>=9.2.0",
+    "pytest-socket>=0.8.1",
+    "ruff>=0.17.5",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["migrations/versions"]
+
+[tool.ruff.lint]
+preview = true
+explicit-preview-rules = true
+# S: 보안 검사(bandit), DTZ: 시간대 없는 시각, PLW1514: 파일 인코딩 명시, TID: 금지 import
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "N", "S", "DTZ", "PLW1514", "TID"]
+ignore = ["RUF001", "RUF002", "RUF003", "S101", "N818"]  # 한국어 문장 부호, 테스트 assert, 오류 이름은 명세 용어
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106", "S107", "N802"]  # 가짜 값, test_F_P01_ 같은 이름
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"pickle".msg = "믿을 수 없는 데이터를 pickle로 읽지 않는다 (보안규칙 5장)"
+"requests".msg = "외부 요청 금지 (NFR-01)"
+"urllib.request".msg = "외부 요청 금지 (NFR-01)"
+"http.client".msg = "외부 요청 금지 (NFR-01)"
+"socket".msg = "외부 요청 금지 (NFR-01)"
+
+[tool.mypy]
+strict = true
+python_version = "3.13"
+exclude = ["migrations/versions/"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+# pytest-socket: 127.0.0.1 밖으로 접속 차단 (NFR-01). Windows asyncio가 루프백 소켓 쌍을 쓴다
+addopts = "-p no:cacheprovider --allow-hosts=127.0.0.1,::1"
+# starlette 1.x가 httpx TestClient를 사용 중단 예고로 알린다. 테스트 도구 교체는 따로 정한다
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient`"]
