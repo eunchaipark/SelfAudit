@@ -1,7 +1,8 @@
-"""F-S01 비밀값 노출 (FR-03). 순수 함수: 파일 텍스트와 로컬 키를 받아 발견을 돌려준다.
+"""F-S01 비밀값 노출 (FR-03). 순수 함수: 파일 텍스트와 로컬 키를 받아 발견·걸림 범위를 돌려준다.
 
 정규식은 대상(최대 50MB 한 줄)에 돌리므로 되돌아가기 폭주를 피한다 (코드규칙 3장).
-S01-GENERIC은 키워드를 먼저 찾고 양옆으로 넓히며, 값은 먹보 한정자(possessive)로 읽는다.
+S01-GENERIC은 키워드를 먼저 찾고 그 뒤 식별자 덩어리 끝으로 건너뛰어 꼬리·값을 본다(앞쪽은 보지
+않는다: 값 자리는 덩어리 끝에서 정해진다). 값은 먹보 한정자(possessive)로 읽는다.
 """
 
 from __future__ import annotations
@@ -71,13 +72,8 @@ _JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{5,}+\.eyJ[A-Za-z0-9_-]{5,}+\.[A-Za-z0-9_-
 _JWT_HEAD = re.compile(r"\beyJ")
 _TOKEN_RUN = re.compile(r"[A-Za-z0-9_-]*+")
 
-# S01-GENERIC: 키워드 → 그 뒤 식별자·구분자 → 값. 앞쪽 `[A-Za-z0-9_]*`는 쓰지 않는다.
-_GENERIC_KEYWORD = re.compile(
-    r"password|passwd|pwd|secret|api_?key|access_?token|auth_?token|client_?secret",
-    re.IGNORECASE,
-)
-# 명세 정규식 전체에 (?i)가 걸려 있어 `[A-Za-z]`도 K(켈빈)·ſ·İ·ı를 받는다. 같게 맞춘다.
-_IDENT_RUN = re.compile(r"[A-Za-z0-9_]*+", re.IGNORECASE)
+# S01-GENERIC: 키워드(text.GENERIC_KEYWORD) → 그 뒤 식별자·구분자 → 값.
+# 앞쪽 `[A-Za-z0-9_]*`는 쓰지 않는다.
 _GENERIC_TAIL = re.compile(r"[\"']?\s*+[:=]\s*+[\"']")
 _GENERIC_VALUE = re.compile(r"[^\"'\s]*+")
 GENERIC_MIN = 8
@@ -150,8 +146,8 @@ def _generic_candidates(content: str) -> Iterator[_Candidate]:
     # 그래서 덩어리마다 한 번만 보고, 실패하면 덩어리 끝부터 다시 찾는다(버린 값 안도 본다).
     # 걸리면 명세 finditer처럼 닫는 따옴표 뒤부터 찾는다. 자리표시값은 걸린 뒤에 버린다(F-S01 3).
     pos = 0
-    while (kw := _GENERIC_KEYWORD.search(content, pos)) is not None:
-        run = _IDENT_RUN.match(content, kw.end())
+    while (kw := text.GENERIC_KEYWORD.search(content, pos)) is not None:
+        run = text.IDENT_RUN.match(content, kw.end())
         run_end = run.end() if run else kw.end()
         tail = _GENERIC_TAIL.match(content, run_end)
         value = _GENERIC_VALUE.match(content, tail.end()) if tail else None
@@ -185,13 +181,16 @@ def _overlaps(taken: list[tuple[int, int]], start: int, end: int) -> bool:
     return (i > 0 and taken[i - 1][1] > start) or (i < len(taken) and taken[i][0] < end)
 
 
-def _accepted(content: str) -> list[_Candidate]:
+def _accepted(content: str, budget: int) -> tuple[list[_Candidate], bool]:
     """규칙 표 순서로 걸림을 받고, 값 범위가 먼저 받은 것과 겹치면 버린다 (F-S01 2).
 
     후보를 모아 두지 않고 규칙마다 흘려 보며 판정한다(메모리는 받은 것만큼).
+    budget개를 받은 뒤 받아들일 걸림이 하나 더 나오면 그것은 받지 않고 멈춘다 (F-S01 11).
+    한 번 받은 걸림은 뒤에 버려지지 않으므로 받는 차례가 곧 세는 차례다.
     """
     taken: list[tuple[int, int]] = []  # 앞 규칙들이 받은 범위 (시작 순서, 겹치지 않음)
     kept: list[_Candidate] = []
+    stopped = False
     for rule in RULES:
         mine: list[_Candidate] = []  # 이 규칙이 받은 것. 시작 순서라 마지막 것과만 겹칠 수 있다
         for c in _rule_candidates(content, rule.rule_id):
@@ -199,11 +198,16 @@ def _accepted(content: str) -> list[_Candidate]:
                 continue
             if _overlaps(taken, c.start, c.end):
                 continue
+            if len(kept) + len(mine) >= budget:
+                stopped = True
+                break
             mine.append(c)
         kept.extend(mine)
+        if stopped:
+            break
         taken = sorted(taken + [(c.start, c.end) for c in mine])
     kept.sort(key=lambda c: c.start)
-    return kept
+    return kept, stopped
 
 
 @dataclass(slots=True)
@@ -216,19 +220,51 @@ class _Group:
     count: int
 
 
-def scan_file(path: str, content: str, key: bytes) -> list[Finding]:
+@dataclass(frozen=True, slots=True)
+class SecretsScan:
+    """F-S01 파일 하나의 결과. 점검 흐름(run_rules, T8)과 S03 근거 조각(T6)이 받는다.
+
+    spans: 글마다 받아들인 S01 걸림(시작 순서, 겹치지 않음). 날글은 1개, `.map`은
+      `text.parse_sourcemap` 항목 차례로 항목마다 1개(멈춘 뒤의 항목은 빈 것),
+      JSON 객체가 아니면 0개.
+      위치는 `text.strip_bom`을 한 글 기준이다. S03은 같은 글의 근거 조각 ②에 이것을 넣는다.
+    stopped: 걸림 상한(F-S01 11)으로 멈췄다 → 건너뜀 `SkipReason.TOO_MANY_HITS`.
+    """
+
+    findings: tuple[Finding, ...]
+    spans: tuple[tuple[text.MaskedSpan, ...], ...]
+    stopped: bool
+
+
+def _texts(path: str, content: str) -> list[tuple[str, str, bool]]:
+    """(근거 조각 접두, BOM을 뗀 글, 위치를 셀지). `.map`은 `sourcesContent` 항목마다 (F-S01 9)."""
+    if not path.lower().endswith(MAP_SUFFIX):
+        return [("", text.strip_bom(content), True)]
+    items = text.parse_sourcemap(content) or []
+    return [(text.map_prefix(name), text.strip_bom(item), False) for name, item in items]
+
+
+def scan_file(path: str, content: str, key: bytes) -> SecretsScan:
     """F-S01 비밀값 노출 (FR-03). `.map`은 JSON을 풀어 `sourcesContent` 항목마다 본다 (F-S01 9).
 
     `.map`이 JSON이 아니면 발견 없음(건너뜀 목록은 F-S02가 맡는다).
+    걸림 상한(F-S01 11)은 파일 하나(`.map`은 항목을 합쳐)에서 센다. 멈추면 남은 항목도 보지 않는다.
     """
     groups: dict[tuple[str, str], _Group] = {}
-    if path.lower().endswith(MAP_SUFFIX):
-        for name, item in text.parse_sourcemap(content) or []:
-            _collect(groups, text.strip_bom(item), key, f"[{name}] ", locate=False)
-    else:
-        _collect(groups, text.strip_bom(content), key, "", locate=True)
+    all_spans: list[tuple[text.MaskedSpan, ...]] = []
+    budget = text.HIT_LIMIT
+    stopped = False
+    for prefix, item, locate in _texts(path, content):
+        if stopped:
+            all_spans.append(())
+            continue
+        kept, stopped = _accepted(item, budget)
+        budget -= len(kept)
+        spans = tuple(text.MaskedSpan(c.start, c.end, c.masked) for c in kept)
+        all_spans.append(spans)
+        _collect(groups, item, kept, spans, key, prefix, locate=locate)
     ordered = sorted(groups.values(), key=lambda g: _RULE_ORDER[g.rule_id])
-    return [
+    findings = tuple(
         Finding(
             rule_id=g.rule_id,
             severity=_RULE_BY_ID[g.rule_id].severity,
@@ -241,16 +277,22 @@ def scan_file(path: str, content: str, key: bytes) -> list[Finding]:
             fix=_RULE_BY_ID[g.rule_id].fix,
         )
         for g in ordered
-    ]
+    )
+    return SecretsScan(findings=findings, spans=tuple(all_spans), stopped=stopped)
 
 
 def _collect(
-    groups: dict[tuple[str, str], _Group], content: str, key: bytes, prefix: str, *, locate: bool
+    groups: dict[tuple[str, str], _Group],
+    content: str,
+    kept: list[_Candidate],
+    spans: tuple[text.MaskedSpan, ...],
+    key: bytes,
+    prefix: str,
+    *,
+    locate: bool,
 ) -> None:
-    kept = _accepted(content)
     if not kept:
         return
-    spans = [text.MaskedSpan(c.start, c.end, c.masked) for c in kept]
     index = text.LineIndex(content) if locate else None
     for i, c in enumerate(kept):
         raw = content[c.start : c.end]
