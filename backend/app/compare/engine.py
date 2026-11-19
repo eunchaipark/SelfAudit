@@ -1,10 +1,13 @@
-"""F-C01 발견 지문 (FR-10). 순수 계산: DB·네트워크·시각을 쓰지 않는다."""
+"""F-C01 발견 지문과 F-C02 두 점검 비교 (FR-10). 순수 계산: DB·네트워크·시각을 쓰지 않는다."""
 
 from __future__ import annotations
 
 import re
+from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime
 
-from app.contracts.engine import Finding
+from app.contracts.engine import Finding, Location, Severity
 
 # 명세 F-C01 처리 규칙 1의 정규식 그대로. ①이 안 맞을 때만 ②.
 WEBPACK_HASH = re.compile(r"^(.*)\.[0-9a-f]{8,32}(\.[A-Za-z0-9.]+)$")
@@ -53,3 +56,111 @@ def normalize_path(path: str) -> str:
 def fingerprint(finding: Finding) -> str:
     """F-C01 발견 지문 (FR-10): `<규칙ID>|<정규화 경로>|<증거키>`. 위치·횟수는 넣지 않는다."""
     return _FIELD_SEP.join((finding.rule_id, normalize_path(finding.path), finding.evidence_key))
+
+
+# ---- F-C02 두 점검 비교 ----
+
+# F-S06 3 정렬: 심각도는 높음 → 정보
+_SEVERITY_RANK = {Severity.HIGH: 0, Severity.MEDIUM: 1, Severity.LOW: 2, Severity.INFO: 3}
+
+
+@dataclass(frozen=True, slots=True)
+class ScanSide:
+    """비교할 점검 하나. findings는 그 점검의 발견 전부(정렬 순서)."""
+
+    scan_id: int
+    started_at: datetime
+    score: int
+    rules_version: str | None
+    findings: tuple[Finding, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ComparedFinding:
+    """묶음에 든 발견 하나. path는 정규화 경로, 남음이면 후의 발견 (F-C02 3)."""
+
+    rule_id: str
+    severity: Severity
+    path: str
+    location: Location | None
+    value: str
+    severity_changed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class Comparison:
+    """F-C02 출력. 묶음마다 F-S06 정렬."""
+
+    before: ScanSide
+    after: ScanSide
+    score_change: int
+    fixed: tuple[ComparedFinding, ...]
+    remaining: tuple[ComparedFinding, ...]
+    new: tuple[ComparedFinding, ...]
+    rules_version_differs: bool
+
+
+def order_sides(x: ScanSide, y: ScanSide) -> tuple[ScanSide, ScanSide]:
+    """F-C02 1: 시작 시각이 앞선 쪽이 전, 같으면 점검 ID가 작은 쪽이 전."""
+    if (x.started_at, x.scan_id) <= (y.started_at, y.scan_id):
+        return x, y
+    return y, x
+
+
+def _compared(finding: Finding, *, severity_changed: bool = False) -> ComparedFinding:
+    return ComparedFinding(
+        rule_id=finding.rule_id,
+        severity=finding.severity,
+        path=normalize_path(finding.path),
+        location=finding.location,
+        value=finding.value,
+        severity_changed=severity_changed,
+    )
+
+
+def _sort_key(item: ComparedFinding) -> tuple[int, str, str, int, int, int]:
+    # F-S06 3: 심각도 → 규칙ID → 경로 → 위치(줄, 열, `-`는 맨 뒤). 경로는 화면에 보이는 정규화 경로
+    loc = item.location
+    no_location = 1 if loc is None else 0
+    line = 0 if loc is None else loc.line
+    column = 0 if loc is None else loc.column
+    return (_SEVERITY_RANK[item.severity], item.rule_id, item.path, no_location, line, column)
+
+
+def _sorted(items: list[ComparedFinding]) -> tuple[ComparedFinding, ...]:
+    return tuple(sorted(items, key=_sort_key))
+
+
+def _group_by_fingerprint(findings: tuple[Finding, ...]) -> dict[str, list[Finding]]:
+    groups: dict[str, list[Finding]] = defaultdict(list)
+    for finding in findings:
+        groups[fingerprint(finding)].append(finding)
+    return groups
+
+
+def compare_scans(x: ScanSide, y: ScanSide) -> Comparison:
+    """F-C02 두 점검 비교 (FR-10). 고른 순서와 상관없이 같은 결과를 낸다."""
+    before, after = order_sides(x, y)
+    before_groups = _group_by_fingerprint(before.findings)
+    after_groups = _group_by_fingerprint(after.findings)
+    fixed: list[ComparedFinding] = []
+    remaining: list[ComparedFinding] = []
+    new: list[ComparedFinding] = []
+    for key, olds in before_groups.items():
+        news = after_groups.get(key, [])
+        kept = min(len(olds), len(news))
+        for old, cur in zip(olds[:kept], news[:kept], strict=True):
+            remaining.append(_compared(cur, severity_changed=old.severity != cur.severity))
+        fixed.extend(_compared(old) for old in olds[kept:])
+    for key, news in after_groups.items():
+        kept = min(len(before_groups.get(key, [])), len(news))
+        new.extend(_compared(cur) for cur in news[kept:])
+    return Comparison(
+        before=before,
+        after=after,
+        score_change=after.score - before.score,
+        fixed=_sorted(fixed),
+        remaining=_sorted(remaining),
+        new=_sorted(new),
+        rules_version_differs=before.rules_version != after.rules_version,
+    )
