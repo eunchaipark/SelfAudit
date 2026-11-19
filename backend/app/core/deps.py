@@ -1,11 +1,11 @@
-"""API 계층이 받는 공통 의존성: DB 세션, 시각, 설정, 로컬 키."""
+"""API 계층이 받는 공통 의존성: DB 세션, 시각, 설정, 로컬 키, ID 인자."""
 
 from __future__ import annotations
 
 from collections.abc import Iterator
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends, Path, Query, Request
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.clock import Clock
@@ -37,3 +37,8 @@ SessionDep = Annotated[Session, Depends(get_session)]
 ClockDep = Annotated[Clock, Depends(get_clock)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 LocalKeyDep = Annotated[bytes, Depends(get_local_key)]
+
+# 자원 ID 인자. SQLite INTEGER 범위 밖 값이 DB까지 가면 OverflowError(500)가 나므로 경계에서 400으로 막는다
+ID_MAX = 2**63 - 1
+IdPath = Annotated[int, Path(ge=1, le=ID_MAX)]
+IdQuery = Annotated[int, Query(ge=1, le=ID_MAX)]
