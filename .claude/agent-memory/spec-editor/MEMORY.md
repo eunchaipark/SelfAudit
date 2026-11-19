@@ -1,0 +1,1 @@
+- [공유 main에서 커밋](feedback_commit_in_shared_main.md) — 새 파일은 add 후 경로 커밋, 병합 중엔 커밋 금지, newline='', 표 안 `\|`
