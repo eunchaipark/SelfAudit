@@ -271,7 +271,7 @@
         "testStrategy": "test_F-S01_AWS_위치3_15_가린값_증거키 / test_F-S01_apiKey_AKIA는_AWS하나만 / test_F-S01_자리표시값_발견없음 / test_F-S01_5자_비밀번호_발견없음 / test_F-S01_같은키3번_횟수3 / test_F-S01_개인키2블록 / test_F-S01_map_sourcesContent_경로 / test_F-S01_원문이_결과에_없다 / test_F-S01_긴식별자_정규식_폭주없음. 화면 없음.",
         "priority": "high",
         "dependencies": [],
-        "status": "review",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -327,7 +327,7 @@
             "parentId": "undefined"
           }
         ],
-        "updatedAt": "2026-11-19T12:11:56.526Z"
+        "updatedAt": "2026-11-19T12:19:48.718Z"
       },
       {
         "id": "6",
@@ -1178,9 +1178,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-11-19T12:11:56.532Z",
+      "lastModified": "2026-11-19T12:19:48.742Z",
       "taskCount": 17,
-      "completedCount": 1,
+      "completedCount": 2,
       "tags": [
         "master"
       ]
