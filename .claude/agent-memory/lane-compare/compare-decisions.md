@@ -10,6 +10,7 @@ F-C02는 `backend/app/compare/engine.py`의 `compare_scans(ScanSide, ScanSide)`�
 - 같은 지문이 여럿이면 저장된 `order` 순서대로 짝짓는다. 남음 항목은 후의 발견을 보이고 `severity_changed`를 붙인다.
 - 묶음 정렬은 F-S06 키를 따르되 경로는 정규화 경로로 비교한다.
 - 예외 차례: 같은 ID → 없는 점검 404 → 다른 앱 → 완료 아님 (명세 예외 칸 차례).
+- 기능의 거부(명세 '예외' 문구)는 모두 400 `VALIDATION_FAILED`로 낸다. 기능마다 코드를 새로 짓지 않고, 테스트는 `code`까지 본다. T10이 `SAME_SCAN` 같은 코드를 지어 썼다가 반려됐다.
 
 **Why:** 명세가 짝짓는 방법과 정렬에 쓸 경로를 정하지 않았다. 목적(전후를 안정적으로 비교)에 맞춰 골랐고, 보고서 `ops/보고/T10.md`에 적었다.
 **How to apply:** 비교를 고칠 때는 `test_F_C02_*`(엔진 성능 테스트 포함)를 지킨다. 계약 `ComparisonOut`에 앱 이름이 없다. 그래서 화면 `features/compare/api.ts`의 `useScan`이 `GET /scans/{beforeId}`를 불러 제목을 채운다. 설계에 `appName`을 요청해 두었으니, 계약이 바뀌면 `useScan`을 지운다.
