@@ -1,7 +1,7 @@
 # Taskmaster 명령
 
-작업 규칙은 저장소 맨 위 `CLAUDE.md`와 `ops/역할/관제.md`가 기준이다. 여기는 명령만 정리한다.
-**태스크를 만들고 상태를 바꾸는 것은 관제만 한다.** 다른 역할은 읽기 명령만 쓴다.
+작업 규칙은 저장소 맨 위 `CLAUDE.md`와 `ops/역할/총괄.md` '태스크'가 기준이다. 여기는 명령만 정리한다.
+**태스크를 만들고 상태를 바꾸는 것은 총괄만 한다.** 다른 역할은 읽기 명령만 쓴다.
 
 ## 읽기 (누구나)
 
@@ -12,7 +12,7 @@ task-master show 5                     # 태스크 상세 (하위 작업은 5.2�
 python ops/scripts/tm_parallel.py      # 지금 시작할 수 있는 것, 배치안, 보류 이유
 ```
 
-## 쓰기 (관제만, main 폴더에서)
+## 쓰기 (총괄만, main 폴더에서)
 
 ```bash
 task-master set-status --id=5 --status=in-progress
@@ -26,7 +26,7 @@ task-master add-task --title="돈: 이번 달 살 것 (F-A16)" --description="�
 task-master add-subtask --parent=5 --title="..." --description="..." --details="..."
 task-master add-dependency --id=25 --depends-on=24
 task-master validate-dependencies
-git commit -m "[관제] T5 in-progress" -- .taskmaster/tasks/tasks.json
+git commit -m "[총괄] T5 in-progress" -- .taskmaster/tasks/tasks.json
 ```
 
 - AI를 부르는 명령(`parse-prd`, `expand`, `update`, `update-task`, `update-subtask`, `research`, `analyze-complexity`, `add-task --prompt`)은 쓰지 않는다.

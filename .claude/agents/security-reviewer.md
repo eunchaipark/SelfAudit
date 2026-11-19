@@ -1,8 +1,8 @@
 ---
 name: security-reviewer
-description: 검증 세션(또는 레인)이 부른다. 주어진 git 범위의 변경을 보안 코딩 규칙으로 검토하고 발견만 보고한다. 코드를 고치지 않는다.
+description: 총괄이 태스크마다 부른다. 주어진 git 범위의 변경을 보안 코딩 규칙으로 검토하고 발견만 보고한다. 코드를 고치지 않는다.
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: opus
 effort: high
 ---
 
