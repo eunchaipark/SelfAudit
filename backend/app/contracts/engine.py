@@ -44,13 +44,14 @@ class ScanStatus(StrEnum):
 
 
 class SkipReason(StrEnum):
-    """건너뛴 이유. 값이 화면 문구다 (F-I01, F-S02)."""
+    """건너뛴 이유. 값이 화면 문구다 (F-I01, F-S02, F-S01 11·F-S03 9)."""
 
     SYMLINK = "심볼릭 링크"
     NAME_CLASH = "이름 겹침"
     TOO_LARGE = "크기 초과"
     NOT_TARGET = "점검 안 하는 종류"
     NOT_SOURCEMAP = "소스맵 형식 아님"
+    TOO_MANY_HITS = "걸림이 너무 많아 일부만 점검"  # CR-003
 
 
 class ReaStatus(StrEnum):
@@ -116,8 +117,8 @@ class RuleRun:
     """F-S01~S04를 한 번에 돌린 결과."""
 
     findings: tuple[Finding, ...]
-    notices: tuple[str, ...]  # 점검 안내 (F-S04 목록 없음 등)
-    skipped: tuple[Skipped, ...]  # F-S02 소스맵 형식 아님
+    notices: tuple[str, ...]  # 점검 안내 (F-S02 건너뛴 소스맵, F-S04 목록, 발견 상한)
+    skipped: tuple[Skipped, ...]  # 소스맵 형식 아님, 걸림이 너무 많아 일부만 점검
     rules_version: str  # r1+vulndb.<8자> | r1+vulndb.none
 
 
@@ -158,15 +159,24 @@ class RunRules(Protocol):
       - 한 번에 한 파일의 글만 들고 있는다. 모든 파일의 글을 모아 두지 않는다(합 200MB).
       - 파일마다 F-S01 → F-S02 → F-S03 → F-S04를 확장자에 맞는 것만 돌린다.
         `.map`이 JSON이 아니면 skipped에 `NOT_SOURCEMAP`을 넣고 F-S01·S03도 보지 않는다.
-      - F-S02의 '번들에 있음'은 `intake`의 목록으로 판단한다(디스크를 다시 보지 않는다).
+      - F-S02의 '번들에 있음'은 `intake.targets`와 `intake.skipped`의 경로다
+        (디스크를 다시 보지 않는다, CR-004).
+      - 걸림 상한(F-S01 11·F-S03 9): 파일 하나에서 S01·S03 걸림을 따로 세어 10,000개가 되면
+        그 규칙 묶음만 멈춘다. 발견 상한(1절): 파일을 하나 마칠 때마다 발견 수를 세어
+        50,000개를 넘었으면 남은 파일은 F-S01~S04를 보지 않는다 (CR-003).
       - 취약 목록은 점검마다 한 번 읽는다(캐시 없음). 쓰는 파일은 없다.
 
     출력 (같은 입력이면 같은 결과, NFR-04):
       findings       targets 차례, 한 파일 안에서는 규칙 차례. 정렬은 `score`가 한다.
-      notices        F-S04 안내 문구, 생긴 차례.
-      skipped        F-S02 `소스맵 형식 아님`, targets 차례. F-I01의 건너뜀은 넣지 않는다.
-      rules_version  목록 파일의 바이트를 읽었으면 `r1+vulndb.<SHA-256 소문자 16진 앞 8자>`
-                     (형식 오류여도 바이트로 만든다), 파일이 없거나 읽지 못하면 `r1+vulndb.none`.
+      notices        이 차례로: F-S02 6 건너뛴 소스맵 안내(`intake.skipped`로 정하므로 발견 상한과
+                     상관없이) → F-S04 안내(목록 없음·형식 오류·버린 항목 n개) → 발견 상한 안내
+                     (1절 '발견 상한', 한 줄). 문구는 명세 그대로.
+      skipped        targets 차례, 파일 하나에 한 줄. `소스맵 형식 아님`(F-S02 예외) 또는
+                     `걸림이 너무 많아 일부만 점검`(S01·S03 중 하나라도 멈추면, 둘 다여도 한 줄).
+                     F-I01의 건너뜀은 넣지 않는다. 발견 상한으로 보지 않은 파일도 넣지 않는다.
+      rules_version  S04를 돌렸으면(일부 항목 버림 포함) `r1+vulndb.<파일 바이트 SHA-256 소문자
+                     16진 앞 8자>`, 목록 없음·읽기 실패·형식 오류·쓸 항목 0개면 `r1+vulndb.none`
+                     (CR-004).
 
     오류:
       - 대상 파일을 읽다 난 `OSError`는 삼키지 않고 올린다. 점검 흐름이 `실패`
