@@ -199,9 +199,9 @@
       {
         "id": "4",
         "title": "입력: zip 받기와 항목 검사 (F-I01 B 2·3·5)",
-        "description": "receive_zip: 경로 탈출·Windows 이름·압축 폭탄 거부, 이름 겹침·링크 건너뜀, 맨 위 폴더 벗기기",
-        "details": "영역: 입력\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02)\n읽을 문서: 기능명세 F-I01 처리 규칙 B 2·3·5, 예외, 예시(zip 줄 전체), 보안규칙 zip 절\n고칠 파일: backend/app/intake/**, backend/tests/intake/**, backend/tests/fixtures/**\n계약: intake.receive_zip(path) → IntakeResult / IntakeFailed(reason)\n\n업로드 zip은 <데이터 폴더>/uploads/에 있다고 보고 경로를 받는다.",
-        "testStrategy": "test_F-I01_zip_경로탈출_점두개_거부 / test_F-I01_zip_역슬래시_탈출_거부 / test_F-I01_zip_드라이브경로_거부 / test_F-I01_zip_CON.js_a.js:x_nul_거부 / test_F-I01_zip_압축폭탄_200배_실패_180배_통과 / test_F-I01_zip_A.js_a.js_이름겹침 / test_F-I01_zip_맨위폴더_벗김 / test_F-I01_zip_거부시_아무것도_풀리지_않음. 화면 없음.",
+        "description": "receive_zip: 경로 탈출·Windows 이름(제어 문자·<>\"|?* 포함)·압축 폭탄 거부, 이름 겹침·링크 건너뜀, 맨 위 폴더 벗기기",
+        "details": "영역: 입력\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02)\n읽을 문서: 기능명세 F-I01 처리 규칙 B 2·3·5, 예외(실패 문구의 <항목> 표시: \\x0A 꼴, 200자에서 자름), 예시(zip 줄 전체), 보안규칙 5장 'zip 항목'\n고칠 파일: backend/app/intake/**, backend/tests/intake/**, backend/tests/fixtures/**\n계약: intake.receive_zip(path) → IntakeResult / IntakeFailed(reason)\n변경: CR-003\n\n업로드 zip은 <데이터 폴더>/uploads/에 있다고 보고 경로를 받는다.\nZipFile.extract()를 쓰지 않는다. Windows에서 금지 글자를 몰래 _로 바꾸므로 2ⓑ 검사를 통과한 이름으로 직접 쓴다 (CR-003 기술 검토, 보안규칙 5장).",
+        "testStrategy": "test_F-I01_zip_경로탈출_점두개_거부 / test_F-I01_zip_역슬래시_탈출_거부 / test_F-I01_zip_드라이브경로_거부 / test_F-I01_zip_CON.js_a.js:x_nul_거부 / test_F-I01_zip_압축폭탄_200배_실패_180배_통과 / test_F-I01_zip_A.js_a.js_이름겹침 / test_F-I01_zip_맨위폴더_벗김 / test_F-I01_zip_거부시_아무것도_풀리지_않음 / test_F-I01_zip_물음표_꺾쇠_따옴표_세로선_별표_거부 (예시 128) / test_F-I01_zip_줄바꿈이름_거부_문구는_x0A (129) / test_F-I01_zip_U007F는_대상 (130) / test_F-I01_zip_실패문구_항목_200자에서_자름 (131). 화면 없음.",
         "priority": "high",
         "dependencies": [
           "3"
@@ -332,12 +332,13 @@
       {
         "id": "6",
         "title": "규칙: 소스맵 노출과 내부 주소 (F-S02, F-S03)",
-        "description": "S02(맵 내용·경로·인라인·끊긴 참조)와 S03(URL 분류·관리 경로)",
-        "details": "영역: 규칙\n목적: 소스맵으로 원본 코드가 드러나는지 찾는다 (FR-04) / 내부 주소·개발 서버·관리자 경로가 남았는지 찾는다 (FR-05)\n읽을 문서: 기능명세 F-S02, F-S03\n고칠 파일: backend/app/rules/**, backend/tests/rules/**\n계약: Finding, SkipReason.NOT_SOURCEMAP\n\nCR-001 영향(겹침 범위).",
-        "testStrategy": "test_F-S02_맵_sourcesContent12_높음 / test_F-S02_null_빈문자열이면_PATHS_낮음 / test_F-S02_맵_밖으로_나가면_DANGLING / test_F-S02_data_URL_INLINE / test_F-S02_JSON아님_건너뜀 / test_F-S03_172_32는_URL정보 / test_F-S03_사용자정보_가림 / test_F-S03_admin경로_administrator는_없음. 화면 없음.",
+        "description": "S02(맵 내용·경로·인라인·끊긴 참조·건너뛴 소스맵 안내)와 S03(URL 분류·관리 경로·걸림 상한)",
+        "details": "영역: 규칙\n목적: 소스맵으로 원본 코드가 드러나는지 찾는다 (FR-04) / 내부 주소·개발 서버·관리자 경로가 남았는지 찾는다 (FR-05)\n읽을 문서: 기능명세 F-S02, F-S03, 1절 '근거 조각'(②㉠㉡)\n고칠 파일: backend/app/rules/**, backend/tests/rules/**\n계약: Finding, SkipReason.NOT_SOURCEMAP·TOO_MANY_HITS, IntakeResult.targets·skipped('번들에 있음', CR-004), T18의 파일 하나 S01 결과(걸림 범위·멈춤, rules/ 안)\n변경: CR-002, CR-003, CR-004\n\nCR-001 영향(겹침 범위). S02 예외는 'JSON 객체가 아님'(CR-002). S03 근거 조각은 T18의 build_snippet(㉠㉡)을 그대로 쓰고, S01이 멈춘 파일에서도 받은 S01 걸림 범위를 넣는다(CR-003). '번들에 있음' = targets + skipped(CR-004).",
+        "testStrategy": "test_F-S02_맵_sourcesContent12_높음 / test_F-S02_null_빈문자열이면_PATHS_낮음 / test_F-S02_맵_밖으로_나가면_DANGLING / test_F-S02_data_URL_INLINE / test_F-S02_JSON객체아님_배열도_건너뜀 / test_F-S03_172_32는_URL정보 / test_F-S03_사용자정보_가림 / test_F-S03_admin경로_administrator는_없음 / test_F-S02_건너뛴map_크기초과면_DANGLING없고_안내1개 (250) / test_F-S02_건너뛴map2개_안내n2 (251) / test_F-S02_소스맵형식아님은_안내에_세지않음 (252) / test_F-S03_서로다른사설IP_10001개_발견10000_멈춤 (288) / test_F-S03_근거조각_키워드꼴_URL사용자정보_가림 / test_F-S03_S01이_멈춘파일도_짧은값_원문없음. 화면 없음.",
         "priority": "high",
         "dependencies": [
-          "5"
+          "5",
+          "18"
         ],
         "status": "pending",
         "subtasks": [
@@ -385,6 +386,15 @@
           },
           {
             "id": 5,
+            "title": "S03 걸림 상한·S01 결과 받기",
+            "description": "S03 걸림 상한·S01 결과 받기",
+            "details": "",
+            "status": "pending",
+            "dependencies": [],
+            "parentId": "undefined"
+          },
+          {
+            "id": 6,
             "title": "검사 (check.py)",
             "description": "검사 (check.py)",
             "details": "",
@@ -399,9 +409,9 @@
       {
         "id": "7",
         "title": "규칙: 취약 라이브러리 (F-S04)",
-        "description": "RetireJS 목록 읽기(없음·형식 오류), 버전 비교, S04-VULNLIB, 규칙 버전",
-        "details": "영역: 규칙\n목적: 번들 안 라이브러리 버전을 알려진 취약 목록과 대조한다 (FR-06)\n읽을 문서: 기능명세 F-S04, 용어 '규칙 버전'\n고칠 파일: backend/app/rules/**, backend/tests/rules/**, backend/tests/fixtures/**\n계약: RuleRun.rules_version, 안내 문구\n\n목록 경로는 인자로 받는다. 네트워크 없음.",
-        "testStrategy": "test_F-S04_jquery_3_4_1_중간_3_5_0이상 / test_F-S04_3_5_0_경계_발견없음 / test_F-S04_3_5_0_rc1_발견 / test_F-S04_버전비교_1_9_0b1_작다 / test_F-S04_3_5와_3_5_0_같다 / test_F-S04_목록없음_안내_r1_vulndb_none / test_F-S04_못읽는정규식_1개_건너뜀. 화면 없음.",
+        "description": "RetireJS 목록 읽기(없음·형식 오류·항목 버림), 버전 비교, S04-VULNLIB, 규칙 버전",
+        "details": "영역: 규칙\n목적: 번들 안 라이브러리 버전을 알려진 취약 목록과 대조한다 (FR-06)\n읽을 문서: 기능명세 F-S04, 용어 '규칙 버전'\n고칠 파일: backend/app/rules/**, backend/tests/rules/**, backend/tests/fixtures/**\n계약: RuleRun.rules_version, 안내 문구\n변경: CR-004\n\n목록 경로는 인자로 받는다. 네트워크 없음.\n맨 위가 JSON 객체가 아니면 형식 오류다. 항목 모양이 틀리면(below 없음 등) 그 항목만 버린다. 형식 오류이거나 쓸 항목이 0개면 r1+vulndb.none (D-028).",
+        "testStrategy": "test_F-S04_jquery_3_4_1_중간_3_5_0이상 / test_F-S04_3_5_0_경계_발견없음 / test_F-S04_3_5_0_rc1_발견 / test_F-S04_버전비교_1_9_0b1_작다 / test_F-S04_3_5와_3_5_0_같다 / test_F-S04_목록없음_안내_r1_vulndb_none / test_F-S04_못읽는정규식_1개_건너뜀 / test_F-S04_정규식1개버림_규칙버전_파일해시 (316) / test_F-S04_JSON아님_맨위배열_형식오류_none (317) / test_F-S04_유일항목_below없음_버림1_none (318). 화면 없음.",
         "priority": "medium",
         "dependencies": [
           "5"
@@ -466,14 +476,15 @@
       {
         "id": "8",
         "title": "규칙: 심각도·점수와 규칙 실행 연결 (F-S06)",
-        "description": "score(점수·개수·정렬)와 run_rules(S01~S04 묶기, 규칙 버전)",
-        "details": "영역: 규칙\n목적: 발견마다 심각도를 매기고 점검 점수를 낸다 (FR-08)\n읽을 문서: 기능명세 F-S06, 용어 '규칙 버전'\n고칠 파일: backend/app/rules/**, backend/tests/rules/**\n계약: rules.run_rules → RuleRun, rules.score → ScoreResult",
-        "testStrategy": "test_F-S06_높음2중간1낮음3정보5_46점 / test_F-S06_발견0_100 / test_F-S06_높음6_0점 / test_F-S06_횟수3이어도_80 / test_F-S06_정렬 / test_NFR-04_같은입력_두번_같은결과. 화면 없음.",
+        "description": "score(점수·개수·정렬)와 run_rules(S01~S04 묶기, 규칙 버전, 발견 상한, 안내 차례, 건너뜀 한 줄)",
+        "details": "영역: 규칙\n목적: 발견마다 심각도를 매기고 점검 점수를 낸다 (FR-08)\n읽을 문서: 기능명세 F-S06, 용어 '규칙 버전'·'발견 상한', F-S01 11·F-S03 9(건너뜀 한 줄), F-S02 6(안내 차례), F-S01 예시 217줄\n고칠 파일: backend/app/rules/**, backend/tests/rules/**\n계약: rules.run_rules → RuleRun(RunRules 설명: notices 차례·skipped 한 줄·rules_version, CR-003·004), rules.score → ScoreResult, SkipReason.TOO_MANY_HITS\n변경: CR-003, CR-004",
+        "testStrategy": "test_F-S06_높음2중간1낮음3정보5_46점 / test_F-S06_발견0_100 / test_F-S06_높음6_0점 / test_F-S06_횟수3이어도_80 / test_F-S06_정렬 / test_NFR-04_같은입력_두번_같은결과 / test_F-S01_발견상한_6번째_마치면_7번째_안봄_안내 (217) / test_F-S01_발견상한으로_안본파일은_건너뜀목록에_없음 / test_F-S03_S01S03_모두_멈춰도_건너뜀_한줄 (289) / test_F-S02_건너뛴소스맵_안내가_F-S04_안내보다_앞. 화면 없음.",
         "priority": "high",
         "dependencies": [
           "5",
           "6",
-          "7"
+          "7",
+          "18"
         ],
         "status": "pending",
         "subtasks": [
@@ -521,6 +532,15 @@
           },
           {
             "id": 5,
+            "title": "발견 상한·안내 차례",
+            "description": "발견 상한·안내 차례",
+            "details": "",
+            "status": "pending",
+            "dependencies": [],
+            "parentId": "undefined"
+          },
+          {
+            "id": 6,
             "title": "검사 (check.py)",
             "description": "검사 (check.py)",
             "details": "",
@@ -591,13 +611,13 @@
         "id": "10",
         "title": "비교: 두 점검 비교와 전후 비교 화면 (F-C02, SCR-05)",
         "description": "compare_scans, GET /compare, 전후 비교 화면",
-        "details": "영역: 비교·내보내기\n목적: 같은 앱의 두 점검을 비교해 고쳐짐·남음·새로 생김과 점수 변화를 보여 준다 (FR-10)\n읽을 문서: 기능명세 F-C02, 화면정의 SCR-05\n고칠 파일: backend/app/compare/**, backend/tests/compare/**, frontend/src/features/compare/**\n계약: GET /compare?a&b → ComparisonOut\n\n점검·발견 행은 테스트에서 모델로 직접 넣는다.",
-        "testStrategy": "test_F-C02_고쳐짐2_남음1_새로1_58에서78 / test_F-C02_같은번들_변화0 / test_F-C02_순서바꿔도_같다 / test_F-C02_규칙버전다르면_알림 / test_F-C02_다른앱_완료아님_400. 화면: SCR-05 1360·768·390, 점수 색, 빈 묶음 문구.",
+        "details": "영역: 비교·내보내기\n목적: 같은 앱의 두 점검을 비교해 고쳐짐·남음·새로 생김과 점수 변화를 보여 준다 (FR-10)\n읽을 문서: 기능명세 F-C02, 화면정의 SCR-05\n고칠 파일: backend/app/compare/**, backend/tests/compare/**, frontend/src/features/compare/**\n계약: GET /compare?a&b → ComparisonOut\n변경: CR-004\n명세 기준: 7f37b30\n\n점검·발견 행은 테스트에서 모델로 직접 넣는다.",
+        "testStrategy": "test_F-C02_고쳐짐2_남음1_새로1_58에서78 / test_F-C02_같은번들_변화0 / test_F-C02_순서바꿔도_같다 / test_F-C02_규칙버전다르면_알림 / test_F-C02_다른앱_완료아님_400 / test_F-C02_전후_둘다_vulndb_none이면_알림없음 (405). 화면: SCR-05 1360·768·390, 점수 색, 빈 묶음 문구.",
         "priority": "high",
         "dependencies": [
           "9"
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -663,7 +683,8 @@
             ],
             "parentId": "undefined"
           }
-        ]
+        ],
+        "updatedAt": "2026-11-19T16:28:13.324Z"
       },
       {
         "id": "11",
@@ -866,8 +887,8 @@
         "id": "14",
         "title": "점검 흐름: 점검 시작·실행·저장 (F-I01 A·11)",
         "description": "점검 시작 API와 거부, intake→rules→score→rea→지문 잇기, 상태 전이, 격리 폴더 삭제",
-        "details": "영역: 점검 흐름\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02) / 발견마다 심각도를 매기고 점검 점수를 낸다 (FR-08)\n읽을 문서: 기능명세 F-I01 A·B 1·11, 예외·예시, F-S06 4, F-S04 안내\n고칠 파일: backend/app/scans/**, backend/tests/scans/**\n계약: POST /apps/{id}/scans/zip, POST /apps/{id}/scans/folder → ScanStartedOut, 모델 Scan·FindingRow·SkippedRow·ReaRow\n\n마이그레이션 없음. 로컬 키는 app.state.local_key.",
-        "testStrategy": "test_F-I01_zip아님_거부 / test_F-I01_209715201바이트_거부 / test_F-I01_폴더상대경로_거부 / test_F-I01_진행중_다른점검_거부 / test_F-I01_png만_대상없음 / test_F-I01_끝나면_격리폴더_삭제 / test_F-I01_intake실패_이유_저장 / test_F-S01_DB응답에_원문_없음 / test_NFR-01_네트워크_차단에서_점검됨 / test_F-S06_대상없음_실패면_점수_대시 (T8에서 옮김: score는 상태를 받지 않는다, 설계 0c36654). 화면 없음.",
+        "details": "영역: 점검 흐름\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02) / 발견마다 심각도를 매기고 점검 점수를 낸다 (FR-08)\n읽을 문서: 기능명세 F-I01 A·B 1·11, 예외·예시, F-S06 4, F-S02 6·F-S04 안내, 1절 '발견 상한'(안내), F-S01 11(건너뜀 이유)\n고칠 파일: backend/app/scans/**, backend/tests/scans/**\n계약: POST /apps/{id}/scans/zip, POST /apps/{id}/scans/folder → ScanStartedOut, 모델 Scan·FindingRow·SkippedRow·ReaRow, RuleRun.skipped·notices(CR-003·004)\n변경: CR-003, CR-004\n\n마이그레이션 없음(skipped.reason은 String(32)이고 '걸림이 너무 많아 일부만 점검'은 15자). 로컬 키는 app.state.local_key.",
+        "testStrategy": "test_F-I01_zip아님_거부 / test_F-I01_209715201바이트_거부 / test_F-I01_폴더상대경로_거부 / test_F-I01_진행중_다른점검_거부 / test_F-I01_png만_대상없음 / test_F-I01_끝나면_격리폴더_삭제 / test_F-I01_intake실패_이유_저장 / test_F-S01_DB응답에_원문_없음 / test_NFR-01_네트워크_차단에서_점검됨 / test_F-S06_대상없음_실패면_점수_대시 (T8에서 옮김: score는 상태를 받지 않는다, 설계 0c36654) / test_F-S01_걸림상한_건너뜀이_점검에_저장 / test_F-S01_발견상한_안내가_점검에_저장. 화면 없음.",
         "priority": "high",
         "dependencies": [
           "1",
@@ -1098,8 +1119,8 @@
         "id": "17",
         "title": "점검 흐름: 점검 결과 화면 (SCR-04)",
         "description": "점수·개수·발견 표·REA 참고·건너뜀·안내·내보내기·지우기·폴링",
-        "details": "영역: 점검 흐름\n목적: 발견마다 심각도를 매기고 점검 점수를 낸다 (FR-08) / REA가 설치돼 있으면 그 분석 요약을 참고로 보여 준다 (FR-07) / 점검 결과를 JSON과 Markdown으로 내보낸다. Markdown에는 Claude Code에 물어볼 안내를 넣는다 (FR-11)\n읽을 문서: 화면정의 SCR-04 전체, 기능명세 F-S05 안내, F-S04 안내, F-E01\n고칠 파일: frontend/src/features/scans/**\n계약: GET /scans/{id}, export.json·export.md, DELETE /scans/{id}",
-        "testStrategy": "test_SCR-04_점수_완료아니면_대시 / test_SCR-04_정보는_토글_뒤 / test_SCR-04_횟수_x2 / test_SCR-04_발견글은_HTML아닌_글자 / test_SCR-04_발견0개_문구 / test_SCR-04_진행중_폴링. 화면: SCR-04 3개 폭, 대상 없음·실패·REA 없음.",
+        "details": "영역: 점검 흐름\n목적: 발견마다 심각도를 매기고 점검 점수를 낸다 (FR-08) / REA가 설치돼 있으면 그 분석 요약을 참고로 보여 준다 (FR-07) / 점검 결과를 JSON과 Markdown으로 내보낸다. Markdown에는 Claude Code에 물어볼 안내를 넣는다 (FR-11)\n읽을 문서: 화면정의 SCR-04 전체(04-05 CR-003·004), 기능명세 F-S05 안내, F-S02 6·F-S04 안내, 1절 '발견 상한', F-E01\n고칠 파일: frontend/src/features/scans/**\n계약: GET /scans/{id}, export.json·export.md, DELETE /scans/{id}\n변경: CR-003, CR-004",
+        "testStrategy": "test_SCR-04_점수_완료아니면_대시 / test_SCR-04_정보는_토글_뒤 / test_SCR-04_횟수_x2 / test_SCR-04_발견글은_HTML아닌_글자 / test_SCR-04_발견0개_문구 / test_SCR-04_진행중_폴링 / test_SCR-04_안내_생긴차례_건너뛴소스맵_목록_발견상한 / test_SCR-04_건너뜀이유_걸림상한_글자그대로. 화면: SCR-04 3개 폭, 대상 없음·실패·REA 없음·발견 상한 안내가 있는 점검.",
         "priority": "medium",
         "dependencies": [
           "15",
@@ -1174,12 +1195,80 @@
             "parentId": "undefined"
           }
         ]
+      },
+      {
+        "id": "18",
+        "title": "규칙: 비밀값 근거 조각 가림 보강·.map 이름·걸림 상한 (F-S01 9·11, CR-003)",
+        "description": "build_snippet에 키워드 꼴 짧은 값·URL 사용자:비밀번호@ 가림(㉠㉡), .map 이름 정리, 파일 하나 S01 걸림 10,000개에서 멈춤",
+        "details": "영역: 규칙\n목적: 번들에서 비밀값 노출을 찾는다 (FR-03) / 비밀값 원문을 내보내기 파일에 남기지 않는다 (NFR-03)\n읽을 문서: 기능명세 1절 '근거 조각'(②㉠㉡·알려진 한계), F-S01 처리 규칙 9·11, F-S01 예시 (CR-003) 줄, 코드규칙 3장 '정규식', CR-003 기술 검토 (a)(b)(c)\n고칠 파일: backend/app/rules/**, backend/tests/rules/**\n계약: Finding(그대로), SkipReason.TOO_MANY_HITS, rules/ 안의 secrets.scan_file 출력(발견·S01 걸림 범위·멈춤 여부, T6·T8이 받는다)\n변경: CR-003\n\n범위: CR-003 (a)(b)(c) 중 규칙 레인 몫. 점검 전체 50,000개는 T8, S03 상한은 T6, (d) zip 이름은 T4.\n(a) 차례 ② S01 가리기 → ㉠㉡ → ③ → ④ → ⑤. 조건 넷: 걸린 곳 앞·뒤를 따로 보고 걸린 곳 자체는 안 바꿈 / S01 가린 뒤 글에 적용 / 빈 값 그대로 / 백틱도 따옴표. 키워드 먼저 찾아 선형. 키워드 목록은 S01-GENERIC과 하나로(두 곳에 적지 않음).\n(c) 이름의 U+0000~001F·U+007F 하나 → 공백 하나, \\r\\n → 공백 하나. 코드 포인트 100자 넘으면 … + 뒤 100자. 이름에 ③ 안 함.\n(b) 받아들인 걸림(묶기 전)을 센다. .map은 항목 합쳐 센다. 멈추는 단위는 그 파일의 F-S01 전체.\n검증 T5 남은 것: backend/app/rules/secrets.py:4 모듈 설명 주석을 지금 코드에 맞게(키워드 뒤 식별자 덩어리 끝으로 건너뜀, 앞쪽 안 봄).\n초안: ops/계획/CR-003-태스크초안.md",
+        "testStrategy": "기대값 변경: test_F_S01_원문이_다른_걸림_많아도_선형 (CR-003) — AWS 20,000개 → 발견 10,000 + 멈춤 (GENERIC 10,000개·시간 상한은 그대로). 도우미 scan이 새 출력 모양을 따르게 고치는 것은 기대값 변경이 아니다. / test_F_S01_근거조각_키워드꼴_짧은값_가림 (예시 205·206) / test_F_S01_근거조각_백틱도_따옴표 (207) / test_F_S01_근거조각_빈값은_그대로 (208) / test_F_S01_근거조각_S01가린뒤_키워드꼴이_덮음 (209) / test_F_S01_근거조각_URL_사용자정보_가림 (210) / test_F_S01_근거조각_키워드아닌이름_남음_알려진한계 (211) / test_F_S01_map_이름_줄바꿈_탭_CRLF_DEL은_공백 (212) / test_F_S01_map_이름_101자는_말줄임_뒤100자 (213) / test_F_S01_걸림10000개_건너뜀없음 (214) / test_F_S01_걸림10001개_발견10000_멈춤 (215) / test_F_S01_같은키20000번_횟수10000_멈춤 (216) / test_F_S01_map_항목합쳐_10000개에서_멈춤 / test_F_S01_근거조각_키워드창_많아도_선형. 화면 없음.",
+        "priority": "high",
+        "dependencies": [
+          "5"
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "계약 확인",
+            "description": "계약 확인",
+            "details": "",
+            "status": "pending",
+            "dependencies": [],
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "예시 테스트(예시 205~216, 기대값 변경 1)",
+            "description": "예시 테스트(예시 205~216, 기대값 변경 1)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [],
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "build_snippet ㉠㉡",
+            "description": "build_snippet ㉠㉡",
+            "details": "",
+            "status": "pending",
+            "dependencies": [],
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": ".map 이름 정리",
+            "description": ".map 이름 정리",
+            "details": "",
+            "status": "pending",
+            "dependencies": [],
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "걸림 상한·secrets.py:4 주석",
+            "description": "걸림 상한·secrets.py:4 주석",
+            "details": "",
+            "status": "pending",
+            "dependencies": [],
+            "parentId": "undefined"
+          },
+          {
+            "id": 6,
+            "title": "검사 (check.py)",
+            "description": "검사 (check.py)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [],
+            "parentId": "undefined"
+          }
+        ]
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-11-19T12:19:48.742Z",
-      "taskCount": 17,
+      "lastModified": "2026-11-19T16:28:13.328Z",
+      "taskCount": 18,
       "completedCount": 2,
       "tags": [
         "master"
