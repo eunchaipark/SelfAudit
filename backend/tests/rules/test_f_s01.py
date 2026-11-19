@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import json
+import random
+import re
 import time
+import tracemalloc
 
 from app.contracts.engine import Finding, Location, Severity
 from app.rules import secrets, text
@@ -162,7 +165,7 @@ def test_F_S01_겹침은_값_범위로_판정한다() -> None:
     assert sorted(f.rule_id for f in found) == ["S01-AWS", "S01-GENERIC"]
 
 
-def test_F_S01_같은_원문은_규칙마다_따로() -> None:
+def test_F_S01_같은_원문은_키이름이_달라도_하나로_묶는다() -> None:
     found = scan('password:"hunter2hunter2";\nsecret:"hunter2hunter2"')
     assert len(found) == 1 and found[0].count == 2
 
@@ -229,3 +232,81 @@ def test_F_S01_긴식별자_정규식_폭주없음() -> None:
         t0 = time.perf_counter()
         scan(c)
         assert time.perf_counter() - t0 < 5.0, c[:20]
+
+
+# 명세 규칙 표의 S01-JWT 정규식 그대로 (구현은 같은 뜻을 선형으로 찾는다)
+SPEC_JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{5,}\.eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{10,}")
+JWT = "eyJhbGciOi.eyJzdWIiOiIx.abcdefghij12"  # 가상 토큰
+
+
+def test_F_S01_JWT_eyJ반복_폭주없음() -> None:
+    # 검증 b1 재현: 80KB에서 4.97초였다. 선형이면 800KB도 1초 안팎
+    for n in (80_000, 800_000):
+        t0 = time.perf_counter()
+        assert scan("eyJ-" * (n // 4)) == []
+        assert time.perf_counter() - t0 < 2.0, n
+
+
+def test_F_S01_JWT_덩어리_안의_경계에서_시작() -> None:
+    # 앞 `aeyJ`는 단어 경계가 아니고, `-` 뒤의 `eyJ`부터 토큰이다
+    f = only(f"aeyJxx-{JWT}")
+    assert (f.rule_id, f.value) == ("S01-JWT", JWT[:4] + "****" + JWT[-2:])
+    # 첫 자리에서 실패한 덩어리 뒤에 나온 토큰도 찾는다
+    assert only(f"eyJ-eyJ-eyJabc. {JWT}").rule_id == "S01-JWT"
+
+
+def jwt_like(rng: random.Random) -> str:
+    """토큰과 닮은 조각: 경계·구간 길이·점·`eyJ` 위치를 흔들어 걸림과 빗나감이 섞이게 한다."""
+
+    def run() -> str:
+        return "".join(rng.choice(["a", "-", "_", "eyJ"]) for _ in range(rng.randint(0, 12)))
+
+    return (
+        rng.choice(["", "a", "-", "é", " ", "."])
+        + rng.choice(["eyJ", "eyJ", "x"])
+        + run()
+        + rng.choice([".", ".", " "])
+        + rng.choice(["eyJ", "eyJ", ""])
+        + run()
+        + rng.choice([".", "-"])
+        + run()
+    )
+
+
+def test_F_S01_JWT_명세_정규식과_같은_범위() -> None:
+    # 암호용이 아니라 시험 입력을 만드는 고정 씨앗 난수다. 3000개 중 약 600개가 걸린다
+    rng = random.Random(5)  # noqa: S311
+    hits = 0
+    for _ in range(3000):
+        s = "".join(jwt_like(rng) for _ in range(rng.randint(1, 4)))
+        expected = [(m.start(), m.end()) for m in SPEC_JWT.finditer(s)]
+        got = [(c.start, c.end) for c in secrets._jwt_candidates(s)]
+        assert got == expected, s
+        hits += bool(expected)
+    assert hits > 100
+
+
+def peak_memory(content: str) -> int:
+    tracemalloc.start()
+    try:
+        scan(content)
+        return tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+
+
+def test_F_S01_개인키_BEGIN반복_메모리() -> None:
+    # 검증 b1 재현: 270KB에서 최대 44MB(입력의 약 160배)였다. 후보마다 원문을 복사하지 않는다
+    content = "-----BEGIN PRIVATE KEY-----" * 10_000
+    assert peak_memory(content) < 4 * len(content)
+
+
+def test_F_S01_개인키_BEGIN여러개_END하나() -> None:
+    content = "-----BEGIN PRIVATE KEY-----\n" * 32_000 + "-----END PRIVATE KEY-----"
+    t0 = time.perf_counter()
+    found = scan(content)
+    assert time.perf_counter() - t0 < 2.0
+    # 같은 END에 묶이는 뒤쪽 BEGIN은 첫 블록과 겹쳐 버려진다
+    assert len(found) == 1 and found[0].count == 1
+    assert found[0].evidence_key == text.evidence_key(KEY, content)
+    assert peak_memory(content) < 4 * len(content)

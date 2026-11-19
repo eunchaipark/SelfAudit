@@ -7,8 +7,8 @@ S01-GENERIC은 키워드를 먼저 찾고 양옆으로 넓히며, 값은 먹보 
 from __future__ import annotations
 
 import re
-from bisect import bisect_left, insort
-from collections.abc import Callable, Iterator
+from bisect import bisect_left
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 from app.contracts.engine import Finding, Location, Severity
@@ -52,21 +52,24 @@ RULES: tuple[Rule, ...] = (
 _RULE_ORDER = {r.rule_id: i for i, r in enumerate(RULES)}
 _RULE_BY_ID = {r.rule_id: r for r in RULES}
 
-# (규칙ID, 정규식, 값 묶음 번호). 묶음 0 = 전체 매치
-_SIMPLE: tuple[tuple[str, re.Pattern[str], int], ...] = (
-    ("S01-AWS", re.compile(r"\bAKIA[0-9A-Z]{16}\b"), 0),
-    ("S01-STRIPE", re.compile(r"\bsk_live_[0-9A-Za-z]{24,}\b"), 0),
-    ("S01-GHTOKEN", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{36}\b"), 0),
-    ("S01-URLCRED", re.compile(r"https?://[^\s/:@\"'`<>]+:([^\s/@\"'`<>]++)@"), 1),
-    (
-        "S01-JWT",
-        re.compile(r"\beyJ[A-Za-z0-9_-]{5,}\.eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{10,}"),
-        0,
-    ),
-    ("S01-GAPI", re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b"), 0),
-    ("S01-STRIPE-PK", re.compile(r"\bpk_live_[0-9A-Za-z]{24,}\b"), 0),
-)
+# 규칙ID → (정규식, 값 묶음 번호). 묶음 0 = 전체 매치
+_SIMPLE: dict[str, tuple[re.Pattern[str], int]] = {
+    "S01-AWS": (re.compile(r"\bAKIA[0-9A-Z]{16}\b"), 0),
+    "S01-STRIPE": (re.compile(r"\bsk_live_[0-9A-Za-z]{24,}\b"), 0),
+    "S01-GHTOKEN": (re.compile(r"\bgh[pousr]_[A-Za-z0-9]{36}\b"), 0),
+    "S01-URLCRED": (re.compile(r"https?://[^\s/:@\"'`<>]+:([^\s/@\"'`<>]++)@"), 1),
+    "S01-GAPI": (re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b"), 0),
+    "S01-STRIPE-PK": (re.compile(r"\bpk_live_[0-9A-Za-z]{24,}\b"), 0),
+}
 _PKEY_BEGIN = re.compile(r"-----BEGIN (RSA |EC |OPENSSH |DSA |ENCRYPTED )?PRIVATE KEY-----")
+
+# S01-JWT: 명세 정규식과 같은 뜻이고 한정자만 먹보다. 시작 자리 `eyJ`는 str.find로 찾는다.
+# 단어 경계에서 시작해 실패하면, 같은 덩어리 안의 뒤쪽 `eyJ`도 첫 구간 끝이 같아 똑같이 실패하므로
+# 덩어리 끝으로 건너뛴다. 그래서 `eyJ-` 반복 같은 입력에서도 길이에 선형이다.
+_JWT_PREFIX = "eyJ"
+_JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{5,}+\.eyJ[A-Za-z0-9_-]{5,}+\.[A-Za-z0-9_-]{10,}+")
+_JWT_HEAD = re.compile(r"\beyJ")
+_TOKEN_RUN = re.compile(r"[A-Za-z0-9_-]*+")
 
 # S01-GENERIC: 키워드 → 그 뒤 식별자·구분자 → 값. 앞쪽 `[A-Za-z0-9_]*`는 쓰지 않는다.
 _GENERIC_KEYWORD = re.compile(
@@ -84,10 +87,11 @@ _PLACEHOLDER_PREFIX = ("your", "example", "process.env")
 
 @dataclass(frozen=True, slots=True)
 class _Candidate:
+    """값 범위와 가린 값만 둔다. 원문은 받아들인 걸림에서만 만든다(후보마다 복사하지 않는다)."""
+
     rule_id: str
     start: int
     end: int
-    raw: str
     masked: str
 
 
@@ -103,12 +107,27 @@ def is_placeholder(value: str) -> bool:
     )
 
 
-def _simple_candidates(content: str) -> Iterator[_Candidate]:
-    for rule_id, pattern, group in _SIMPLE:
-        for m in pattern.finditer(content):
-            raw = m.group(group)
-            masked = text.MASKED if rule_id == "S01-URLCRED" else text.mask_known(raw)
-            yield _Candidate(rule_id, m.start(group), m.end(group), raw, masked)
+def _simple_candidates(content: str, rule_id: str) -> Iterator[_Candidate]:
+    pattern, group = _SIMPLE[rule_id]
+    for m in pattern.finditer(content):
+        raw = m.group(group)
+        masked = text.MASKED if rule_id == "S01-URLCRED" else text.mask_known(raw)
+        yield _Candidate(rule_id, m.start(group), m.end(group), masked)
+
+
+def _jwt_candidates(content: str) -> Iterator[_Candidate]:
+    pos = 0
+    while (i := content.find(_JWT_PREFIX, pos)) != -1:
+        m = _JWT.match(content, i)
+        if m is not None:
+            yield _Candidate("S01-JWT", m.start(), m.end(), text.mask_known(m.group()))
+            pos = m.end()
+        elif _JWT_HEAD.match(content, i) is None:
+            # 경계가 아닌 자리는 덩어리를 건너뛰지 않는다: 같은 덩어리 뒤쪽 `eyJ`는 경계일 수 있다
+            pos = i + 1
+        else:
+            run = _TOKEN_RUN.match(content, i)
+            pos = run.end() if run else i + 1
 
 
 def _pkey_candidates(content: str) -> Iterator[_Candidate]:
@@ -122,7 +141,7 @@ def _pkey_candidates(content: str) -> Iterator[_Candidate]:
             found = content.find(marker, m.end())
             end_of_kind[kind] = found
         end = found + len(marker) if found != -1 else min(len(content), m.start() + PKEY_MAX)
-        yield _Candidate("S01-PKEY", m.start(), end, content[m.start() : end], m.group(0))
+        yield _Candidate("S01-PKEY", m.start(), end, m.group(0))
 
 
 def _generic_candidates(content: str) -> Iterator[_Candidate]:
@@ -144,28 +163,42 @@ def _generic_candidates(content: str) -> Iterator[_Candidate]:
         raw = value.group()
         closed = value.end() < len(content) and content[value.end()] in _QUOTES
         if len(raw) >= GENERIC_MIN and closed and not is_placeholder(raw):
-            yield _Candidate("S01-GENERIC", value.start(), value.end(), raw, text.MASKED)
+            yield _Candidate("S01-GENERIC", value.start(), value.end(), text.MASKED)
+
+
+def _rule_candidates(content: str, rule_id: str) -> Iterator[_Candidate]:
+    """한 규칙의 걸림을 시작 순서로 낸다."""
+    if rule_id == "S01-PKEY":
+        return _pkey_candidates(content)
+    if rule_id == "S01-JWT":
+        return _jwt_candidates(content)
+    if rule_id == "S01-GENERIC":
+        return _generic_candidates(content)
+    return _simple_candidates(content, rule_id)
+
+
+def _overlaps(taken: list[tuple[int, int]], start: int, end: int) -> bool:
+    i = bisect_left(taken, (start, end))
+    return (i > 0 and taken[i - 1][1] > start) or (i < len(taken) and taken[i][0] < end)
 
 
 def _accepted(content: str) -> list[_Candidate]:
-    """규칙 표 순서로 걸림을 받고, 값 범위가 먼저 받은 것과 겹치면 버린다 (F-S01 2)."""
-    sources: tuple[Callable[[str], Iterator[_Candidate]], ...] = (
-        _pkey_candidates,
-        _simple_candidates,
-        _generic_candidates,
-    )
-    candidates = [c for source in sources for c in source(content)]
-    candidates.sort(key=lambda c: (_RULE_ORDER[c.rule_id], c.start))
-    taken: list[tuple[int, int]] = []  # 받은 범위 (시작 순서, 겹치지 않음)
+    """규칙 표 순서로 걸림을 받고, 값 범위가 먼저 받은 것과 겹치면 버린다 (F-S01 2).
+
+    후보를 모아 두지 않고 규칙마다 흘려 보며 판정한다(메모리는 받은 것만큼).
+    """
+    taken: list[tuple[int, int]] = []  # 앞 규칙들이 받은 범위 (시작 순서, 겹치지 않음)
     kept: list[_Candidate] = []
-    for c in candidates:
-        i = bisect_left(taken, (c.start, c.end))
-        if i > 0 and taken[i - 1][1] > c.start:
-            continue
-        if i < len(taken) and taken[i][0] < c.end:
-            continue
-        insort(taken, (c.start, c.end))
-        kept.append(c)
+    for rule in RULES:
+        mine: list[_Candidate] = []  # 이 규칙이 받은 것. 시작 순서라 마지막 것과만 겹칠 수 있다
+        for c in _rule_candidates(content, rule.rule_id):
+            if mine and mine[-1].end > c.start:
+                continue
+            if _overlaps(taken, c.start, c.end):
+                continue
+            mine.append(c)
+        kept.extend(mine)
+        taken = sorted(taken + [(c.start, c.end) for c in mine])
     kept.sort(key=lambda c: c.start)
     return kept
 
@@ -217,14 +250,15 @@ def _collect(
     spans = [text.MaskedSpan(c.start, c.end, c.masked) for c in kept]
     index = text.LineIndex(content) if locate else None
     for i, c in enumerate(kept):
-        group = groups.get((c.rule_id, c.raw))
+        raw = content[c.start : c.end]
+        group = groups.get((c.rule_id, raw))
         if group is not None:
             group.count += 1
             continue
-        groups[(c.rule_id, c.raw)] = _Group(
+        groups[(c.rule_id, raw)] = _Group(
             rule_id=c.rule_id,
             masked=c.masked,
-            evidence=text.evidence_key(key, c.raw),
+            evidence=text.evidence_key(key, raw),
             first_snippet=prefix + text.build_snippet(content, spans, i),
             first_location=index.locate(c.start) if index else None,
             count=1,
