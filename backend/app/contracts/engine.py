@@ -2,8 +2,8 @@
 
 흐름 (scans 레인이 잇는다):
   intake.receive_zip / receive_folder  → IntakeResult       (F-I01, 실패는 IntakeFailed)
-  rules.run_rules                      → RuleRun            (F-S01~S04)
-  rules.score                          → ScoreResult        (F-S06)
+  rules.run_rules                      → RuleRun            (F-S01~S04, 모양은 RunRules)
+  rules.score                          → ScoreResult        (F-S06, 모양은 Score)
   rea.analyze                          → ReaRef             (F-S05)
   compare.fingerprint / compare_scans  → 지문, Comparison  (F-C01·C02)
   export.to_json / to_markdown         → bytes              (F-E01·E02)
@@ -12,9 +12,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from typing import Protocol
 
 
 class Severity(StrEnum):
@@ -138,3 +140,48 @@ class ReaRef:
     modules: int | None = None
     sourcemaps: int | None = None
     message: str | None = None
+
+
+class RunRules(Protocol):
+    """`rules.run_rules`의 모양 (F-S01~S04). 규칙 레인이 만들고 점검 흐름이 부른다.
+
+    입력:
+      intake       F-I01 결과 그대로. 대상 0개면 부르지 않는다
+                   (점검 흐름이 `대상 없음`으로 끝낸다).
+      key          로컬 키. 증거키(HMAC)에만 쓴다. 테스트는 `b"selfaudit-test-key"`.
+      vulndb_file  `DataPaths.vulndb_file`. 없을 수 있다(F-S04 예외).
+
+    읽기:
+      - `intake.targets` 차례로 `intake.root / 경로`를 한 파일씩 읽는다.
+        폴더를 훑지 않고 목록만 쓴다.
+      - 글은 `read_bytes().decode("utf-8", errors="replace")`(F-I01 9). BOM은 규칙 함수가 뗀다.
+      - 한 번에 한 파일의 글만 들고 있는다. 모든 파일의 글을 모아 두지 않는다(합 200MB).
+      - 파일마다 F-S01 → F-S02 → F-S03 → F-S04를 확장자에 맞는 것만 돌린다.
+        `.map`이 JSON이 아니면 skipped에 `NOT_SOURCEMAP`을 넣고 F-S01·S03도 보지 않는다.
+      - F-S02의 '번들에 있음'은 `intake`의 목록으로 판단한다(디스크를 다시 보지 않는다).
+      - 취약 목록은 점검마다 한 번 읽는다(캐시 없음). 쓰는 파일은 없다.
+
+    출력 (같은 입력이면 같은 결과, NFR-04):
+      findings       targets 차례, 한 파일 안에서는 규칙 차례. 정렬은 `score`가 한다.
+      notices        F-S04 안내 문구, 생긴 차례.
+      skipped        F-S02 `소스맵 형식 아님`, targets 차례. F-I01의 건너뜀은 넣지 않는다.
+      rules_version  목록 파일의 바이트를 읽었으면 `r1+vulndb.<SHA-256 소문자 16진 앞 8자>`
+                     (형식 오류여도 바이트로 만든다), 파일이 없거나 읽지 못하면 `r1+vulndb.none`.
+
+    오류:
+      - 대상 파일을 읽다 난 `OSError`는 삼키지 않고 올린다. 점검 흐름이 `실패`
+        "점검 중 오류가 나서 멈췄습니다"로 바꾼다.
+      - 취약 목록의 없음·읽기 실패·형식 오류는 F-S04 예외대로 안내만 남기고 다른 규칙은 계속한다.
+    """
+
+    def __call__(self, intake: IntakeResult, *, key: bytes, vulndb_file: Path) -> RuleRun: ...
+
+
+class Score(Protocol):
+    """`rules.score`의 모양 (F-S06 1~3). 점수·심각도별 개수·정렬된 발견을 낸다.
+
+    `완료`인 점검에만 부른다. `대상 없음`·`실패`의 점수 `-`는 점검 흐름이 정한다
+    (score를 부르지 않고 점수를 None으로 저장한다).
+    """
+
+    def __call__(self, findings: Sequence[Finding]) -> ScoreResult: ...

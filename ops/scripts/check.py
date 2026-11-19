@@ -9,6 +9,9 @@
   python ops/scripts/check.py --fail-fast        # 처음 실패에서 멈춤
 
 종료 코드: 0 모두 통과, 1 실패 있음, 2 설정 문제
+
+준비: checks.json '준비'의 항목은 고른 검사가 그 폴더를 쓰고 '없으면'의 경로가 없을 때만 먼저 돌린다.
+(새 worktree에는 frontend/node_modules가 없어 화면 검사가 모두 실패했다. uv run은 스스로 맞춘다.)
 """
 
 from __future__ import annotations
@@ -78,6 +81,19 @@ def _result(name: str, check: dict, cwd: Path, log_dir: Path, start: float, text
     return {"이름": name, "통과": ok, "초": secs, "요약": last_line(text), "메모": note, "로그": log, "출력": text}
 
 
+def run_preparations(preps: list[dict], checks: list[dict], log_dir: Path) -> list[dict]:
+    """고른 검사가 쓰는 폴더에 빠진 것이 있을 때만 준비 명령을 돌린다. 실패도 결과에 넣는다."""
+    used = {c.get("폴더", ".") for c in checks}
+    results = []
+    for prep in preps:
+        folder = prep.get("폴더", ".")
+        if folder not in used or (ROOT / folder / prep["없으면"]).exists():
+            continue
+        print(f"준비: {folder}/{prep['없으면']} 없음 → {prep['명령']}", flush=True)
+        results.append(run_check({**prep, "이름": f"준비:{prep['이름']}"}, log_dir))
+    return results
+
+
 def main(argv: list[str] | None = None) -> int:
     use_utf8_output()
     ap = argparse.ArgumentParser(description="검사 묶음 실행 (요약만 출력)")
@@ -102,7 +118,7 @@ def main(argv: list[str] | None = None) -> int:
         checks = [c for c in checks if c["이름"] in wanted]
     log_dir = ROOT / cfg.get("로그폴더", ".ops-logs")
 
-    results = []
+    results = run_preparations(cfg.get("준비", []), checks, log_dir)
     for check in checks:
         results.append(run_check(check, log_dir))
         if args.fail_fast and not results[-1]["통과"]:
