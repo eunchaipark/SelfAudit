@@ -197,6 +197,17 @@
             "title": "Afterstartedat",
             "type": "string"
           },
+          "appName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Appname"
+          },
           "beforeId": {
             "title": "Beforeid",
             "type": "integer"

@@ -154,3 +154,6 @@ class ComparisonOut(ApiModel):
     remaining: list[ComparedFindingOut]
     new: list[ComparedFindingOut]
     rules_version_differs: bool
+    # SCR-05 05-01 제목. 두 점검의 앱 이름(저장된 값, F-P01 1·2를 지난 40자 이하) 그대로 (T10 요청).
+    # 지금 `compare/api.py`가 채우지 않아 None 기본값을 둔다. 레인이 채우면 설계가 `str` 필수로 바꾼다.
+    app_name: str | None = None
