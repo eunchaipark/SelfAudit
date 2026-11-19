@@ -1,1 +1,1 @@
-- [규칙 정규식은 선형으로](rules-regex-linear.md) — T5 반려(JWT 제곱, 개인키 후보 메모리) 원인·고친 모양·재는 법, npm ci, 검증 파일 위치
+- [규칙 정규식은 선형으로](rules-regex-linear.md) — T5 반려 2번(JWT·개인키·근거 조각 제곱, GENERIC 명세 불일치) 원인·재는 법·대조 테스트, npm ci
