@@ -617,7 +617,7 @@
         "dependencies": [
           "9"
         ],
-        "status": "review",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -684,7 +684,7 @@
             "parentId": "undefined"
           }
         ],
-        "updatedAt": "2026-11-19T16:39:21.595Z"
+        "updatedAt": "2026-11-19T16:48:18.800Z"
       },
       {
         "id": "11",
@@ -1268,9 +1268,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-11-19T16:39:21.598Z",
+      "lastModified": "2026-11-19T16:48:18.802Z",
       "taskCount": 18,
-      "completedCount": 2,
+      "completedCount": 3,
       "tags": [
         "master"
       ]
