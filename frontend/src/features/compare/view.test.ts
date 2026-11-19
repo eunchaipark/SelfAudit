@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { GROUPS, scoreTone, visibleFindings, type ComparedFinding } from './view';
+import {
+  emptyGroupMessage,
+  GROUPS,
+  scoreTone,
+  visibleFindings,
+  type ComparedFinding,
+} from './view';
 
 const item = (severity: ComparedFinding['severity'], ruleId: string): ComparedFinding => ({
   ruleId,
@@ -24,6 +30,13 @@ describe('SCR-05 전후 비교', () => {
       'S03-LOCAL',
       'S03-DEVHOST',
     ]);
+  });
+
+  it('빈 묶음은 없습니다, 정보만 있는 묶음도 정보 보기가 꺼져 있으면 없습니다 (05-04)', () => {
+    expect(emptyGroupMessage(visibleFindings([], false))).toBe('없습니다');
+    const infoOnly = [item('info', 'S03-LOCAL')];
+    expect(emptyGroupMessage(visibleFindings(infoOnly, false))).toBe('없습니다');
+    expect(emptyGroupMessage(visibleFindings(infoOnly, true))).toBeNull();
   });
 
   it('묶음 탭은 고쳐짐 → 남음 → 새로 생김, 기본은 고쳐짐 (05-03)', () => {

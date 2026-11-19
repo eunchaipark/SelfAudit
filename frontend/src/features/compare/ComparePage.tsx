@@ -6,7 +6,14 @@ import { FieldError } from '../../components/FieldError';
 import { formatCount, formatDateTime, formatScoreChange, SEVERITY_LABEL } from '../../lib/format';
 import { useComparison, useScan } from './api';
 import styles from './ComparePage.module.css';
-import { GROUPS, scoreTone, visibleFindings, type ComparedFinding, type GroupKey } from './view';
+import {
+  emptyGroupMessage,
+  GROUPS,
+  scoreTone,
+  visibleFindings,
+  type ComparedFinding,
+  type GroupKey,
+} from './view';
 
 const NETWORK_ERROR = '서버 오류가 났습니다';
 const RULES_VERSION_NOTICE = '규칙 버전이 달라 일부 차이는 규칙 때문일 수 있습니다';
@@ -75,8 +82,9 @@ function ComparisonView({ data }: { data: Schemas['ComparisonOut'] }) {
 }
 
 function FindingList({ items }: { items: ComparedFinding[] }) {
-  if (items.length === 0) {
-    return <p className={styles.empty}>없습니다</p>;
+  const empty = emptyGroupMessage(items);
+  if (empty !== null) {
+    return <p className={styles.empty}>{empty}</p>;
   }
   return (
     <ul className={styles.list}>

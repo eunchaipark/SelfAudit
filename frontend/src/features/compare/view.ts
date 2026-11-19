@@ -19,6 +19,14 @@ export function scoreTone(change: number): ScoreTone {
   return 'same';
 }
 
+/** 05-04 빈 묶음 문구. */
+export const EMPTY_GROUP = '없습니다';
+
+/** 보이는 항목이 없으면 빈 묶음 문구, 있으면 null (05-04). */
+export function emptyGroupMessage(items: readonly ComparedFinding[]): string | null {
+  return items.length === 0 ? EMPTY_GROUP : null;
+}
+
 /** F-C02 5: `정보`는 기본으로 숨기고, 정보 보기를 켜면 보인다. 서버 정렬은 그대로 둔다. */
 export function visibleFindings(
   items: readonly ComparedFinding[],
