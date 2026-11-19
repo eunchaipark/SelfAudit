@@ -295,6 +295,8 @@ export interface components {
        * Format: date-time
        */
       afterStartedAt: string;
+      /** Appname */
+      appName?: string | null;
       /** Beforeid */
       beforeId: number;
       /** Beforescore */
