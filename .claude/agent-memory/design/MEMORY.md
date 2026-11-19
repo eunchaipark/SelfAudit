@@ -1,1 +1,2 @@
 - [보안 결정은 허용 꼴로](feedback_security_allowlist.md) — 막을 꼴 나열 말고 허용 꼴로, 우회 꼴 측정을 붙이고, 확정분과 대리 결정분은 커밋을 나눈다
+- [\u 표기는 python으로](feedback_unicode_escape.md) — Edit·heredoc이 `\u202E`를 실제 글자로 바꾼다, chr()로 쓰고 숨은글자 검사
