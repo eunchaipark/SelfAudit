@@ -611,13 +611,13 @@
         "id": "10",
         "title": "비교: 두 점검 비교와 전후 비교 화면 (F-C02, SCR-05)",
         "description": "compare_scans, GET /compare, 전후 비교 화면",
-        "details": "영역: 비교·내보내기\n목적: 같은 앱의 두 점검을 비교해 고쳐짐·남음·새로 생김과 점수 변화를 보여 준다 (FR-10)\n읽을 문서: 기능명세 F-C02, 화면정의 SCR-05\n고칠 파일: backend/app/compare/**, backend/tests/compare/**, frontend/src/features/compare/**\n계약: GET /compare?a&b → ComparisonOut\n변경: CR-004\n\n점검·발견 행은 테스트에서 모델로 직접 넣는다.",
+        "details": "영역: 비교·내보내기\n목적: 같은 앱의 두 점검을 비교해 고쳐짐·남음·새로 생김과 점수 변화를 보여 준다 (FR-10)\n읽을 문서: 기능명세 F-C02, 화면정의 SCR-05\n고칠 파일: backend/app/compare/**, backend/tests/compare/**, frontend/src/features/compare/**\n계약: GET /compare?a&b → ComparisonOut\n변경: CR-004\n명세 기준: 7f37b30\n\n점검·발견 행은 테스트에서 모델로 직접 넣는다.",
         "testStrategy": "test_F-C02_고쳐짐2_남음1_새로1_58에서78 / test_F-C02_같은번들_변화0 / test_F-C02_순서바꿔도_같다 / test_F-C02_규칙버전다르면_알림 / test_F-C02_다른앱_완료아님_400 / test_F-C02_전후_둘다_vulndb_none이면_알림없음 (405). 화면: SCR-05 1360·768·390, 점수 색, 빈 묶음 문구.",
         "priority": "high",
         "dependencies": [
           "9"
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -683,7 +683,8 @@
             ],
             "parentId": "undefined"
           }
-        ]
+        ],
+        "updatedAt": "2026-11-19T16:28:13.324Z"
       },
       {
         "id": "11",
@@ -1266,8 +1267,8 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-11-19T12:19:48.742Z",
-      "taskCount": 17,
+      "lastModified": "2026-11-19T16:28:13.328Z",
+      "taskCount": 18,
       "completedCount": 2,
       "tags": [
         "master"
