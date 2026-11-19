@@ -1,5 +1,8 @@
 {
   "로그폴더": ".ops-logs",
+  "준비": [
+    {"이름": "화면패키지", "없으면": "node_modules", "명령": "npm ci", "폴더": "frontend", "제한초": 900}
+  ],
   "검사": [
     {"이름": "서버린트", "명령": "uv run ruff check .", "폴더": "backend", "제한초": 300},
     {"이름": "서버형식", "명령": "uv run ruff format --check .", "폴더": "backend", "제한초": 300},
