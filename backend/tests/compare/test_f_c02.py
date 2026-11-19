@@ -21,6 +21,7 @@ VERSION_HASH = "r1+vulndb.1a2b3c4d"
 MSG_SAME = "서로 다른 점검 두 개를 고르세요"
 MSG_OTHER_APP = "같은 앱의 점검끼리만 비교할 수 있습니다"
 MSG_NOT_DONE = "완료된 점검만 비교할 수 있습니다"
+CODE_REJECT = "VALIDATION_FAILED"  # 기능의 거부는 공통 코드 하나
 LARGE_COUNT = 20_000  # 큰 점검에서도 시간이 늘지 않는지 본다
 TIME_LIMIT_S = 2.0
 
@@ -282,7 +283,7 @@ def test_F_C02_묶음안은_F_S06_정렬(client: TestClient) -> None:
 def test_F_C02_같은점검_두번_400(client: TestClient) -> None:
     before, _ = example_pair(client)
     out = compare(client, before, before)
-    assert (out["status"], out["message"]) == (400, MSG_SAME)
+    assert (out["status"], out["code"], out["message"]) == (400, CODE_REJECT, MSG_SAME)
 
 
 def test_F_C02_다른앱_완료아님_400(client: TestClient) -> None:
@@ -295,10 +296,10 @@ def test_F_C02_다른앱_완료아님_400(client: TestClient) -> None:
     no_target = add_scan(client, app_id, AFTER_AT, None, [], status="no_target")
 
     out = compare(client, done, other)
-    assert (out["status"], out["message"]) == (400, MSG_OTHER_APP)
+    assert (out["status"], out["code"], out["message"]) == (400, CODE_REJECT, MSG_OTHER_APP)
     for not_done in (failed, running, no_target):
         out = compare(client, done, not_done)
-        assert (out["status"], out["message"]) == (400, MSG_NOT_DONE)
+        assert (out["status"], out["code"], out["message"]) == (400, CODE_REJECT, MSG_NOT_DONE)
 
 
 def test_F_C02_다른앱이면서_완료아님은_다른앱_문구가_먼저(client: TestClient) -> None:
@@ -307,18 +308,18 @@ def test_F_C02_다른앱이면서_완료아님은_다른앱_문구가_먼저(cli
     done = add_scan(client, app_id, BEFORE_AT, 58, [F1])
     other_failed = add_scan(client, other_app, AFTER_AT, None, [], status="failed")
     out = compare(client, done, other_failed)
-    assert (out["status"], out["message"]) == (400, MSG_OTHER_APP)
+    assert (out["status"], out["code"], out["message"]) == (400, CODE_REJECT, MSG_OTHER_APP)
 
 
 def test_F_C02_없는점검_404(client: TestClient) -> None:
     before, _ = example_pair(client)
     out = compare(client, before, 9999)
-    assert out["status"] == 404
+    assert (out["status"], out["code"]) == (404, "NOT_FOUND")
 
 
 def test_F_C02_ID가_숫자아님_400(client: TestClient) -> None:
     res = client.get(URL, params={"a": "x", "b": "1"})
-    assert res.status_code == 400
+    assert (res.status_code, res.json()["code"]) == (400, CODE_REJECT)
 
 
 # ---- 엔진 (순수) ----

@@ -12,9 +12,6 @@ from app.db.models import FindingRow, Scan
 MSG_SAME_SCAN = "서로 다른 점검 두 개를 고르세요"
 MSG_OTHER_APP = "같은 앱의 점검끼리만 비교할 수 있습니다"
 MSG_NOT_DONE = "완료된 점검만 비교할 수 있습니다"
-SAME_SCAN_CODE = "SAME_SCAN"
-OTHER_APP_CODE = "OTHER_APP"
-NOT_DONE_CODE = "SCAN_NOT_DONE"
 
 
 def _load(session: Session, scan_id: int) -> Scan:
@@ -57,10 +54,10 @@ def _to_side(session: Session, scan: Scan) -> engine.ScanSide:
 def compare(session: Session, a: int, b: int) -> engine.Comparison:
     """F-C02 두 점검 비교 (FR-10). 예외 문구의 차례는 명세 예외 칸의 차례를 따른다."""
     if a == b:
-        raise ValidationFailed(MSG_SAME_SCAN, code=SAME_SCAN_CODE)
+        raise ValidationFailed(MSG_SAME_SCAN)
     first, second = _load(session, a), _load(session, b)
     if first.app_id != second.app_id:
-        raise ValidationFailed(MSG_OTHER_APP, code=OTHER_APP_CODE)
+        raise ValidationFailed(MSG_OTHER_APP)
     if any(scan.status != ScanStatus.DONE for scan in (first, second)):
-        raise ValidationFailed(MSG_NOT_DONE, code=NOT_DONE_CODE)
+        raise ValidationFailed(MSG_NOT_DONE)
     return engine.compare_scans(_to_side(session, first), _to_side(session, second))
