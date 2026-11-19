@@ -1,1 +1,2 @@
+- [S01 출력·걸림 상한·근거 조각 ㉠㉡](rules-s01-output-cap.md) — T18 뒤 scan_file은 SecretsScan, 공용 값은 text.py, T6·T8이 이어 쓰는 법
 - [규칙 정규식은 선형으로](rules-regex-linear.md) — T5 반려 2번(JWT·개인키·근거 조각 제곱, GENERIC 명세 불일치) 원인·재는 법·대조 테스트, npm ci

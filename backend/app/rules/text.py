@@ -1,4 +1,4 @@
-"""규칙이 함께 쓰는 글 도구 (순수): 위치·가린 값·근거 조각·증거키·소스맵 풀기.
+"""규칙이 함께 쓰는 글 도구 (순수): 위치·가린 값·근거 조각·증거키·소스맵 풀기·걸림 상한.
 
 원문(비밀값)은 이 모듈의 함수 안에서만 쓰고 결과에 담지 않는다 (NFR-03, D-014).
 """
@@ -10,6 +10,7 @@ import hmac
 import json
 import re
 from bisect import bisect_left, bisect_right
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from app.contracts.engine import Location
@@ -26,6 +27,30 @@ LONG_RUN_MIN = 20
 LONG_RUN_KEEP = 4
 _LONG_RUN = re.compile(rf"[A-Za-z0-9+/=_-]{{{LONG_RUN_MIN},}}")
 _NEWLINE = re.compile(r"\r\n|\r|\n")
+
+# 파일 하나에서 받아들이는 걸림 수 (F-S01 11, F-S03 9). 10,001번째가 나오면 멈춘다
+HIT_LIMIT = 10_000
+
+# S01-GENERIC 키워드. 규칙(F-S01)과 근거 조각 ㉠이 같은 목록을 쓴다 (CR-003)
+GENERIC_KEYWORD = re.compile(
+    r"password|passwd|pwd|secret|api_?key|access_?token|auth_?token|client_?secret",
+    re.IGNORECASE,
+)
+# 명세 정규식 전체에 (?i)가 걸려 있어 `[A-Za-z]`도 K(켈빈)·ſ·İ·ı를 받는다. 같게 맞춘다.
+IDENT_RUN = re.compile(r"[A-Za-z0-9_]*+", re.IGNORECASE)
+
+# 근거 조각 ㉠: 키워드가 든 식별자 + `["']?\s*[:=]\s*` 뒤의 값 (CR-003)
+_ASSIGN_TAIL = re.compile(r"[\"']?\s*+[:=]\s*+")
+_ASSIGN_BARE = re.compile(r"[^\s\"'`,;)}\]]*+")
+_SNIPPET_QUOTES = "\"'`"
+# 근거 조각 ㉡: `http(s)://` 바로 뒤의 사용자 정보 (CR-003)
+_URL_USERINFO = re.compile(r"(https?://)[^\s/@\"'`<>]++@")
+_URL_USERINFO_MASKED = r"\g<1>" + MASKED + "@"
+
+# `.map` 이름 접두 (F-S01 9, CR-003)
+MAP_NAME_MAX = 100
+_MAP_NAME_CONTROL = re.compile(r"\r\n|[\x00-\x1f\x7f]")
+ELLIPSIS = "…"
 
 
 def evidence_key(key: bytes, raw: str) -> str:
@@ -55,6 +80,18 @@ class LineIndex:
         line = bisect_left(self._breaks, offset)  # offset 앞의 줄바꿈 수
         line_start = self._breaks[line - 1] + 1 if line else 0
         return Location(line + 1, offset - line_start + 1)
+
+
+def map_prefix(name: str) -> str:
+    """F-S01 9 `.map` 근거 조각 앞의 `[<이름>] ` (CR-003).
+
+    제어 문자 하나(`\\r\\n`은 둘이 하나)를 공백 하나로 바꾸고, 코드 포인트 100자를 넘으면
+    `…` + 뒤 100자로 줄인다(경로는 끝에 파일 이름이 있다). 이름에는 ③을 하지 않는다.
+    """
+    clean = _MAP_NAME_CONTROL.sub(" ", name)
+    if len(clean) > MAP_NAME_MAX:
+        clean = ELLIPSIS + clean[-MAP_NAME_MAX:]
+    return f"[{clean}] "
 
 
 def parse_sourcemap(content: str) -> list[tuple[str, str]] | None:
@@ -99,7 +136,56 @@ def _mask_long_runs(part: str) -> str:
     return _LONG_RUN.sub(lambda m: m.group()[:LONG_RUN_KEEP] + MASKED, part)
 
 
-def _masked_text(content: str, spans: list[MaskedSpan], lo: int, hi: int, rng: range) -> str:
+def _assigned_value(part: str, start: int) -> tuple[int, int, int]:
+    """㉠의 (값 시작, 값 끝, 다시 찾을 자리). 따옴표로 열리면 같은 따옴표 앞까지(없으면 끝까지)."""
+    if start < len(part) and part[start] in _SNIPPET_QUOTES:
+        close = part.find(part[start], start + 1)
+        if close == -1:
+            return start + 1, len(part), len(part)
+        return start + 1, close, close + 1
+    bare = _ASSIGN_BARE.match(part, start)
+    end = bare.end() if bare else start
+    return start, end, end
+
+
+def mask_assignments(part: str) -> str:
+    """근거 조각 ㉠ (CR-003): 키워드 꼴 대입의 값을 길이·자리표시값과 상관없이 `****`로.
+
+    빈 값은 그대로 둔다(`****`를 넣으면 값이 있었던 것처럼 보인다).
+
+    S01-GENERIC처럼 키워드를 먼저 찾고, 값이 정해지는 식별자 덩어리 끝에서 꼬리를 본다(선형).
+    실패하면 덩어리 끝부터, 가리면 값 뒤(닫는 따옴표 뒤)부터 다시 찾는다(명세 finditer와 같다).
+    """
+    pieces: list[str] = []
+    cursor = 0
+    pos = 0
+    while (kw := GENERIC_KEYWORD.search(part, pos)) is not None:
+        run = IDENT_RUN.match(part, kw.end())
+        run_end = run.end() if run else kw.end()
+        tail = _ASSIGN_TAIL.match(part, run_end)
+        if tail is None:
+            pos = run_end
+            continue
+        start, end, pos = _assigned_value(part, tail.end())
+        if end > start:
+            pieces.append(part[cursor:start])
+            pieces.append(MASKED)
+            cursor = end
+    pieces.append(part[cursor:])
+    return "".join(pieces)
+
+
+def mask_url_userinfo(part: str) -> str:
+    """근거 조각 ㉡ (CR-003): `http(s)://` 바로 뒤의 `사용자 정보@`를 `****@`로."""
+    return _URL_USERINFO.sub(_URL_USERINFO_MASKED, part)
+
+
+def _mask_side(part: str) -> str:
+    """걸린 곳 앞·뒤 한쪽에 ㉠ → ㉡ → ③ (②는 이미 한 글)."""
+    return _mask_long_runs(mask_url_userinfo(mask_assignments(part)))
+
+
+def _masked_text(content: str, spans: Sequence[MaskedSpan], lo: int, hi: int, rng: range) -> str:
     """content[lo:hi]에서 spans[rng]를 가린 값으로 바꾼 글 (②)."""
     pieces: list[str] = []
     cursor = lo
@@ -111,10 +197,11 @@ def _masked_text(content: str, spans: list[MaskedSpan], lo: int, hi: int, rng: r
     return "".join(pieces)
 
 
-def build_snippet(content: str, spans: list[MaskedSpan], target: int) -> str:
+def build_snippet(content: str, spans: Sequence[MaskedSpan], target: int) -> str:
     """근거 조각 (용어 '근거 조각' ①~⑤). spans는 시작 순서이고 겹치지 않는다. target은 그 인덱스.
 
     걸린 곳 앞·걸린 곳·뒤를 따로 만들고 따로 ③을 하므로, 긴 덩어리는 걸린 곳 경계에서 끊긴다.
+    ㉠㉡은 ②(S01 가리기)를 한 앞·뒤에만 하고 걸린 곳 자체는 바꾸지 않는다 (CR-003).
     글 안에 표시 문자를 넣지 않는다(대상 글에 어떤 글자가 있어도 자르는 기준이 틀어지지 않는다).
     """
     hit = spans[target]
@@ -132,8 +219,8 @@ def build_snippet(content: str, spans: list[MaskedSpan], target: int) -> str:
     before = _masked_text(content, spans, lo_text, hit.start, range(first, target))
     after = _masked_text(content, spans, hit.end, hi_text, range(target + 1, last))
     snippet = (
-        _mask_long_runs(before)[-SNIPPET_SIDE:]
+        _mask_side(before)[-SNIPPET_SIDE:]
         + _mask_long_runs(hit.masked)
-        + _mask_long_runs(after)[:SNIPPET_SIDE]
+        + _mask_side(after)[:SNIPPET_SIDE]
     )
     return _NEWLINE.sub(" ", snippet)
