@@ -38,7 +38,8 @@ ClockDep = Annotated[Clock, Depends(get_clock)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 LocalKeyDep = Annotated[bytes, Depends(get_local_key)]
 
-# 자원 ID 인자. SQLite INTEGER 범위 밖 값이 DB까지 가면 OverflowError(500)가 나므로 경계에서 400으로 막는다
+# 자원 ID 인자. SQLite INTEGER 범위 밖 값이 DB까지 가면 OverflowError(500)가 나서
+# 경계에서 400으로 막는다
 ID_MAX = 2**63 - 1
 IdPath = Annotated[int, Path(ge=1, le=ID_MAX)]
 IdQuery = Annotated[int, Query(ge=1, le=ID_MAX)]
