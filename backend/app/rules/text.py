@@ -12,6 +12,7 @@ import re
 from bisect import bisect_left, bisect_right
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import overload
 
 from app.contracts.engine import Location
 
@@ -94,16 +95,48 @@ def map_prefix(name: str) -> str:
     return f"[{clean}] "
 
 
+class LineCursor:
+    """앞으로만 가는 위치 세기. 자리가 커지는 차례로 물으면 글을 한 번만 읽는다.
+
+    줄바꿈 목록을 만들지 않으므로 줄이 아주 많은 글에서도 메모리가 늘지 않는다.
+    """
+
+    def __init__(self, content: str) -> None:
+        self._content = content
+        self._pos = 0
+        self._line = 1
+        self._line_start = 0
+
+    def locate(self, offset: int) -> Location:
+        if offset < self._pos:
+            raise ValueError("LineCursor는 앞으로만 간다")
+        breaks = self._content.count("\n", self._pos, offset)
+        if breaks:
+            self._line += breaks
+            self._line_start = self._content.rfind("\n", self._pos, offset) + 1
+        self._pos = offset
+        return Location(self._line, offset - self._line_start + 1)
+
+
+def load_sourcemap(content: str) -> dict[str, object] | None:
+    """`.map` 글을 JSON 객체로 읽는다. JSON 객체가 아니면 None (F-S02 예외, CR-002).
+
+    BOM은 떼고 읽는다(규칙 함수가 BOM을 뗀다, RunRules). F-S01·S02·S03이 같은 판정을 쓴다.
+    """
+    try:
+        data = json.loads(strip_bom(content))
+    except (ValueError, RecursionError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
 def parse_sourcemap(content: str) -> list[tuple[str, str]] | None:
     """`.map`의 (sources 이름, sourcesContent 글) 목록. JSON 객체가 아니면 None.
 
     글이 아닌 항목(null 등)과 빈 글은 건너뛴다. 이름이 없으면 빈 문자열.
     """
-    try:
-        data = json.loads(content)
-    except (ValueError, RecursionError):
-        return None
-    if not isinstance(data, dict):
+    data = load_sourcemap(content)
+    if data is None:
         return None
     sources = data.get("sources")
     names = sources if isinstance(sources, list) else []
@@ -224,3 +257,86 @@ def build_snippet(content: str, spans: Sequence[MaskedSpan], target: int) -> str
         + _mask_side(after)[:SNIPPET_SIDE]
     )
     return _NEWLINE.sub(" ", snippet)
+
+
+class _Spliced(Sequence[MaskedSpan]):
+    """spans[lo:hi]를 hit 하나로 바꾼 보기.
+
+    복사하지 않으므로 발견마다 걸림 목록 길이만큼 들지 않는다.
+    """
+
+    def __init__(self, spans: Sequence[MaskedSpan], lo: int, hi: int, hit: MaskedSpan) -> None:
+        self._spans = spans
+        self._lo = lo
+        self._shift = hi - lo - 1
+        self._hit = hit
+        self._len = len(spans) - self._shift
+
+    def __len__(self) -> int:
+        return self._len
+
+    @overload
+    def __getitem__(self, index: int) -> MaskedSpan: ...
+    @overload
+    def __getitem__(self, index: slice) -> Sequence[MaskedSpan]: ...
+    def __getitem__(self, index: int | slice) -> MaskedSpan | Sequence[MaskedSpan]:
+        if isinstance(index, slice):
+            return [self[i] for i in range(*index.indices(self._len))]
+        if index < 0:
+            index += self._len
+        if not 0 <= index < self._len:
+            raise IndexError(index)
+        if index < self._lo:
+            return self._spans[index]
+        if index == self._lo:
+            return self._hit
+        return self._spans[index + self._shift]
+
+
+def _span_end(span: MaskedSpan) -> int:
+    return span.end
+
+
+def _render_hit(content: str, lo: int, hi: int, pieces: list[MaskedSpan]) -> str:
+    """content[lo:hi]에서 pieces를 바꾼 글.
+
+    앞의 것 안에 든 조각은 버리고, 걸친 조각은 이어 붙인다.
+    """
+    pieces.sort(key=lambda p: (p.start, -p.end))
+    out: list[str] = []
+    cursor = lo
+    for p in pieces:
+        if p.start < cursor:
+            if p.end <= cursor:
+                continue
+            out.append(p.masked)
+            cursor = p.end
+            continue
+        out.append(content[cursor : p.start])
+        out.append(p.masked)
+        cursor = p.end
+    out.append(content[cursor:hi])
+    return "".join(out)
+
+
+def hit_snippet(
+    content: str,
+    spans: Sequence[MaskedSpan],
+    start: int,
+    end: int,
+    edits: Sequence[MaskedSpan] = (),
+) -> str:
+    """S01이 아닌 걸림(F-S02·S03)의 근거 조각 (용어 '근거 조각' ①~⑤, CR-003).
+
+    spans는 같은 글의 S01 걸림(시작 순서, 겹치지 않음). 걸린 곳 [start, end)은 그 규칙의 값 모양
+    (edits: 걸린 곳 안에서 바꿀 범위와 글, 예: 사용자 정보 → `****@`)에 걸린 곳과 겹치는 S01 걸림을
+    가린 값으로 바꾼 글(②)로 보인다. S01 걸림이 걸린 곳 밖으로 걸치면 걸린 곳을 그 끝까지 넓힌다
+    (S01 원문의 조각이 남지 않게). 그다음은 S01과 같은 `build_snippet`이다(㉠㉡은 앞·뒤에만).
+    """
+    lo_i = bisect_right(spans, start, key=_span_end)  # 끝이 start 뒤인 첫 걸림
+    hi_i = bisect_left(spans, end, key=_span_start)  # 시작이 end 이상인 첫 걸림 (늘 lo_i 이상)
+    overlapping = [spans[i] for i in range(lo_i, hi_i)]
+    lo = min(start, overlapping[0].start) if overlapping else start
+    hi = max(end, overlapping[-1].end) if overlapping else end
+    hit = MaskedSpan(lo, hi, _render_hit(content, lo, hi, [*overlapping, *edits]))
+    return build_snippet(content, _Spliced(spans, lo_i, hi_i, hit), lo_i)
