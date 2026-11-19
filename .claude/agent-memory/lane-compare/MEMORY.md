@@ -1,0 +1,1 @@
+- [지문 정규식 창](fingerprint-regex-window.md) — F-C01 정규식은 이름 끝 창에만 건다(제곱 시간 방지), worktree는 npm ci 먼저
