@@ -26,8 +26,6 @@ LONG_RUN_MIN = 20
 LONG_RUN_KEEP = 4
 _LONG_RUN = re.compile(rf"[A-Za-z0-9+/=_-]{{{LONG_RUN_MIN},}}")
 _NEWLINE = re.compile(r"\r\n|\r|\n")
-_MARK_START = ""  # 걸린 곳 표시 (근거 조각을 자를 기준)
-_MARK_END = ""
 
 
 def evidence_key(key: bytes, raw: str) -> str:
@@ -93,33 +91,49 @@ class MaskedSpan:
     masked: str
 
 
+def _span_start(span: MaskedSpan) -> int:
+    return span.start
+
+
+def _mask_long_runs(part: str) -> str:
+    return _LONG_RUN.sub(lambda m: m.group()[:LONG_RUN_KEEP] + MASKED, part)
+
+
+def _masked_text(content: str, spans: list[MaskedSpan], lo: int, hi: int, rng: range) -> str:
+    """content[lo:hi]에서 spans[rng]를 가린 값으로 바꾼 글 (②)."""
+    pieces: list[str] = []
+    cursor = lo
+    for i in rng:
+        pieces.append(content[cursor : spans[i].start])
+        pieces.append(spans[i].masked)
+        cursor = spans[i].end
+    pieces.append(content[cursor:hi])
+    return "".join(pieces)
+
+
 def build_snippet(content: str, spans: list[MaskedSpan], target: int) -> str:
-    """근거 조각 (용어 '근거 조각' ①~⑤). spans는 시작 순서이고 겹치지 않는다. target은 그 인덱스."""
+    """근거 조각 (용어 '근거 조각' ①~⑤). spans는 시작 순서이고 겹치지 않는다. target은 그 인덱스.
+
+    걸린 곳 앞·걸린 곳·뒤를 따로 만들고 따로 ③을 하므로, 긴 덩어리는 걸린 곳 경계에서 끊긴다.
+    글 안에 표시 문자를 넣지 않는다(대상 글에 어떤 글자가 있어도 자르는 기준이 틀어지지 않는다).
+    """
     hit = spans[target]
     lo_text = max(0, hit.start - SNIPPET_WINDOW)
     hi_text = min(len(content), hit.end + SNIPPET_WINDOW)
-    starts = [s.start for s in spans]
-    first = max(bisect_right(starts, lo_text) - 1, 0)
+    first = max(bisect_right(spans, lo_text, key=_span_start) - 1, 0)
     if spans[first].end <= lo_text:
         first += 1
-    last = bisect_left(starts, hi_text)  # 범위 안에서 시작하는 걸림의 다음
+    last = bisect_left(spans, hi_text, key=_span_start)  # 범위 안에서 시작하는 걸림의 다음
     first = min(first, target)
     last = max(last, target + 1)
     lo_text = min(lo_text, spans[first].start)  # 걸림이 잘리지 않게 범위를 넓힌다
     hi_text = max(hi_text, spans[last - 1].end)
 
-    pieces: list[str] = []
-    cursor = lo_text
-    for i in range(first, last):
-        span = spans[i]
-        pieces.append(content[cursor : span.start])
-        pieces.append(_MARK_START + span.masked + _MARK_END if i == target else span.masked)
-        cursor = span.end
-    pieces.append(content[cursor:hi_text])
-    joined = "".join(pieces)
-
-    joined = _LONG_RUN.sub(lambda m: m.group()[:LONG_RUN_KEEP] + MASKED, joined)
-    a = joined.index(_MARK_START)
-    b = joined.index(_MARK_END)
-    snippet = joined[:a][-SNIPPET_SIDE:] + joined[a + 1 : b] + joined[b + 1 :][:SNIPPET_SIDE]
+    before = _masked_text(content, spans, lo_text, hit.start, range(first, target))
+    after = _masked_text(content, spans, hit.end, hi_text, range(target + 1, last))
+    snippet = (
+        _mask_long_runs(before)[-SNIPPET_SIDE:]
+        + _mask_long_runs(hit.masked)
+        + _mask_long_runs(after)[:SNIPPET_SIDE]
+    )
     return _NEWLINE.sub(" ", snippet)

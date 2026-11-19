@@ -47,7 +47,7 @@ def test_F_S01_GENERIC_password_콜론() -> None:
 
 def test_F_S01_GENERIC_DB_PASSWORD() -> None:
     f = only('DB_PASSWORD="s3cr3tPassw0rd"')
-    assert f.rule_id == "S01-GENERIC"
+    assert (f.rule_id, f.value) == ("S01-GENERIC", "****")
     assert f.evidence_key == "fcbead8b6d92"
 
 
@@ -154,6 +154,81 @@ def test_F_S01_근거조각_원문이_다른_걸림도_가린다() -> None:
         assert AWS not in x.snippet
 
 
+def test_F_S01_근거조각_대상글의_사설영역_글자는_그대로() -> None:
+    # 예전 구현은 U+E000·U+E001을 표시 문자로 써서 이 입력에서 자르는 기준이 틀어졌다
+    f = only(f' zz  x="{AWS}" tail')
+    assert f.snippet == ' zz  x="AKIA****LE" tail'
+
+
+def test_F_S01_근거조각_긴덩어리는_걸린곳에서_끊긴다() -> None:
+    # 명세가 정하지 않은 부분(③이 걸린 곳을 덮을 때). 지금 동작을 지킨다(검증 T5 '고치지 않을 것')
+    f = only(f"abcdefghijklmnopqrstu-{AWS}")
+    assert f.snippet == "abcd****AKIA****LE"
+
+
+# ---- GENERIC 다시 찾기 ----
+
+
+def test_F_S01_GENERIC_버린값_안의_키워드도_찾는다() -> None:
+    # 앞 키워드의 값(`pwd=`, `pwd:`)이 8자 미만이라 버려도, 그 안의 키워드부터 다시 본다
+    for content, span in (
+        ('password:"pwd="abcdefghij"', (15, 25)),
+        ('k:"x" password:"pwd:"abcdefghij"', (21, 31)),
+    ):
+        got = [(c.start, c.end) for c in secrets._generic_candidates(content)]
+        assert got == [span], content
+        assert only(content).rule_id == "S01-GENERIC"
+
+
+# 명세 규칙 표의 S01-GENERIC 정규식 그대로 (값 = 둘째 묶음)
+SPEC_GENERIC = re.compile(
+    r"(?i)[A-Za-z0-9_]*(password|passwd|pwd|secret|api_?key|access_?token|auth_?token|client_?secret)"
+    r"[A-Za-z0-9_]*[\"']?\s*[:=]\s*[\"']([^\"'\s]{8,})[\"']"
+)
+
+
+def generic_like(rng: random.Random) -> str:
+    """`키 이름 + 구분자 + 값` 꼴을 흔든다. 값 안에 다른 키워드·구분자가 들고, 대소문자 무시로
+    [A-Za-z]에 드는 특수 글자(K 켈빈·ı·ſ)도 넣어 걸림과 빗나감이 섞이게 한다."""
+
+    def pick(*xs: str) -> str:
+        return rng.choice(xs)
+
+    def value() -> str:
+        parts = ("abcd", "abcdefgh", "pwd", "secret", "=", ":", '"', "'", " ", "-", "x")
+        return "".join(rng.choice(parts) for _ in range(rng.randint(0, 5)))
+
+    def assignment() -> str:
+        return (
+            pick("", "DB_", "x", "K", "ı", "é")
+            + pick("password", "PWD", "secret", "api_key", "apikey", "client_secret", "ſecret")
+            + pick("", "Hint", "_1", "K")
+            + pick("", '"', "'")
+            + pick("", " ", "\t")
+            + pick(":", "=", ":", " ")
+            + pick("", " ")
+            + pick('"', "'", '"', "")
+            + value()
+            + pick('"', "'", "", " ")
+        )
+
+    return pick("", " ", ";").join(assignment() for _ in range(rng.randint(1, 4)))
+
+
+def test_F_S01_GENERIC_명세_정규식과_같은_범위() -> None:
+    # 암호용이 아니라 시험 입력을 만드는 고정 씨앗 난수다
+    rng = random.Random(7)  # noqa: S311
+    hits = 0
+    for _ in range(5000):
+        s = generic_like(rng)
+        spec = [(m.start(2), m.end(2)) for m in SPEC_GENERIC.finditer(s)]
+        expected = [sp for sp in spec if not secrets.is_placeholder(s[sp[0] : sp[1]])]
+        got = [(c.start, c.end) for c in secrets._generic_candidates(s)]
+        assert got == expected, s
+        hits += bool(expected)
+    assert hits > 100
+
+
 # ---- 겹침과 묶기 ----
 
 
@@ -217,6 +292,17 @@ def test_F_S01_원문이_결과에_없다() -> None:
 
 
 # ---- 성능 ----
+
+
+def test_F_S01_원문이_다른_걸림_많아도_선형() -> None:
+    # 검증 T5 재검증 재현: 근거 조각마다 시작 목록을 다시 만들어 AWS 2만 개(420KB)에 24초였다
+    aws = " ".join(f"AKIA{i:016d}" for i in range(20_000))
+    generic = " ".join(f"password='x{i:07d}abc'" for i in range(10_000))
+    for content, n in ((aws, 20_000), (generic, 10_000)):
+        t0 = time.perf_counter()
+        found = scan(content)
+        assert time.perf_counter() - t0 < 3.0, n
+        assert len(found) == n
 
 
 def test_F_S01_긴식별자_정규식_폭주없음() -> None:

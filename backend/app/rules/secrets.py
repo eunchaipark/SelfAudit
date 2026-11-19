@@ -76,8 +76,9 @@ _GENERIC_KEYWORD = re.compile(
     r"password|passwd|pwd|secret|api_?key|access_?token|auth_?token|client_?secret",
     re.IGNORECASE,
 )
-_IDENT_RUN = re.compile(r"[A-Za-z0-9_]*")
-_GENERIC_TAIL = re.compile(r"[A-Za-z0-9_]*[\"']?\s*[:=]\s*[\"']")
+# 명세 정규식 전체에 (?i)가 걸려 있어 `[A-Za-z]`도 K(켈빈)·ſ·İ·ı를 받는다. 같게 맞춘다.
+_IDENT_RUN = re.compile(r"[A-Za-z0-9_]*+", re.IGNORECASE)
+_GENERIC_TAIL = re.compile(r"[\"']?\s*+[:=]\s*+[\"']")
 _GENERIC_VALUE = re.compile(r"[^\"'\s]*+")
 GENERIC_MIN = 8
 _QUOTES = "\"'"
@@ -145,25 +146,27 @@ def _pkey_candidates(content: str) -> Iterator[_Candidate]:
 
 
 def _generic_candidates(content: str) -> Iterator[_Candidate]:
+    # 명세 정규식은 키워드가 든 식별자 덩어리의 끝에서 꼬리·값이 정해진다(어느 키워드든 같다).
+    # 그래서 덩어리마다 한 번만 보고, 실패하면 덩어리 끝부터 다시 찾는다(버린 값 안도 본다).
+    # 걸리면 명세 finditer처럼 닫는 따옴표 뒤부터 찾는다. 자리표시값은 걸린 뒤에 버린다(F-S01 3).
     pos = 0
-    while True:
-        kw = _GENERIC_KEYWORD.search(content, pos)
-        if kw is None:
-            return
-        tail = _GENERIC_TAIL.match(content, kw.end())
-        if tail is None:
-            ident = _IDENT_RUN.match(content, kw.end())
-            pos = max(kw.end(), ident.end() if ident else 0)  # 같은 식별자 안 키워드는 건너뜀
+    while (kw := _GENERIC_KEYWORD.search(content, pos)) is not None:
+        run = _IDENT_RUN.match(content, kw.end())
+        run_end = run.end() if run else kw.end()
+        tail = _GENERIC_TAIL.match(content, run_end)
+        value = _GENERIC_VALUE.match(content, tail.end()) if tail else None
+        if value is None or not _closed_value(content, value):
+            pos = run_end
             continue
-        value = _GENERIC_VALUE.match(content, tail.end())
-        if value is None:
-            pos = kw.end()
-            continue
-        pos = max(value.end(), kw.end())
-        raw = value.group()
-        closed = value.end() < len(content) and content[value.end()] in _QUOTES
-        if len(raw) >= GENERIC_MIN and closed and not is_placeholder(raw):
+        pos = value.end() + 1
+        if not is_placeholder(value.group()):
             yield _Candidate("S01-GENERIC", value.start(), value.end(), text.MASKED)
+
+
+def _closed_value(content: str, value: re.Match[str]) -> bool:
+    """명세 `([^"'\\s]{8,})["']`: 8자 이상이고 바로 뒤가 따옴표."""
+    end = value.end()
+    return len(value.group()) >= GENERIC_MIN and end < len(content) and content[end] in _QUOTES
 
 
 def _rule_candidates(content: str, rule_id: str) -> Iterator[_Candidate]:
