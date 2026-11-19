@@ -614,6 +614,20 @@ def test_F_S01_근거조각_키워드창_많아도_선형() -> None:
         assert (len(result.findings), result.stopped) == (10_000, False)
 
 
+def test_F_S01_map_항목많아도_글과_접두를_쌓지_않는다() -> None:
+    # 검증 T18 재현: 항목마다 BOM 뗀 글·접두를 한꺼번에 만들어 입력의 2.8배였다(main 1.7배)
+    n = 20_000
+    content = json.dumps({"sources": ["s" * 300] * n, "sourcesContent": [text.BOM + "x" * 150] * n})
+    tracemalloc.start()
+    try:
+        result = secrets.scan_file("a.js.map", content, KEY)
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    assert (result.findings, len(result.spans)) == ((), n)
+    assert peak < 2.2 * len(content)
+
+
 # ---- T6·T8에 넘기는 출력 ----
 
 

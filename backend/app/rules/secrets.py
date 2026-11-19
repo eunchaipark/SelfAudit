@@ -236,12 +236,16 @@ class SecretsScan:
     stopped: bool
 
 
-def _texts(path: str, content: str) -> list[tuple[str, str, bool]]:
-    """(근거 조각 접두, BOM을 뗀 글, 위치를 셀지). `.map`은 `sourcesContent` 항목마다 (F-S01 9)."""
+def _texts(path: str, content: str) -> Iterator[tuple[str | None, str]]:
+    """(`.map` 항목 이름 또는 None, BOM을 뗀 글). `.map`은 `sourcesContent` 항목마다 (F-S01 9).
+
+    한 번에 한 항목씩 낸다. 항목이 수십만 개여도 BOM 뗀 글·접두를 한꺼번에 쌓지 않는다.
+    """
     if not path.lower().endswith(MAP_SUFFIX):
-        return [("", text.strip_bom(content), True)]
-    items = text.parse_sourcemap(content) or []
-    return [(text.map_prefix(name), text.strip_bom(item), False) for name, item in items]
+        yield None, text.strip_bom(content)
+        return
+    for name, item in text.parse_sourcemap(content) or []:
+        yield name, text.strip_bom(item)
 
 
 def scan_file(path: str, content: str, key: bytes) -> SecretsScan:
@@ -254,7 +258,7 @@ def scan_file(path: str, content: str, key: bytes) -> SecretsScan:
     all_spans: list[tuple[text.MaskedSpan, ...]] = []
     budget = text.HIT_LIMIT
     stopped = False
-    for prefix, item, locate in _texts(path, content):
+    for name, item in _texts(path, content):
         if stopped:
             all_spans.append(())
             continue
@@ -262,7 +266,7 @@ def scan_file(path: str, content: str, key: bytes) -> SecretsScan:
         budget -= len(kept)
         spans = tuple(text.MaskedSpan(c.start, c.end, c.masked) for c in kept)
         all_spans.append(spans)
-        _collect(groups, item, kept, spans, key, prefix, locate=locate)
+        _collect(groups, item, kept, spans, key, name)
     ordered = sorted(groups.values(), key=lambda g: _RULE_ORDER[g.rule_id])
     findings = tuple(
         Finding(
@@ -287,13 +291,13 @@ def _collect(
     kept: list[_Candidate],
     spans: tuple[text.MaskedSpan, ...],
     key: bytes,
-    prefix: str,
-    *,
-    locate: bool,
+    map_name: str | None,
 ) -> None:
+    """걸림을 묶는다 (F-S01 5). 날글(map_name None)만 위치를 세고, `.map` 항목은 접두를 붙인다."""
     if not kept:
         return
-    index = text.LineIndex(content) if locate else None
+    prefix = "" if map_name is None else text.map_prefix(map_name)
+    index = text.LineIndex(content) if map_name is None else None
     for i, c in enumerate(kept):
         raw = content[c.start : c.end]
         group = groups.get((c.rule_id, raw))
