@@ -468,7 +468,7 @@
         "title": "규칙: 심각도·점수와 규칙 실행 연결 (F-S06)",
         "description": "score(점수·개수·정렬)와 run_rules(S01~S04 묶기, 규칙 버전)",
         "details": "영역: 규칙\n목적: 발견마다 심각도를 매기고 점검 점수를 낸다 (FR-08)\n읽을 문서: 기능명세 F-S06, 용어 '규칙 버전'\n고칠 파일: backend/app/rules/**, backend/tests/rules/**\n계약: rules.run_rules → RuleRun, rules.score → ScoreResult",
-        "testStrategy": "test_F-S06_높음2중간1낮음3정보5_46점 / test_F-S06_발견0_100 / test_F-S06_높음6_0점 / test_F-S06_횟수3이어도_80 / test_F-S06_정렬 / test_F-S06_대상없음_실패면_점수_대시 / test_NFR-04_같은입력_두번_같은결과. 화면 없음.",
+        "testStrategy": "test_F-S06_높음2중간1낮음3정보5_46점 / test_F-S06_발견0_100 / test_F-S06_높음6_0점 / test_F-S06_횟수3이어도_80 / test_F-S06_정렬 / test_NFR-04_같은입력_두번_같은결과. 화면 없음.",
         "priority": "high",
         "dependencies": [
           "5",
@@ -867,7 +867,7 @@
         "title": "점검 흐름: 점검 시작·실행·저장 (F-I01 A·11)",
         "description": "점검 시작 API와 거부, intake→rules→score→rea→지문 잇기, 상태 전이, 격리 폴더 삭제",
         "details": "영역: 점검 흐름\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02) / 발견마다 심각도를 매기고 점검 점수를 낸다 (FR-08)\n읽을 문서: 기능명세 F-I01 A·B 1·11, 예외·예시, F-S06 4, F-S04 안내\n고칠 파일: backend/app/scans/**, backend/tests/scans/**\n계약: POST /apps/{id}/scans/zip, POST /apps/{id}/scans/folder → ScanStartedOut, 모델 Scan·FindingRow·SkippedRow·ReaRow\n\n마이그레이션 없음. 로컬 키는 app.state.local_key.",
-        "testStrategy": "test_F-I01_zip아님_거부 / test_F-I01_209715201바이트_거부 / test_F-I01_폴더상대경로_거부 / test_F-I01_진행중_다른점검_거부 / test_F-I01_png만_대상없음 / test_F-I01_끝나면_격리폴더_삭제 / test_F-I01_intake실패_이유_저장 / test_F-S01_DB응답에_원문_없음 / test_NFR-01_네트워크_차단에서_점검됨. 화면 없음.",
+        "testStrategy": "test_F-I01_zip아님_거부 / test_F-I01_209715201바이트_거부 / test_F-I01_폴더상대경로_거부 / test_F-I01_진행중_다른점검_거부 / test_F-I01_png만_대상없음 / test_F-I01_끝나면_격리폴더_삭제 / test_F-I01_intake실패_이유_저장 / test_F-S01_DB응답에_원문_없음 / test_NFR-01_네트워크_차단에서_점검됨 / test_F-S06_대상없음_실패면_점수_대시 (T8에서 옮김: score는 상태를 받지 않는다, 설계 0c36654). 화면 없음.",
         "priority": "high",
         "dependencies": [
           "1",
