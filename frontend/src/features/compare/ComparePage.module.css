@@ -1,0 +1,148 @@
+.page {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-title);
+  overflow-wrap: anywhere;
+}
+
+.score {
+  margin: 0;
+  font-size: var(--font-size-title);
+  font-weight: 700;
+}
+
+.up {
+  color: var(--color-good);
+}
+
+.down {
+  color: var(--color-danger);
+}
+
+.same {
+  color: var(--color-neutral);
+}
+
+.notice {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.tab {
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.tab[aria-pressed='true'] {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch-min);
+}
+
+.groupTitle {
+  margin: 0;
+  font-size: var(--font-size-body);
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 4em minmax(10em, 1fr) minmax(10em, 2fr) minmax(8em, 2fr) auto;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rule,
+.path,
+.value {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-small);
+  overflow-wrap: anywhere;
+}
+
+.severity {
+  font-weight: 700;
+}
+
+.high {
+  color: var(--color-sev-high);
+}
+
+.medium {
+  color: var(--color-sev-medium);
+}
+
+.low {
+  color: var(--color-sev-low);
+}
+
+.info {
+  color: var(--color-sev-info);
+}
+
+.changed {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-sev-medium);
+  border-radius: var(--radius);
+  color: var(--color-sev-medium);
+  font-size: var(--font-size-small);
+}
+
+/* 768px 아래: 심각도·규칙을 한 줄에, 경로·값은 그 아래 전체 폭으로 */
+@media (max-width: 767px) {
+  .row {
+    grid-template-columns: 4em 1fr auto;
+  }
+
+  /* 심각도 바뀜 표시가 규칙 옆(첫 줄)에 오도록 경로·값을 뒤로 */
+  .path,
+  .value {
+    grid-column: 1 / -1;
+    order: 1;
+  }
+}

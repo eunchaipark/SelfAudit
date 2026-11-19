@@ -1,1 +1,2 @@
 - [지문 정규식 창](fingerprint-regex-window.md) — F-C01 정규식은 이름 끝 창에만 건다(제곱 시간 방지), worktree는 npm ci 먼저
+- [비교에서 정한 것](compare-decisions.md) — F-C02 짝짓기·정렬·예외 차례, 앱 이름은 계약에 없어 useScan으로 우회(설계 요청)
