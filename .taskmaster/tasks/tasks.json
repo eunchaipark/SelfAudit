@@ -251,7 +251,7 @@
         "testStrategy": "test_F-S01_AWS_위치3_15_가린값_증거키 / test_F-S01_apiKey_AKIA는_AWS하나만 / test_F-S01_자리표시값_발견없음 / test_F-S01_5자_비밀번호_발견없음 / test_F-S01_같은키3번_횟수3 / test_F-S01_개인키2블록 / test_F-S01_map_sourcesContent_경로 / test_F-S01_원문이_결과에_없다 / test_F-S01_긴식별자_정규식_폭주없음. 화면 없음.",
         "priority": "high",
         "dependencies": [],
-        "status": "review",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -495,11 +495,11 @@
         "id": 9,
         "title": "비교: 발견 지문 (F-C01)",
         "description": "compare.fingerprint(해시 파일 이름 정규화, 규칙ID|경로|증거키)",
-        "details": "영역: 비교·내보내기\n목적: 같은 앱의 두 점검을 비교해 고쳐짐·남음·새로 생김과 점수 변화를 보여 준다 (FR-10)\n읽을 문서: 기능명세 F-C01\n고칠 파일: backend/app/compare/**, backend/tests/compare/**\n계약: compare.fingerprint(Finding) → str\n\n점검 흐름(T14)의 선행.",
+        "details": "영역: 비교·내보내기\n목적: 같은 앱의 두 점검을 비교해 고쳐짐·남음·새로 생김과 점수 변화를 보여 준다 (FR-10)\n읽을 문서: 기능명세 F-C01\n고칠 파일: backend/app/compare/**, backend/tests/compare/**\n명세 기준: 7ba2079\n계약: compare.fingerprint(Finding) → str\n\n점검 흐름(T14)의 선행.",
         "testStrategy": "test_F-C01_vite해시_제거 / test_F-C01_webpack_map_정규화 / test_F-C01_react는_그대로 / test_F-C01_폴더부분은_그대로 / test_F-C01_S01AWS_지문 / test_F-C01_S04_지문. 화면 없음.",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
