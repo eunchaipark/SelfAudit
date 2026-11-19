@@ -540,7 +540,7 @@
         "testStrategy": "test_F-C01_vite해시_제거 / test_F-C01_webpack_map_정규화 / test_F-C01_react는_그대로 / test_F-C01_폴더부분은_그대로 / test_F-C01_S01AWS_지문 / test_F-C01_S04_지문. 화면 없음.",
         "priority": "high",
         "dependencies": [],
-        "status": "review",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -585,7 +585,7 @@
             "parentId": "undefined"
           }
         ],
-        "updatedAt": "2026-11-19T11:47:44.837Z"
+        "updatedAt": "2026-11-19T11:52:28.727Z"
       },
       {
         "id": "10",
@@ -1178,9 +1178,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-11-19T11:50:18.836Z",
+      "lastModified": "2026-11-19T11:52:28.732Z",
       "taskCount": 17,
-      "completedCount": 0,
+      "completedCount": 1,
       "tags": [
         "master"
       ]
