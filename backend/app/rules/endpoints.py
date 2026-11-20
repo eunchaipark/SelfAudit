@@ -17,13 +17,11 @@ from app.core.limits import HIT_LIMIT
 from app.rules import text
 
 MAP_SUFFIX = ".map"
-USERINFO_MASKED = text.MASKED + "@"
 
 # 1번 정규식과 같은 뜻. 묶음: 스킴, 사용자 정보(`…@`), 호스트(포트 포함), 경로
 _URL = re.compile(
     r"(https?://)((?:[^\s/@\"'`<>]++@)?)([A-Za-z0-9.\-_:\[\]]++)((?:/[^\s\"'`<>\\)]*+)?)"
 )
-_QUERY_OR_FRAGMENT = re.compile(r"[?#]")
 _IPV4 = re.compile(r"([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})")
 IPV4_MAX = 255
 LOOPBACK_FIRST = 127  # 5번 ② `127.*`
@@ -83,15 +81,11 @@ class EndpointsScan:
 
 @dataclass(frozen=True, slots=True)
 class _Hit:
-    """받아들인 걸림 하나.
-
-    [start, end)는 근거 조각의 걸린 곳, edits는 걸린 곳을 값 모양으로 바꾸는 곳.
-    """
+    """받아들인 걸림 하나. [start, end)는 걸린 곳 글, edits는 1절 '값 가리기' ㈀㈁의 바꿀 곳."""
 
     rule_id: str
     start: int
     end: int
-    value: str
     edits: tuple[text.MaskedSpan, ...]
 
 
@@ -146,18 +140,7 @@ def _url_hits(content: str) -> Iterator[_Hit]:
         if rule_id is None:
             continue
         start, end = m.start(), m.end()
-        host_start = m.start(3)
-        edits: list[text.MaskedSpan] = []
-        value_head = m.group(1)
-        if m.group(2):
-            edits.append(text.MaskedSpan(m.end(1), host_start, USERINFO_MASKED))
-            value_head += USERINFO_MASKED
-        cut = _QUERY_OR_FRAGMENT.search(content, host_start, end)
-        value_end = cut.start() if cut else end
-        if value_end < end:
-            edits.append(text.MaskedSpan(value_end, end, ""))
-        value = value_head + content[host_start:value_end]
-        yield _Hit(rule_id, start, end, value, tuple(edits))
+        yield _Hit(rule_id, start, end, text.value_edits(content, start, end, keep_query=False))
 
 
 def _admin_hits(content: str) -> Iterator[_Hit]:
@@ -183,10 +166,9 @@ def _admin_hits(content: str) -> Iterator[_Hit]:
         start = quote + 1
         if _ADMIN_PATH.fullmatch(content, start, close) is None:
             continue
-        cut = _QUERY_OR_FRAGMENT.search(content, start, close)
-        value_end = cut.start() if cut else close
-        edits = (text.MaskedSpan(value_end, close, ""),) if value_end < close else ()
-        yield _Hit("S03-ADMINPATH", start, close, content[start:value_end], edits)
+        # 3번: 관리 경로도 `?`·`#` 앞까지 (CR-007)
+        edits = text.value_edits(content, start, close, keep_query=False)
+        yield _Hit("S03-ADMINPATH", start, close, edits)
 
 
 def _hits(content: str) -> Iterator[_Hit]:
@@ -198,6 +180,7 @@ def _hits(content: str) -> Iterator[_Hit]:
 class _Group:
     rule_id: str
     value: str
+    evidence: str
     first_snippet: str
     first_location: Location | None
     count: int
@@ -216,20 +199,25 @@ def _texts(path: str, content: str) -> Iterator[tuple[str | None, str]]:
 
 
 def scan_file(
-    path: str, content: str, *, s01_spans: Sequence[Sequence[text.MaskedSpan]]
+    path: str,
+    content: str,
+    key: bytes,
+    *,
+    s01_spans: Sequence[Sequence[text.MaskedSpan]],
 ) -> EndpointsScan:
     """F-S03 내부 주소·엔드포인트 (FR-05). `.map`은 `sourcesContent` 항목마다 본다(F-S01처럼).
 
-    s01_spans: 같은 파일의 `secrets.scan_file(...).spans`(글마다 S01 걸림). S01이 멈춘 파일도 받은
-    것까지 근거 조각 ②에 넣는다 (CR-003). 걸림 상한(9번)은 파일 하나(`.map`은 항목을 합쳐)에서 S01과
-    따로 센다. 10,001번째가 나오면 그것은 받지 않고 남은 항목도 보지 않는다 (CR-005).
+    key: 로컬 키(증거키 HMAC, 8번). s01_spans: 같은 파일의 `secrets.scan_file(...).spans`(글마다
+    S01 걸림). 값 칸과 근거 조각에서 같은 글의 S01 걸림을 가린다. S01이 멈춘 파일도 받은 것까지 쓴다
+    (CR-003·007). 걸림 상한(9번)은 파일 하나(`.map`은 항목을 합쳐)에서 S01과 따로 센다. 10,001번째가
+    나오면 그것은 받지 않고 남은 항목도 보지 않는다 (CR-005).
     """
     groups: dict[tuple[str, str], _Group] = {}
     accepted = 0
     stopped = False
     for i, (name, item) in enumerate(_texts(path, content)):
         spans = s01_spans[i] if i < len(s01_spans) else ()
-        accepted, stopped = _collect(groups, item, spans, name, accepted)
+        accepted, stopped = _collect(groups, item, spans, name, key, accepted)
         if stopped:
             break
     ordered = sorted(groups.values(), key=lambda g: _RULE_ORDER[g.rule_id])
@@ -242,7 +230,7 @@ def scan_file(
             count=g.count,
             value=g.value,
             snippet=g.first_snippet,
-            evidence_key=g.value,  # 8번: 증거키 = 3번까지 거친 값
+            evidence_key=g.evidence,
             fix=_RULE_BY_ID[g.rule_id].fix,
         )
         for g in ordered
@@ -255,12 +243,14 @@ def _collect(
     content: str,
     spans: Sequence[text.MaskedSpan],
     map_name: str | None,
+    key: bytes,
     accepted: int,
 ) -> tuple[int, bool]:
-    """글 하나의 걸림을 받아 묶는다 (7번). (지금까지 받은 수, 멈췄나)를 돌려준다.
+    """글 하나의 걸림을 받아 묶는다. (지금까지 받은 수, 멈췄나)를 돌려준다.
 
-    날글(map_name None)만 위치를 세고, `.map` 항목은 접두를 붙인다.
-    근거 조각은 묶음의 첫 걸림에만 만든다.
+    7번: ㈀㈁만 한 글(가리기·자르기 전)이 같으면 묶는다. 그 글이 길 수 있어 HMAC 전체를 열쇠로 쓰고,
+    증거키는 그 앞 12자다(8번). 날글(map_name None)만 위치를 세고, `.map` 항목은 접두를 붙인다.
+    값 칸·근거 조각은 묶음의 첫 걸림에만 만든다.
     """
     cursor = text.LineCursor(content) if map_name is None else None
     prefix: str | None = None
@@ -268,16 +258,19 @@ def _collect(
         if accepted >= HIT_LIMIT:
             return accepted, True
         accepted += 1
-        group = groups.get((hit.rule_id, hit.value))
+        digest = text.keyed_digest(key, text.plain_value(content, hit.start, hit.end, hit.edits))
+        group = groups.get((hit.rule_id, digest))
         if group is not None:
             group.count += 1
             continue
         if prefix is None:
             prefix = "" if map_name is None else text.map_prefix(map_name)
-        groups[(hit.rule_id, hit.value)] = _Group(
+        masked = text.mask_hit(content, spans, hit.start, hit.end, hit.edits)
+        groups[(hit.rule_id, digest)] = _Group(
             rule_id=hit.rule_id,
-            value=hit.value,
-            first_snippet=prefix + text.hit_snippet(content, spans, hit.start, hit.end, hit.edits),
+            value=masked.span.masked,
+            evidence=digest[: text.EVIDENCE_LEN],
+            first_snippet=prefix + text.hit_snippet(content, spans, masked),
             first_location=cursor.locate(hit.start) if cursor else None,
             count=1,
         )

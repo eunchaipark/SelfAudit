@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import overload
 
 from app.contracts.engine import Location
+from app.core.limits import VALUE_MAX
 
 MASKED = "****"
 EVIDENCE_LEN = 12
@@ -44,6 +45,11 @@ _SNIPPET_QUOTES = "\"'`"
 # 근거 조각 ㉡: `http(s)://` 바로 뒤의 사용자 정보 (CR-003)
 _URL_USERINFO = re.compile(r"(https?://)[^\s/@\"'`<>]++@")
 _URL_USERINFO_MASKED = r"\g<1>" + MASKED + "@"
+# 1절 '값 가리기' ㈀㈁ (CR-007). 스킴은 ASCII 대소문자만 무시한다(URL 스킴은 ASCII, RFC 3986 3.1)
+USERINFO_MASKED = MASKED + "@"
+_VALUE_SCHEME = re.compile(r"https?://", re.IGNORECASE | re.ASCII)
+_VALUE_USERINFO = re.compile(r"[^\s/@\"'`<>]++@")
+_QUERY_OR_FRAGMENT = re.compile(r"[?#]")
 
 # `.map` 이름 접두 (F-S01 9, CR-003)
 MAP_NAME_MAX = 100
@@ -51,10 +57,15 @@ _MAP_NAME_CONTROL = re.compile(r"\r\n|[\x00-\x1f\x7f]")
 ELLIPSIS = "…"
 
 
-def evidence_key(key: bytes, raw: str) -> str:
-    """증거키 = HMAC-SHA-256(로컬 키, 원문) 16진수 앞 12자 (F-S01 7)."""
+def keyed_digest(key: bytes, raw: str) -> str:
+    """HMAC-SHA-256(로컬 키, 글) 16진수 전체. 긴 글을 묶을 때 글 대신 열쇠로 쓴다."""
     digest = hmac.new(key, raw.encode("utf-8", "surrogatepass"), hashlib.sha256)
-    return digest.hexdigest()[:EVIDENCE_LEN]
+    return digest.hexdigest()
+
+
+def evidence_key(key: bytes, raw: str) -> str:
+    """증거키 = HMAC-SHA-256(로컬 키, 원문) 16진수 앞 12자 (F-S01 7, F-S03 8)."""
+    return keyed_digest(key, raw)[:EVIDENCE_LEN]
 
 
 def mask_known(raw: str) -> str:
@@ -294,15 +305,43 @@ def _span_end(span: MaskedSpan) -> int:
     return span.end
 
 
-def _render_hit(content: str, lo: int, hi: int, pieces: list[MaskedSpan]) -> str:
-    """content[lo:hi]에서 pieces를 바꾼 글.
+def _piece_order(span: MaskedSpan) -> tuple[int, int]:
+    return span.start, -span.end
 
-    앞의 것 안에 든 조각은 버리고, 걸친 조각은 이어 붙인다.
+
+def value_edits(content: str, start: int, end: int, *, keep_query: bool) -> tuple[MaskedSpan, ...]:
+    """1절 '값 가리기' ㈀㈁의 바꿀 곳 (CR-007). 걸린 곳 [start, end) 안.
+
+    ㈀ `http(s)://`(대소문자 무시)로 시작하면 바로 뒤 사용자 정보 → `****@`.
+    ㈁ 사용자 정보 뒤 첫 `?`·`#`부터 끝을 지운다(keep_query면 하지 않는다: `data:` 값).
     """
-    pieces.sort(key=lambda p: (p.start, -p.end))
+    edits: list[MaskedSpan] = []
+    pos = start
+    scheme = _VALUE_SCHEME.match(content, start, end)
+    if scheme is not None:
+        pos = scheme.end()
+        userinfo = _VALUE_USERINFO.match(content, pos, end)
+        if userinfo is not None:
+            edits.append(MaskedSpan(pos, userinfo.end(), USERINFO_MASKED))
+            pos = userinfo.end()
+    if not keep_query:
+        cut = _QUERY_OR_FRAGMENT.search(content, pos, end)
+        if cut is not None:
+            edits.append(MaskedSpan(cut.start(), end, ""))
+    return tuple(edits)
+
+
+def _render(content: str, lo: int, stop: int, pieces: Sequence[MaskedSpan]) -> tuple[str, int]:
+    """content[lo:stop]에서 pieces(`_piece_order` 차례)를 바꾼 글과 다 읽은 자리.
+
+    먼저 시작한 것을 쓰고, 그 안에 든 것은 버리고, 걸친 것은 남은 부분에만 쓴다(㈀~㈂ 겹침).
+    stop 앞에서 시작한 조각은 끝까지 쓴다(그래서 다 읽은 자리가 stop보다 뒤일 수 있다).
+    """
     out: list[str] = []
     cursor = lo
     for p in pieces:
+        if p.start >= stop:
+            break
         if p.start < cursor:
             if p.end <= cursor:
                 continue
@@ -312,28 +351,68 @@ def _render_hit(content: str, lo: int, hi: int, pieces: list[MaskedSpan]) -> str
         out.append(content[cursor : p.start])
         out.append(p.masked)
         cursor = p.end
-    out.append(content[cursor:hi])
-    return "".join(out)
+    if cursor < stop:
+        out.append(content[cursor:stop])
+        cursor = stop
+    return "".join(out), cursor
 
 
-def hit_snippet(
+def plain_value(content: str, start: int, end: int, edits: Sequence[MaskedSpan]) -> str:
+    """㈀㈁만 한 글 (F-S03 7 묶기·8 증거키, 자르기 전, CR-007)."""
+    return _render(content, start, end, sorted(edits, key=_piece_order))[0]
+
+
+@dataclass(frozen=True, slots=True)
+class MaskedHit:
+    """S01이 아닌 걸림 하나를 가린 것.
+
+    span = 넓힌 걸린 곳과 값 칸 글, [first, last) = 겹친 S01 걸림.
+    """
+
+    span: MaskedSpan
+    first: int
+    last: int
+
+
+def mask_hit(
     content: str,
     spans: Sequence[MaskedSpan],
     start: int,
     end: int,
     edits: Sequence[MaskedSpan] = (),
-) -> str:
-    """S01이 아닌 걸림(F-S02·S03)의 근거 조각 (용어 '근거 조각' ①~⑤, CR-003).
+    *,
+    keep: int = VALUE_MAX,
+) -> MaskedHit:
+    """1절 '값 가리기' (S02 2·4, S03, CR-007·D-034). 값 칸 글은 근거 조각의 걸린 곳도 된다.
 
-    spans는 같은 글의 S01 걸림(시작 순서, 겹치지 않음). 걸린 곳 [start, end)은 그 규칙의 값 모양
-    (edits: 걸린 곳 안에서 바꿀 범위와 글, 예: 사용자 정보 → `****@`)에 걸린 곳과 겹치는 S01 걸림을
-    가린 값으로 바꾼 글(②)로 보인다. S01 걸림이 걸린 곳 밖으로 걸치면 걸린 곳을 그 끝까지 넓힌다
-    (S01 원문의 조각이 남지 않게). 그다음은 S01과 같은 `build_snippet`이다(㉠㉡은 앞·뒤에만).
+    edits(㈀㈁, `value_edits`)와 걸린 곳에 겹치는 S01 걸림(㈂, spans는 같은 글의 S01 걸림)을 바꾸고
+    ㉠(㈃)을 한다. S01 걸림이 걸린 곳 밖으로 걸치면 걸린 곳을 그 끝까지 넓힌다. 가린 글이 keep자를
+    넘으면 앞 keep자 + `…`. 가린 뒤 keep자가 찰 때까지만 원문을 읽는다(앞부분을 가린 글은 전체를
+    가린 글의 앞부분이다). 그래서 걸린 곳이 수 MB여도 값을 만드는 데 그만큼 들지 않는다.
     """
-    lo_i = bisect_right(spans, start, key=_span_end)  # 끝이 start 뒤인 첫 걸림
-    hi_i = bisect_left(spans, end, key=_span_start)  # 시작이 end 이상인 첫 걸림 (늘 lo_i 이상)
-    overlapping = [spans[i] for i in range(lo_i, hi_i)]
+    first = bisect_right(spans, start, key=_span_end)  # 끝이 start 뒤인 첫 걸림
+    last = bisect_left(spans, end, key=_span_start)  # 시작이 end 이상인 첫 걸림 (늘 first 이상)
+    overlapping = [spans[i] for i in range(first, last)]
     lo = min(start, overlapping[0].start) if overlapping else start
     hi = max(end, overlapping[-1].end) if overlapping else end
-    hit = MaskedSpan(lo, hi, _render_hit(content, lo, hi, [*overlapping, *edits]))
-    return build_snippet(content, _Spliced(spans, lo_i, hi_i, hit), lo_i)
+    pieces = sorted([*overlapping, *edits], key=_piece_order)
+    window = 2 * (keep + 1)
+    while True:
+        rendered, done = _render(content, lo, min(hi, lo + window), pieces)
+        shown = mask_assignments(rendered)
+        if len(shown) > keep or done >= hi:
+            break
+        window *= 2
+    if len(shown) > keep:
+        shown = shown[:keep] + ELLIPSIS
+    return MaskedHit(MaskedSpan(lo, hi, shown), first, last)
+
+
+def hit_snippet(content: str, spans: Sequence[MaskedSpan], hit: MaskedHit) -> str:
+    """S01이 아닌 걸림의 근거 조각 (용어 '근거 조각' ①~⑤, CR-003·007).
+
+    걸린 곳은 값 칸 글(`mask_hit`)이고 ③은 걸린 곳에도 따로 한다.
+    앞·뒤는 S01과 같은 `build_snippet`이다.
+    S01 걸림 목록을 복사하지 않고 걸린 곳을 끼운 보기로 넘긴다(발견마다 목록 길이만큼 들지 않는다).
+    """
+    return build_snippet(content, _Spliced(spans, hit.first, hit.last, hit.span), hit.first)

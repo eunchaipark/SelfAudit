@@ -185,23 +185,21 @@ def _scan_reference(
     if found is None:
         return None
     start, end = found
-    value = content[start:end]
-    if value[: len(_DATA_PREFIX)].lower() == _DATA_PREFIX:
+    if content[start : start + len(_DATA_PREFIX)].lower() == _DATA_PREFIX:
+        # `data:` 값은 ㈀㈁ 없이 ㈂㈃ 뒤 앞 30자 + `…` (CR-007)
+        hit = text.mask_hit(content, spans, start, end, keep=INLINE_KEEP)
         rule = INLINE
-        edits: tuple[text.MaskedSpan, ...] = ()
-        if len(value) > INLINE_KEEP:
-            edits = (text.MaskedSpan(start + INLINE_KEEP, end, text.ELLIPSIS),)
-            value = value[:INLINE_KEEP] + text.ELLIPSIS
     else:
-        if _ADDRESS.match(value) is None:
-            resolved = resolve_reference(path, value)
+        if _ADDRESS.match(content, start, end) is None:
+            resolved = resolve_reference(path, content[start:end])
             if resolved is not None and resolved in in_bundle:
                 return None
+        edits = text.value_edits(content, start, end, keep_query=False)
+        hit = text.mask_hit(content, spans, start, end, edits)
         rule = DANGLING
-        edits = ()
     location = text.LineCursor(content).locate(start)
-    snippet = text.hit_snippet(content, spans, start, end, edits)
-    return _finding(rule, path, location, value, snippet)
+    snippet = text.hit_snippet(content, spans, hit)
+    return _finding(rule, path, location, hit.span.masked, snippet)
 
 
 def _finding(rule: Rule, path: str, location: Location | None, value: str, snippet: str) -> Finding:
