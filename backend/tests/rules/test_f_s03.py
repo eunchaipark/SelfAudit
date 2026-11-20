@@ -447,8 +447,9 @@ def test_F_S03_정규식_머리말_반복_폭주없음() -> None:
 def test_F_S03_S01_걸림_많아도_근거조각_선형() -> None:
     # 발견마다 S01 걸림 목록을 복사하면 제곱이 된다(검증 T5 재검증과 같은 꼴)
     content = " ".join(f'AKIA{i:016d} "http://10.0.{i // 256}.{i % 256}/"' for i in range(10_000))
+    spans = secrets.scan_file("a.js", content, KEY).spans  # S01 시간은 재지 않는다
     t0 = time.perf_counter()
-    result = run(content)
+    result = endpoints.scan_file("a.js", content, KEY, s01_spans=spans)
     assert time.perf_counter() - t0 < 5.0
     assert (len(result.findings), result.stopped) == (10_000, False)
     assert all("AKIA0000" not in f.snippet for f in result.findings)
