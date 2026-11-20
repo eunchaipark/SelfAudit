@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.core.config import Settings
-from app.core.errors import log_safe
+from app.core.errors import NotImplementedYet, log_safe
 from app.core.security import CLIENT_HEADER
 from app.main import create_app
 from tests.conftest import BASE_URL
@@ -100,8 +100,16 @@ def test_JSON_본문_크기_상한(client: TestClient) -> None:
     assert res.json() == {"code": "TOO_LARGE", "message": "요청이 너무 큽니다"}
 
 
-def test_빈_API는_501_한가지_형식(client: TestClient) -> None:
-    res = client.get("/api/v1/apps")
+def test_빈_API는_501_한가지_형식(settings: Settings) -> None:
+    # 레인이 채우면 사라지는 실제 빈 API 대신, 이 테스트만의 빈 API로 형식을 본다
+    app = create_app(settings)
+
+    def not_yet() -> None:
+        raise NotImplementedYet
+
+    app.add_api_route("/api/v1/test-not-implemented", not_yet)
+    with TestClient(app, base_url=BASE_URL) as c:
+        res = c.get("/api/v1/test-not-implemented")
     assert res.status_code == 501
     assert res.json() == {"code": "NOT_IMPLEMENTED", "message": "아직 만들지 않은 기능입니다"}
 

@@ -1,0 +1,1 @@
+- [T2 점검 기록·앱 지우기 함정](app-history-delete.md) — confirm 쿼리 파싱, IdPath와 계약 검사, 공통 501 테스트, 지우기는 한 문장 + DB cascade

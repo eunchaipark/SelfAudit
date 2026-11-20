@@ -1,10 +1,14 @@
-"""F-P01 앱 등록의 판정 (순수). DB·시각을 쓰지 않는다."""
+"""앱 영역의 판정 (순수, F-P01~P03). DB·시각을 쓰지 않는다."""
 
 from __future__ import annotations
 
 import unicodedata
+from collections.abc import Iterable
+from dataclasses import dataclass, replace
+from datetime import datetime
 from urllib.parse import urlsplit
 
+from app.contracts.engine import ScanStatus
 from app.contracts.schemas import URL_MAX, AppKind
 from app.core.errors import ValidationFailed
 from app.core.limits import APP_NAME_MAX
@@ -62,3 +66,49 @@ def check_source_and_consent(kind: AppKind, source_url: str | None, consent: boo
     if not consent:
         raise ValidationFailed(MSG_CONSENT_REQUIRED)
     return url if kind == "practice" else None
+
+
+# ---- F-P02 점검 기록 · F-P03 앱 지우기 ----
+
+MSG_RUNNING = "점검이 끝난 뒤 지울 수 있습니다"
+
+
+@dataclass(frozen=True, slots=True)
+class ScanRecord:
+    """점검 기록 한 줄 (F-P02 2). 완료가 아니면 점수와 개수는 None으로 보인다."""
+
+    id: int
+    app_id: int
+    started_at: datetime
+    input_name: str
+    status: str
+    score: int | None
+    high: int | None
+    medium: int | None
+    low: int | None
+
+
+def newest_first(records: Iterable[ScanRecord]) -> list[ScanRecord]:
+    """F-P02 1 시작 시각 최신순, 시각이 같으면 점검 ID가 큰 것이 위."""
+    return sorted(records, key=lambda r: (r.started_at, r.id), reverse=True)
+
+
+def shown(record: ScanRecord) -> ScanRecord:
+    """F-P02 3 상태가 `완료`가 아니면 점수와 개수를 비운다(화면은 `-`)."""
+    if record.status == ScanStatus.DONE:
+        return record
+    return replace(record, score=None, high=None, medium=None, low=None)
+
+
+def latest_done_by_app(records: Iterable[ScanRecord]) -> dict[int, ScanRecord]:
+    """F-P02 4 앱마다 가장 최근 `완료` 점검 (차례는 1번과 같다)."""
+    latest: dict[int, ScanRecord] = {}
+    for record in newest_first(r for r in records if r.status == ScanStatus.DONE):
+        latest.setdefault(record.app_id, record)
+    return latest
+
+
+def check_deletable(statuses: Iterable[str]) -> None:
+    """F-P03 4 `진행 중` 점검이 하나라도 있으면 그 앱은 지울 수 없다."""
+    if any(status == ScanStatus.RUNNING for status in statuses):
+        raise ValidationFailed(MSG_RUNNING)

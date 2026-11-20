@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.apps import engine, repo
+from app.apps.engine import ScanRecord
 from app.contracts.schemas import AppIn
-from app.core.errors import Conflict
+from app.core.errors import Conflict, NotFound, ValidationFailed
 from app.core.limits import CONSENT_VERSION
+from app.core.workdirs import remove_work_dirs
 from app.db.models import App
 
 DUPLICATE_CODE = "DUPLICATE_NAME"
@@ -39,3 +42,41 @@ def register_app(session: Session, data: AppIn, now: datetime) -> App:
         session.rollback()
         raise Conflict(engine.MSG_DUPLICATE, code=DUPLICATE_CODE) from None
     return app
+
+
+def get_app(session: Session, app_id: int) -> App:
+    """SCR-03 머리줄의 앱 하나. 없으면 404."""
+    app = repo.get_app(session, app_id)
+    if app is None:
+        raise NotFound()
+    return app
+
+
+def list_apps(session: Session) -> list[tuple[App, ScanRecord | None]]:
+    """F-P02 4 앱 목록(이름순)과 앱마다 가장 최근 `완료` 점검."""
+    latest = engine.latest_done_by_app(repo.done_scan_records(session))
+    return [(app, latest.get(app.id)) for app in repo.list_apps(session)]
+
+
+def list_scans(session: Session, app_id: int) -> list[ScanRecord]:
+    """F-P02 1~3 그 앱의 점검 기록 (최신순, 완료가 아니면 점수·개수 없음)."""
+    get_app(session, app_id)
+    records = engine.newest_first(repo.scan_records(session, app_id))
+    return [engine.shown(record) for record in records]
+
+
+def delete_app(session: Session, work_dir: Path, app_id: int) -> int:
+    """F-P03 1·3·4 앱과 그 점검을 모두 지우고 지운 점검 수를 돌려준다.
+
+    확인(1)은 API가 `confirm=true`로만 받는다. 예외 차례: 없는 앱(404) → 진행 중(400).
+    """
+    get_app(session, app_id)
+    records = repo.scan_records(session, app_id)
+    engine.check_deletable(record.status for record in records)
+    if not repo.delete_app_if_idle(session, app_id):
+        # 확인한 뒤 점검이 시작됐다
+        session.rollback()
+        raise ValidationFailed(engine.MSG_RUNNING)
+    session.commit()
+    remove_work_dirs(work_dir, [record.id for record in records])
+    return len(records)
