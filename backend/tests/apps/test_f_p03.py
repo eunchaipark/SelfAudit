@@ -127,6 +127,20 @@ def test_F_P03_확인없으면_지우지않음(
     assert count(db, Scan) == 1
 
 
+def test_F_P03_확인이_여러개면_지우지않음(
+    client: TestClient, add_app: AddApp, add_scan: AddScan, db: sessionmaker[Session]
+) -> None:
+    # FastAPI는 마지막 값만 보므로, 앞에 false가 있어도 지워지던 꼴 (보안 낮음, 공용 Confirm)
+    app_id = add_app("내 블로그")
+    add_scan(app_id, NOV_16, "done", 58)
+
+    for query in ("confirm=false&confirm=true", "confirm=true&confirm=true"):
+        res = client.delete(f"{APPS_URL}/{app_id}?{query}")
+        assert res.status_code == 400 and res.json()["code"] == "VALIDATION_FAILED"
+    assert count(db, App) == 1
+    assert count(db, Scan) == 1
+
+
 def test_F_P03_없는앱_404(client: TestClient) -> None:
     res = client.delete(delete_url(999))
     assert res.status_code == 404

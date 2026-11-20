@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.clock import Clock
 from app.core.config import Settings
+from app.core.errors import MSG_INVALID_INPUT, ValidationFailed
 
 
 def get_session(request: Request) -> Iterator[Session]:
@@ -55,4 +56,18 @@ def parse_confirm(value: object) -> object:
     return True if value == CONFIRM_TEXT else value
 
 
-Confirm = Annotated[Literal[True], BeforeValidator(parse_confirm)]
+ConfirmValue = Annotated[Literal[True], BeforeValidator(parse_confirm), Query()]
+
+
+def require_confirm(request: Request, confirm: ConfirmValue) -> None:
+    """`confirm`이 꼭 하나이고 "true"일 때만 지나간다.
+
+    FastAPI는 같은 이름의 쿼리가 여럿이면 마지막 값만 본다. `?confirm=false&confirm=true`가
+    지워지지 않게 모든 값을 본다.
+    """
+    del confirm  # 형식 검증과 계약(openapi)용
+    if request.query_params.getlist("confirm") != [CONFIRM_TEXT]:
+        raise ValidationFailed(MSG_INVALID_INPUT)
+
+
+Confirm = Annotated[None, Depends(require_confirm)]
