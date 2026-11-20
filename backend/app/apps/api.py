@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, cast
+from typing import cast
 
 from fastapi import APIRouter
-from pydantic import BeforeValidator
 
 from app.apps import service
 from app.apps.engine import ScanRecord
@@ -19,7 +18,7 @@ from app.contracts.schemas import (
     ScanListItemOut,
     ScanStatusOut,
 )
-from app.core.deps import ClockDep, IdPath, SessionDep, SettingsDep
+from app.core.deps import ClockDep, Confirm, IdPath, SessionDep, SettingsDep
 from app.db.models import App
 
 router = APIRouter(prefix="/api/v1", tags=["apps"])
@@ -28,17 +27,6 @@ ERRORS: dict[int | str, dict[str, object]] = {
     404: {"model": ErrorOut},
     409: {"model": ErrorOut},
 }
-CONFIRM_TEXT = "true"
-
-
-def parse_confirm(value: object) -> object:
-    # 쿼리 문자열은 글이라 Literal[True]가 "true"를 받지 못한다. 정확히 "true"만 참으로 읽고
-    # 나머지("false", "1", 빈 값)는 그대로 넘겨 Literal 검증이 거부하게 한다 (F-P03 1)
-    return True if value == CONFIRM_TEXT else value
-
-
-# 계약(openapi)은 그대로 `const: true, type: boolean`이다
-Confirm = Annotated[Literal[True], BeforeValidator(parse_confirm)]
 
 
 def to_out(app: App) -> AppOut:
