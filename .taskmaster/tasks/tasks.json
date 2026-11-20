@@ -135,11 +135,11 @@
         "id": "3",
         "title": "입력: 폴더 받기와 공통 분류·제한 (F-I01 B 1·4~10)",
         "description": "receive_folder와 공통 분류: 링크 건너뜀, 개수·크기 제한, 확장자 분류, 대상만 쓰기, 건너뜀 목록",
-        "details": "영역: 입력\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02)\n읽을 문서: 기능명세 F-I01 처리 규칙 B 1·4~10, 예시(폴더·크기·확장자·대상 없음), 보안규칙 경로\n고칠 파일: backend/app/intake/**, backend/tests/intake/**, backend/tests/fixtures/**\n계약: intake.receive_folder → IntakeResult / IntakeFailed(reason), Skipped·SkipReason\n\nDB·네트워크 없음. 제한은 core/limits를 읽어 작은 값으로 시험한다.",
+        "details": "영역: 입력\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02)\n읽을 문서: 기능명세 F-I01 처리 규칙 B 1·4~10, 예시(폴더·크기·확장자·대상 없음), 보안규칙 경로\n고칠 파일: backend/app/intake/**, backend/tests/intake/**, backend/tests/fixtures/**\n계약: intake.receive_folder → IntakeResult / IntakeFailed(reason), Skipped·SkipReason\n명세 기준: 4cce1b1\n\nDB·네트워크 없음. 제한은 core/limits를 읽어 작은 값으로 시험한다.",
         "testStrategy": "test_F-I01_APP대문자_대상 / test_F-I01_png만5개_대상없음 / test_F-I01_52428800바이트_대상_52428801_건너뜀 / test_F-I01_20000개_통과_20001개_실패 / test_F-I01_심볼릭링크_건너뜀 / test_F-I01_png는_디스크에_쓰지_않음. 화면 없음.",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
@@ -333,14 +333,14 @@
         "id": "6",
         "title": "규칙: 소스맵 노출과 내부 주소 (F-S02, F-S03)",
         "description": "S02(맵 내용·경로·인라인·끊긴 참조·건너뛴 소스맵 안내)와 S03(URL 분류·관리 경로·걸림 상한)",
-        "details": "영역: 규칙\n목적: 소스맵으로 원본 코드가 드러나는지 찾는다 (FR-04) / 내부 주소·개발 서버·관리자 경로가 남았는지 찾는다 (FR-05)\n읽을 문서: 기능명세 F-S02, F-S03, 1절 '근거 조각'(②㉠㉡)·'값 가리기 (S02·S03)', CR-007\n고칠 파일: backend/app/rules/**, backend/tests/rules/**\n계약: Finding, SkipReason.NOT_SOURCEMAP·TOO_MANY_HITS, IntakeResult.targets·skipped('번들에 있음', CR-004), T18의 파일 하나 S01 결과(걸림 범위·멈춤, rules/ 안)\n변경: CR-002, CR-003, CR-004, CR-005, CR-007\n명세 기준: 1b488d8\n\nCR-001 영향(겹침 범위). S02 예외는 'JSON 객체가 아님'(CR-002). S03 근거 조각은 T18의 build_snippet(㉠㉡)을 그대로 쓰고, S01이 멈춘 파일에서도 받은 S01 걸림 범위를 넣는다(CR-003). '번들에 있음' = targets + skipped(CR-004).\n반려 고침 (CR-007, D-033): ops/검증/T6.md '레인이 고칠 것'. S02 값·S03 값·S03 증거키(HMAC 12자, S01과 같은 방법, endpoints.scan_file에 로컬 키 인자)·S01이 아닌 걸림의 걸린 곳 가림. 길이 상한 n(CR-007 (4))은 설계 D가 정한 뒤 시작한다. HIT_LIMIT는 core.limits에서 import.",
+        "details": "영역: 규칙\n목적: 소스맵으로 원본 코드가 드러나는지 찾는다 (FR-04) / 내부 주소·개발 서버·관리자 경로가 남았는지 찾는다 (FR-05)\n읽을 문서: 기능명세 F-S02, F-S03, 1절 '근거 조각'(②㉠㉡)·'값 가리기 (S02·S03)', CR-007\n고칠 파일: backend/app/rules/**, backend/tests/rules/**\n계약: Finding, SkipReason.NOT_SOURCEMAP·TOO_MANY_HITS, IntakeResult.targets·skipped('번들에 있음', CR-004), T18의 파일 하나 S01 결과(걸림 범위·멈춤, rules/ 안)\n변경: CR-002, CR-003, CR-004, CR-005, CR-007\n명세 기준: 4cce1b1\n\nCR-001 영향(겹침 범위). S02 예외는 'JSON 객체가 아님'(CR-002). S03 근거 조각은 T18의 build_snippet(㉠㉡)을 그대로 쓰고, S01이 멈춘 파일에서도 받은 S01 걸림 범위를 넣는다(CR-003). '번들에 있음' = targets + skipped(CR-004).\n반려 고침 (CR-007, D-033): ops/검증/T6.md '레인이 고칠 것'. S02 값·S03 값·S03 증거키(HMAC 12자, S01과 같은 방법, endpoints.scan_file에 로컬 키 인자)·S01이 아닌 걸림의 걸린 곳 가림. 길이 상한 n(CR-007 (4))은 설계 D가 정한 뒤 시작한다. HIT_LIMIT는 core.limits에서 import.",
         "testStrategy": "기대값 변경 (CR-007): test_f_s03.py 증거키 단언 3곳(53·112·123줄, 주소 글 → HMAC 12자 8da80bd3636e·74f7616adeb1·28f9b12831d0), test_F_S03_근거조각_걸린곳에_걸친_S01도_가린다의 값(https://10.0.0.1/x → eyJh****ps://10.0.0.1/x). / test_F-S02_맵_sourcesContent12_높음 / test_F-S02_null_빈문자열이면_PATHS_낮음 / test_F-S02_맵_밖으로_나가면_DANGLING / test_F-S02_data_URL_INLINE / test_F-S02_JSON객체아님_배열도_건너뜀 / test_F-S03_172_32는_URL정보 / test_F-S03_사용자정보_가림 / test_F-S03_admin경로_administrator는_없음 / test_F-S02_건너뛴map_크기초과면_DANGLING없고_안내1개 (251) / test_F-S02_건너뛴map2개_안내n2 (252) / test_F-S02_소스맵형식아님은_안내에_세지않음 (253) / test_F-S03_서로다른사설IP_10001개_발견10000_멈춤 (289) / test_F-S03_근거조각_키워드꼴_URL사용자정보_가림 / test_F-S03_S01이_멈춘파일도_짧은값_원문없음 / test_F-S03_사설IP_10000개_건너뜀없음 (290) / test_F-S02_대소문자_다르면_DANGLING (245). / (CR-007) test_F_S02_DANGLING_값_주소계정_가림 / test_F_S02_DANGLING_대문자HTTPS_계정_물음표_뗌 / test_F_S02_DANGLING_물음표뒤_키워드값_조각에없음 / test_F_S02_DANGLING_값_물음표뒤_뗌 / test_F_S02_INLINE_조각_30자 / test_F_S02_MAP_CONTENT_조각_빈글 / test_F_S03_값_URL속_AWS_가림_증거키HMAC / test_F_S03_키만다른_두주소_발견2 / test_F_S03_GENERIC이_덮으면_값_가림 / test_F_S03_관리경로_물음표뒤_뗌 / test_F_S03_관리경로_키워드값_가림 / (CR-007 (4), 설계 D 뒤) 값·걸린 곳 길이 상한 예시. 화면 없음.",
         "priority": "high",
         "dependencies": [
           "5",
           "18"
         ],
-        "status": "blocked",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
