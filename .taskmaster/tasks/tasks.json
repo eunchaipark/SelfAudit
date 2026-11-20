@@ -477,7 +477,7 @@
         "id": "8",
         "title": "규칙: 심각도·점수와 규칙 실행 연결 (F-S06)",
         "description": "score(점수·개수·정렬)와 run_rules(S01~S04 묶기, 규칙 버전, 발견 상한, 안내 차례, 건너뜀 한 줄)",
-        "details": "영역: 규칙\n목적: 발견마다 심각도를 매기고 점검 점수를 낸다 (FR-08)\n읽을 문서: 기능명세 F-S06, 용어 '규칙 버전'·'발견 상한', F-S01 11·F-S03 9(건너뜀 한 줄), F-S02 6(안내 차례), F-S01 예시 217줄, 1절 '값 가리기 (S02·S03)'(CR-007: endpoints.scan_file에 로컬 키를 넘김)\n고칠 파일: backend/app/rules/**, backend/tests/rules/**\n계약: rules.run_rules → RuleRun(RunRules 설명: notices 차례·skipped 한 줄·rules_version, CR-003·004), rules.score → ScoreResult, SkipReason.TOO_MANY_HITS\n변경: CR-003, CR-004, CR-005",
+        "details": "영역: 규칙\n목적: 발견마다 심각도를 매기고 점검 점수를 낸다 (FR-08)\n읽을 문서: 기능명세 F-S06, 용어 '규칙 버전'·'발견 상한', F-S01 11·F-S03 9(건너뜀 한 줄), F-S02 6(안내 차례), F-S01 예시 217줄, 1절 '값 가리기 (S02·S03)'(CR-007: endpoints.scan_file에 로컬 키를 넘김)\n고칠 파일: backend/app/rules/**, backend/tests/rules/**\n계약: rules.run_rules → RuleRun(RunRules 설명: notices 차례·skipped 한 줄·rules_version, CR-003·004), rules.score → ScoreResult, SkipReason.TOO_MANY_HITS; 파일 하나마다 부르는 차례 S01(secrets.scan_file) → S02(sourcemaps) → S03(endpoints.scan_file(path, content, key, s01_spans=), 로컬 키·같은 글 S01 걸림 범위를 넘김, T6)\n변경: CR-003, CR-004, CR-005",
         "testStrategy": "test_F-S06_높음2중간1낮음3정보5_46점 / test_F-S06_발견0_100 / test_F-S06_높음6_0점 / test_F-S06_횟수3이어도_80 / test_F-S06_정렬 / test_NFR-04_같은입력_두번_같은결과 / test_F-S01_발견상한_6번째_마치면_7번째_안봄_안내 (217) / test_F-S01_발견상한으로_안본파일은_건너뜀목록에_없음 / test_F-S03_S01S03_모두_멈춰도_건너뜀_한줄 (291, 사설 IP 10,001개 + AWS 키 10,001개 — 한 줄로 합치는 것은 run_rules라 T8이 맡는다) / test_F-S02_건너뛴소스맵_안내가_F-S04_안내보다_앞. 화면 없음.",
         "priority": "high",
         "dependencies": [
