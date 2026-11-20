@@ -139,7 +139,7 @@
         "testStrategy": "test_F-I01_APP대문자_대상 / test_F-I01_png만5개_대상없음 / test_F-I01_52428800바이트_대상_52428801_건너뜀 / test_F-I01_20000개_통과_20001개_실패 / test_F-I01_심볼릭링크_건너뜀 / test_F-I01_png는_디스크에_쓰지_않음. 화면 없음.",
         "priority": "high",
         "dependencies": [],
-        "status": "review",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -200,8 +200,8 @@
         "id": "4",
         "title": "입력: zip 받기와 항목 검사 (F-I01 B 2·3·5)",
         "description": "receive_zip: 경로 탈출·Windows 이름(제어 문자·<>\"|?* 포함)·압축 폭탄 거부, 이름 겹침·링크 건너뜀, 맨 위 폴더 벗기기",
-        "details": "영역: 입력\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02)\n읽을 문서: 기능명세 F-I01 처리 규칙 B 2·3·5, 예외(실패 문구의 <항목> 표시: \\x0A 꼴, 200자에서 자름), 예시(zip 줄 전체), 보안규칙 5장 'zip 항목'\n고칠 파일: backend/app/intake/**, backend/tests/intake/**, backend/tests/fixtures/**\n계약: intake.receive_zip(path) → IntakeResult / IntakeFailed(reason)\n변경: CR-003, CR-006\n\n업로드 zip은 <데이터 폴더>/uploads/에 있다고 보고 경로를 받는다.\nZipFile.extract()를 쓰지 않는다. Windows에서 금지 글자를 몰래 _로 바꾸므로 2ⓑ 검사를 통과한 이름으로 직접 쓴다 (CR-003 기술 검토, 보안규칙 5장).",
-        "testStrategy": "test_F-I01_zip_경로탈출_점두개_거부 / test_F-I01_zip_역슬래시_탈출_거부 / test_F-I01_zip_드라이브경로_거부 / test_F-I01_zip_CON.js_a.js:x_nul_거부 / test_F-I01_zip_압축폭탄_200배_실패_180배_통과 / test_F-I01_zip_A.js_a.js_이름겹침 / test_F-I01_zip_맨위폴더_벗김 / test_F-I01_zip_거부시_아무것도_풀리지_않음 / test_F-I01_zip_물음표_꺾쇠_따옴표_세로선_별표_거부 (예시 128) / test_F-I01_zip_줄바꿈이름_거부_문구는_x0A (129) / test_F-I01_zip_U007F는_대상 (130) / test_F-I01_zip_실패문구_항목_200자에서_자름 (131). / (CR-006 (d)) test_F_I01_실패문구_DEL_C1은_x두자리 (../a + chr(0x7F) + chr(0x85) + .js) / test_F_I01_실패문구_방향문자는_u네자리 (테스트 입력에는 chr(0x202E), 기대 문구는 글 여섯 자) / test_F_I01_격리폴더_이미있으면_덮어쓰지않고_실패 (짧은 이름 8.3이 켜진 드라이브에서만, 꺼져 있으면 건너뜀). 화면 없음.",
+        "details": "영역: 입력\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02)\n읽을 문서: 기능명세 F-I01 처리 규칙 B 2·3·5, 예외(실패 문구의 <항목> 표시: \\x0A 꼴, 200자에서 자름), 예시(zip 줄 전체), 보안규칙 5장 'zip 항목'\n고칠 파일: backend/app/intake/**, backend/tests/intake/**, backend/tests/fixtures/**\n계약: intake.receive_zip(path) → IntakeResult / IntakeFailed(reason)\n변경: CR-003, CR-006\n\n업로드 zip은 <데이터 폴더>/uploads/에 있다고 보고 경로를 받는다.\nZipFile.extract()를 쓰지 않는다. Windows에서 금지 글자를 몰래 _로 바꾸므로 2ⓑ 검사를 통과한 이름으로 직접 쓴다 (CR-003 기술 검토, 보안규칙 5장).\nT3 검증 넘김(ops/검증/T3.md): 공용 write_bundle의 _inside가 앞단 2ⓐⓑ에 기댄다 → _inside 안에서 resolve 전에 조각마다 드라이브·앵커·\\·:·예약 이름(CON·NUL 등)·끝 점·공백을 거부한다. 훑기와 복사 사이 정션 바꿔치기: 연 뒤 os.fstat(fd)의 (st_dev, st_ino)를 훑을 때 본 값과 비교해 다르면 건너뛴다(폴더 받기와 같은 함수).",
+        "testStrategy": "test_F-I01_zip_경로탈출_점두개_거부 / test_F-I01_zip_역슬래시_탈출_거부 / test_F-I01_zip_드라이브경로_거부 / test_F-I01_zip_CON.js_a.js:x_nul_거부 / test_F-I01_zip_압축폭탄_200배_실패_180배_통과 / test_F-I01_zip_A.js_a.js_이름겹침 / test_F-I01_zip_맨위폴더_벗김 / test_F-I01_zip_거부시_아무것도_풀리지_않음 / test_F-I01_zip_물음표_꺾쇠_따옴표_세로선_별표_거부 (예시 128) / test_F-I01_zip_줄바꿈이름_거부_문구는_x0A (129) / test_F-I01_zip_U007F는_대상 (130) / test_F-I01_zip_실패문구_항목_200자에서_자름 (131). / (CR-006 (d)) test_F_I01_실패문구_DEL_C1은_x두자리 (../a + chr(0x7F) + chr(0x85) + .js) / test_F_I01_실패문구_방향문자는_u네자리 (테스트 입력에는 chr(0x202E), 기대 문구는 글 여섯 자) / test_F_I01_격리폴더_이미있으면_덮어쓰지않고_실패 (짧은 이름 8.3이 켜진 드라이브에서만, 꺼져 있으면 건너뜀). / test_F_I01_write_bundle_inside만으로_UNC_대체스트림_예약이름_끝점_거부 / test_F_I01_훑은뒤_정션으로_바뀌면_건너뜀. 화면 없음.",
         "priority": "high",
         "dependencies": [
           "3"
@@ -887,7 +887,7 @@
         "id": "14",
         "title": "점검 흐름: 점검 시작·실행·저장 (F-I01 A·11)",
         "description": "점검 시작 API와 거부, intake→rules→score→rea→지문 잇기, 상태 전이, 격리 폴더 삭제",
-        "details": "영역: 점검 흐름\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02) / 발견마다 심각도를 매기고 점검 점수를 낸다 (FR-08)\n읽을 문서: 기능명세 F-I01 A·B 1·11, 예외·예시, F-S06 4, F-S02 6·F-S04 안내, 1절 '발견 상한'(안내), F-S01 11(건너뜀 이유)\n고칠 파일: backend/app/scans/**, backend/tests/scans/**\n계약: POST /apps/{id}/scans/zip, POST /apps/{id}/scans/folder → ScanStartedOut, 모델 Scan·FindingRow·SkippedRow·ReaRow, RuleRun.skipped·notices(CR-003·004)\n변경: CR-003, CR-004\n\n마이그레이션 없음(skipped.reason은 String(32)이고 '걸림이 너무 많아 일부만 점검'은 15자). 로컬 키는 app.state.local_key.",
+        "details": "영역: 점검 흐름\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02) / 발견마다 심각도를 매기고 점검 점수를 낸다 (FR-08)\n읽을 문서: 기능명세 F-I01 A·B 1·11, 예외·예시, F-S06 4, F-S02 6·F-S04 안내, 1절 '발견 상한'(안내), F-S01 11(건너뜀 이유)\n고칠 파일: backend/app/scans/**, backend/tests/scans/**\n계약: POST /apps/{id}/scans/zip, POST /apps/{id}/scans/folder → ScanStartedOut, 모델 Scan·FindingRow·SkippedRow·ReaRow, RuleRun.skipped·notices(CR-003·004)\n변경: CR-003, CR-004\n\n마이그레이션 없음(skipped.reason은 String(32)이고 '걸림이 너무 많아 일부만 점검'은 15자). 로컬 키는 app.state.local_key.\nT3 검증 넘김: receive_folder의 OSError str(exc)에는 원본·격리 폴더 전체 경로가 있다 → 점검 실패 이유·로그에는 고정 문구만 저장한다.",
         "testStrategy": "test_F-I01_zip아님_거부 / test_F-I01_209715201바이트_거부 / test_F-I01_폴더상대경로_거부 / test_F-I01_진행중_다른점검_거부 / test_F-I01_png만_대상없음 / test_F-I01_끝나면_격리폴더_삭제 / test_F-I01_intake실패_이유_저장 / test_F-S01_DB응답에_원문_없음 / test_NFR-01_네트워크_차단에서_점검됨 / test_F-S06_대상없음_실패면_점수_대시 (T8에서 옮김: score는 상태를 받지 않는다, 설계 0c36654) / test_F-S01_걸림상한_건너뜀이_점검에_저장 / test_F-S01_발견상한_안내가_점검에_저장. 화면 없음.",
         "priority": "high",
         "dependencies": [
