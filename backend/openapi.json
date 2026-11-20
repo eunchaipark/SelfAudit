@@ -908,6 +908,8 @@
             "name": "app_id",
             "required": true,
             "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
               "title": "App Id",
               "type": "integer"
             }
@@ -989,6 +991,8 @@
             "name": "app_id",
             "required": true,
             "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
               "title": "App Id",
               "type": "integer"
             }
@@ -1062,6 +1066,8 @@
             "name": "app_id",
             "required": true,
             "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
               "title": "App Id",
               "type": "integer"
             }
