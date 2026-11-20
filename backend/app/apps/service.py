@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import logging
-import shutil
 from datetime import datetime
 from pathlib import Path
 
@@ -15,9 +13,9 @@ from app.apps.engine import ScanRecord
 from app.contracts.schemas import AppIn
 from app.core.errors import Conflict, NotFound, ValidationFailed
 from app.core.limits import CONSENT_VERSION
+from app.core.workdirs import remove_work_dirs
 from app.db.models import App
 
-log = logging.getLogger("selfaudit")
 DUPLICATE_CODE = "DUPLICATE_NAME"
 
 
@@ -82,19 +80,3 @@ def delete_app(session: Session, work_dir: Path, app_id: int) -> int:
     session.commit()
     remove_work_dirs(work_dir, [record.id for record in records])
     return len(records)
-
-
-def remove_work_dirs(work_dir: Path, scan_ids: list[int]) -> None:
-    """F-P03 2 남아 있는 격리 폴더 `work/<점검ID>/`를 지운다.
-
-    보통은 점검이 끝날 때(F-I01 11) 이미 지워져 있다. 여기서 못 지운 폴더는 서버가 다음에
-    시작할 때 지운다(F-I01 12). DB는 이미 지웠으므로 오류로 돌려주지 않고 로그만 남긴다.
-    """
-    for scan_id in scan_ids:
-        folder = work_dir / str(scan_id)
-        if not folder.is_dir():
-            continue
-        try:
-            shutil.rmtree(folder)
-        except OSError as err:
-            log.warning("격리 폴더를 지우지 못했습니다: 점검 %d (%s)", scan_id, type(err).__name__)
