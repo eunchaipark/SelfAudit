@@ -5,7 +5,7 @@
         "id": "1",
         "title": "공통: 서버 시작 정리 (F-I01 12)",
         "description": "서버가 시작할 때 진행 중 점검을 실패로 바꾸고 work/ 아래 폴더를 지운다",
-        "details": "영역: 공통\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02)\n읽을 문서: 기능명세 F-I01 처리 규칙 11·12, 예시 마지막 줄\n고칠 파일: backend/app/main.py, backend/tests/core/**\n계약: Scan 모델(상태·실패 이유), settings.data.work\n\n공통 파일(main.py)이라 설계가 한다. T14의 선행.",
+        "details": "영역: 공통\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02)\n읽을 문서: 기능명세 F-I01 처리 규칙 11·12, 예시 마지막 줄\n고칠 파일: backend/app/main.py, backend/tests/core/**\n계약: Scan 모델(상태·실패 이유), settings.data.work\n\n공통 파일(main.py)이라 설계가 한다. T14의 선행.\nT2 검증 넘김(ops/검증/T2.md): 시작 정리는 work 아래 항목마다 core.workdirs와 같은 확인(링크·정션 아님, resolve() 부모가 work)을 거친다. 숫자 아닌 이름 처리를 정한다. 읽기 전용 파일이 있어도 지우도록(rmtree onexc에서 링크 아님 확인 뒤 chmod). scans ID 재사용(AUTOINCREMENT 아님) 때문에 남은 work/<id>가 새 점검을 막지 않는지 테스트.",
         "testStrategy": "test_F-I01_시작때_진행중점검이_실패로_바뀐다 / test_F-I01_시작때_work폴더가_비워진다 / test_F-I01_완료된_점검은_건드리지_않는다. 화면 없음.",
         "priority": "high",
         "dependencies": [],
@@ -63,7 +63,7 @@
         "testStrategy": "test_F-P02_점검3개_최신순_점수_78 / test_F-P02_같은시각이면_점검ID큰것이_위 / test_F-P02_완료아님은_점수_대시 / test_F-P02_없는앱_404 / test_F-P03_앱지우기_점검2개_지운수2 / test_F-P03_진행중_점검있으면_거부. 화면: SCR-01 최근 점수·시각, 빈 상태 문구.",
         "priority": "medium",
         "dependencies": [],
-        "status": "review",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -973,7 +973,7 @@
         "id": "15",
         "title": "점검 흐름: 점검 결과 조회·점검 지우기 (F-P03)",
         "description": "GET /scans/{id}, DELETE /scans/{id}?confirm=true",
-        "details": "영역: 점검 흐름\n목적: 앱별 점검 기록을 보고, 지울 수 있다 (FR-09)\n읽을 문서: 기능명세 F-P03 1·2·4, F-S06 정렬, 화면정의 SCR-04 04-01~04-05·04-08·04-09\n고칠 파일: backend/app/scans/**, backend/tests/scans/**\n계약: GET /scans/{id} → ScanOut, DELETE /scans/{id} → DeletedOut\n\n앱 지우기(T2)와 삭제 규칙을 맞춘다.",
+        "details": "영역: 점검 흐름\n목적: 앱별 점검 기록을 보고, 지울 수 있다 (FR-09)\n읽을 문서: 기능명세 F-P03 1·2·4, F-S06 정렬, 화면정의 SCR-04 04-01~04-05·04-08·04-09\n고칠 파일: backend/app/scans/**, backend/tests/scans/**\n계약: GET /scans/{id} → ScanOut, DELETE /scans/{id} → DeletedOut\n\n앱 지우기(T2)와 삭제 규칙을 맞춘다.\nT2 검증 넘김: 점검 지우기는 core.workdirs.remove_work_dir·core.deps.Confirm을 쓴다. 지운 수·폴더 목록은 DELETE … RETURNING id처럼 같은 문장에서 얻는다(앱 지우기도 같이 고칠 것).",
         "testStrategy": "test_F-P03_점검지우기_발견도_지워짐 / test_F-P03_진행중_거부 / test_F-P03_없는점검_404 / test_F-P03_확인_거짓이면_422 / test_F-S06_조회_정렬 / test_F-I01_진행중_조회_상태만. 화면 없음.",
         "priority": "medium",
         "dependencies": [
