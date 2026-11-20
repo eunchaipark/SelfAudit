@@ -120,7 +120,7 @@ def test_F_P03_확인없으면_지우지않음(
     app_id = add_app("내 블로그")
     add_scan(app_id, NOV_16, "done", 58)
 
-    for confirm in (None, "false", "0", ""):
+    for confirm in (None, "false", "0", "", "True"):
         res = client.delete(delete_url(app_id, confirm))
         assert res.status_code == 400 and res.json()["code"] == "VALIDATION_FAILED"
     assert count(db, App) == 1
