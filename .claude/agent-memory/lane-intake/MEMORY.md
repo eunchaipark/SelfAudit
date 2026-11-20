@@ -1,0 +1,1 @@
+- [입력 레인 배치와 함정](intake-layout.md) — engine 분류·service write_bundle(zip 재사용), 정션·심볼릭 권한·resolve 속도
