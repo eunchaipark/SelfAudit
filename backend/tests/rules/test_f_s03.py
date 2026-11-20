@@ -19,7 +19,7 @@ SPEC_URL = re.compile(r"https?://(?:[^\s/@\"'`<>]+@)?[A-Za-z0-9.\-_:\[\]]+(/[^\s
 
 def run(content: str, path: str = "assets/index.js") -> endpoints.EndpointsScan:
     spans = secrets.scan_file(path, content, KEY).spans
-    return endpoints.scan_file(path, content, s01_spans=spans)
+    return endpoints.scan_file(path, content, KEY, s01_spans=spans)
 
 
 def scan(content: str, path: str = "assets/index.js") -> list[Finding]:
@@ -50,7 +50,8 @@ def test_F_S03_localhost_LOCAL() -> None:
         Severity.LOW,
         "http://localhost:8080/api",
     )
-    assert f.evidence_key == "http://localhost:8080/api"
+    # 기대값 변경 (CR-007): 증거키는 주소 글이 아니라 HMAC 12자
+    assert f.evidence_key == "8da80bd3636e"
     assert f.location == Location(1, 2)
     assert f.fix == "개발용 주소가 남았습니다. 환경별 설정으로 나누세요"
 
@@ -109,7 +110,7 @@ def test_F_S03_최상위도메인_dev는_빼고_봄() -> None:
 def test_F_S03_값은_물음표_샵_앞까지() -> None:
     f = only('"https://api.myapp.kr/v1/users?token=abc123&v=7"')
     assert (f.rule_id, f.value) == ("S03-URL", "https://api.myapp.kr/v1/users")
-    assert f.evidence_key == "https://api.myapp.kr/v1/users"
+    assert f.evidence_key == "74f7616adeb1"  # 기대값 변경 (CR-007)
     assert "abc123" not in f.snippet
     assert only('"https://api.myapp.kr/v1#frag"').value == "https://api.myapp.kr/v1"
 
@@ -120,7 +121,7 @@ def test_F_S03_사용자정보_가림() -> None:
         ("S03-DEVHOST", "https://****@internal.myapp.kr")
     ]
     f = found[0]
-    assert f.evidence_key == "https://****@internal.myapp.kr"
+    assert f.evidence_key == "28f9b12831d0"  # 기대값 변경 (CR-007)
     for raw in ("pw1234567", "admin"):
         assert raw not in f.value + f.snippet + f.evidence_key
     # 비밀번호는 F-S01이 따로 잡는다
@@ -209,7 +210,7 @@ def test_F_S03_S01이_멈춘파일도_짧은값_원문없음() -> None:
     content = distinct_aws(10_001) + tail
     s01 = secrets.scan_file("a.js", content, KEY)
     assert s01.stopped is True
-    result = endpoints.scan_file("a.js", content, s01_spans=s01.spans)
+    result = endpoints.scan_file("a.js", content, KEY, s01_spans=s01.spans)
     f = next(x for x in result.findings if x.rule_id == "S03-PRIVATE-IP")
     assert f.value == "https://****@10.0.0.1/"
     for raw in ("hunter2hunter2", "pw1234567", "abc12", f"AKIA{10_000:016d}"):
@@ -234,7 +235,7 @@ def test_F_S03_근거조각_걸린곳에_걸친_S01도_가린다() -> None:
     jwt = "eyJhbGciOi.eyJzdWIiOi.abcdefghij"
     f = only(f"{jwt}https://10.0.0.1/x")
     assert f.rule_id == "S03-PRIVATE-IP"
-    assert f.value == "https://10.0.0.1/x"
+    assert f.value == "eyJh****ps://10.0.0.1/x"  # 기대값 변경 (CR-007): 값도 넓힌 걸린 곳
     assert jwt not in f.snippet and "eyJzdWIiOi" not in f.snippet
     assert f.snippet == "eyJh****ps://10.0.0.1/x"
 
@@ -256,6 +257,87 @@ def test_F_S03_map_S01_걸림과_같은_항목에서_가린다() -> None:
     assert f.snippet == '[b.ts] k2="AKIA****LY" u="http://10.0.0.1/"'
 
 
+# ---- 값 가리기·증거키 (1절, 7·8번, CR-007) ----
+
+
+def test_F_S03_값_URL속_AWS_가림_증거키HMAC() -> None:
+    found = scan('u="https://files.myapp.kr/AKIAIOSFODNN7EXAMPLE/a.png"')
+    assert [f.rule_id for f in found] == ["S03-URL"]
+    f = found[0]
+    assert f.value == "https://files.myapp.kr/AKIA****LE/a.png"
+    assert f.evidence_key == "e037ba6aaca9"
+    assert f.snippet == 'u="https://files.myapp.kr/AKIA****LE/a.png"'
+    assert AWS not in f.value + f.snippet + f.evidence_key
+
+
+def test_F_S03_키만다른_두주소_발견2() -> None:
+    content = (
+        'a="https://files.myapp.kr/AKIAIOSFODNN7EXAMPLE/a.png",'
+        'b="https://files.myapp.kr/AKIAI44QH8DHBEXAMPLE/a.png"'
+    )
+    found = scan(content)
+    assert [(f.rule_id, f.value, f.count) for f in found] == [
+        ("S03-URL", "https://files.myapp.kr/AKIA****LE/a.png", 1),
+        ("S03-URL", "https://files.myapp.kr/AKIA****LE/a.png", 1),
+    ]
+    assert [f.evidence_key for f in found] == ["e037ba6aaca9", "6e7c083a5d80"]
+
+
+def test_F_S03_GENERIC이_덮으면_값_가림() -> None:
+    f = only('secret:"x-http://10.0.0.1/abcdefgh"')
+    assert (f.rule_id, f.value) == ("S03-PRIVATE-IP", "****")
+    assert f.evidence_key == "c41e5cc43500"
+    assert f.snippet == 'secret:"****"'
+
+
+def test_F_S03_걸친_S01만큼_넓힌_값과_증거키() -> None:
+    f = only("eyJhbGciOi.eyJzdWIiOi.abcdefghijhttps://10.0.0.1/x")
+    assert (f.rule_id, f.value) == ("S03-PRIVATE-IP", "eyJh****ps://10.0.0.1/x")
+    assert f.snippet == "eyJh****ps://10.0.0.1/x"
+    assert f.evidence_key == "d7e9f900c62d"
+
+
+def test_F_S03_관리경로_물음표뒤_뗌() -> None:
+    f = only("'/admin/users?token=abc123'")
+    assert (f.rule_id, f.value) == ("S03-ADMINPATH", "/admin/users")
+    assert f.evidence_key == "4e553bf2e925"
+    assert f.snippet == "'/admin/users'"
+
+
+def test_F_S03_관리경로_키워드값_가림() -> None:
+    f = only("'/admin/login;password=hunter2'")
+    assert (f.rule_id, f.value) == ("S03-ADMINPATH", "/admin/login;password=****")
+    assert f.evidence_key == "2c82ed4ee970"
+    assert f.snippet == "'/admin/login;password=****'"
+
+
+def test_F_S03_값_200자_넘으면_자름_증거키는_자르기전() -> None:
+    url = "https://api.myapp.kr/" + "a" * 300
+    assert len(url) == 321
+    f = only(f'"{url}"')
+    assert f.rule_id == "S03-URL"
+    assert f.value == "https://api.myapp.kr/" + "a" * 179 + "…"
+    assert len(f.value) == 201
+    assert f.evidence_key == "e3910c4674eb"
+    assert f.snippet == '"https://api.myapp.kr/a****…"'
+
+
+def test_F_S03_값_자르기는_가린_뒤_200자까지_원문을_본다() -> None:
+    # 가린 값이 짧아 뒤 글이 앞으로 당겨진다: 원문 앞 200자만 가리면 값이 모자란다
+    keys = "/".join(f"AKIA{i:016d}" for i in range(30))
+    url = f"https://x.kr/{keys}/tail"
+    f = only(f'"{url}"')
+    full = "https://x.kr/" + "/".join(f"AKIA****{i % 100:02d}" for i in range(30)) + "/tail"
+    assert f.value == full[:200] + "…"
+    assert "AKIA0000" not in f.value
+
+
+def test_F_S03_묶기는_가리기_전_글로() -> None:
+    # ㈀㈁만 한 글이 같으면 하나: 쿼리만 다른 두 주소는 묶이고, 경로가 다르면 값이 같아 보여도 둘
+    found = scan('"http://10.0.0.1/x?a=1" "http://10.0.0.1/x#b"')
+    assert [(f.value, f.count) for f in found] == [("http://10.0.0.1/x", 2)]
+
+
 # ---- 걸림 상한 (9번, CR-003·005) ----
 
 
@@ -273,10 +355,12 @@ def test_F_S03_사설IP_10000개_건너뜀없음() -> None:
 
 
 def test_F_S03_S01과_S03이_따로_세고_둘다_멈춤() -> None:
+    # 예시 291: 사설 IP 10,001개와 AWS 키 10,001개 (건너뜀 한 줄로 합치는 것은 T8)
     content = private_ips(10_001) + " " + distinct_aws(10_001)
     s01 = secrets.scan_file("a.js", content, KEY)
-    s03 = endpoints.scan_file("a.js", content, s01_spans=s01.spans)
+    s03 = endpoints.scan_file("a.js", content, KEY, s01_spans=s01.spans)
     assert (len(s01.findings), s01.stopped) == (10_000, True)
+    assert {f.rule_id for f in s01.findings} == {"S01-AWS"}
     assert (len(s03.findings), s03.stopped) == (10_000, True)
     assert {f.rule_id for f in s03.findings} == {"S03-PRIVATE-IP"}
 
@@ -376,7 +460,7 @@ def test_F_S03_map_항목많아도_쌓지_않는다() -> None:
     spans = secrets.scan_file("a.js.map", content, KEY).spans
     tracemalloc.start()
     try:
-        result = endpoints.scan_file("a.js.map", content, s01_spans=spans)
+        result = endpoints.scan_file("a.js.map", content, KEY, s01_spans=spans)
         peak = tracemalloc.get_traced_memory()[1]
     finally:
         tracemalloc.stop()

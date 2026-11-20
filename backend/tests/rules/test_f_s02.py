@@ -188,8 +188,64 @@ def test_F_S02_근거조각에_S01_원문이_없다() -> None:
     )
     f = only("app.js", content)
     assert f.rule_id == "S02-DANGLING"
-    for raw in ("hunter2hunter2", "pw1234567"):
-        assert raw not in f.snippet, f.snippet
+    for raw in ("hunter2hunter2", "pw1234567", "deploy"):
+        assert raw not in f.snippet + f.value, f.snippet
+
+
+# ---- 값 가리기 (1절, CR-007) ----
+
+
+def test_F_S02_DANGLING_값_주소계정_가림() -> None:
+    content = "//# sourceMappingURL=https://deploy:pw1234567@maps.myapp.kr/a.js.map"
+    f = only("assets/app.js", content)
+    assert (f.rule_id, f.value) == ("S02-DANGLING", "https://****@maps.myapp.kr/a.js.map")
+    assert f.snippet == "//# sourceMappingURL=https://****@maps.myapp.kr/a.js.map"
+    # 같은 줄의 S01-URLCRED는 따로 잡힌다
+    s01 = secrets.scan_file("assets/app.js", content, KEY)
+    assert [x.rule_id for x in s01.findings] == ["S01-URLCRED"]
+
+
+def test_F_S02_DANGLING_대문자HTTPS_계정_물음표_뗌() -> None:
+    content = "//# sourceMappingURL=HTTPS://deploy:pw1234567@maps.myapp.kr/a.js.map?sig=abc123"
+    f = only("assets/app.js", content)
+    assert (f.rule_id, f.value) == ("S02-DANGLING", "HTTPS://****@maps.myapp.kr/a.js.map")
+    assert f.snippet == "//# sourceMappingURL=HTTPS://****@maps.myapp.kr/a.js.map"
+    # S01은 소문자 스킴만 본다(발견 규칙의 정규식은 그대로)
+    assert secrets.scan_file("assets/app.js", content, KEY).findings == ()
+
+
+def test_F_S02_DANGLING_물음표뒤_키워드값_조각에없음() -> None:
+    f = only("assets/app.js", "//# sourceMappingURL=/maps/a.js.map?password=hunter2")
+    assert (f.rule_id, f.value) == ("S02-DANGLING", "/maps/a.js.map")
+    assert f.snippet == "//# sourceMappingURL=/maps/a.js.map"
+
+
+def test_F_S02_DANGLING_값_물음표뒤_뗌() -> None:
+    f = only("assets/app.js", "//# sourceMappingURL=missing.js.map?v=3")
+    assert (f.rule_id, f.value) == ("S02-DANGLING", "missing.js.map")
+
+
+def test_F_S02_INLINE_조각_30자() -> None:
+    f = only(
+        "assets/app.js",
+        "//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozfQ==",
+    )
+    assert (f.rule_id, f.value) == ("S02-INLINE", "data:application/json;base64,e…")
+    assert f.snippet == "//# sourceMappingURL=data:application/json;base64,e…"
+
+
+def test_F_S02_MAP_CONTENT_조각_빈글() -> None:
+    raw = sourcemap([f"m{i}.ts" for i in range(12)], [f"v{i}" for i in range(12)])
+    f = only("assets/index.js.map", raw)
+    assert (f.rule_id, f.location, f.snippet) == ("S02-MAP-CONTENT", None, "")
+
+
+def test_F_S02_값_200자_넘으면_자름() -> None:
+    # D-034: 가린 뒤 200자를 넘으면 앞 200자 + `…` (값 칸과 근거 조각의 걸린 곳)
+    value = "https://maps.myapp.kr/" + "a" * 300 + ".map"
+    f = only("app.js", f"//# sourceMappingURL={value}")
+    assert f.value == value[:200] + "…"
+    assert len(f.snippet) <= 40 + 201 + 40
 
 
 # ---- 6번: 건너뛴 소스맵 안내 ----
