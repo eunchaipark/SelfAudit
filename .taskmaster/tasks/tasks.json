@@ -139,7 +139,7 @@
         "testStrategy": "test_F-I01_APP대문자_대상 / test_F-I01_png만5개_대상없음 / test_F-I01_52428800바이트_대상_52428801_건너뜀 / test_F-I01_20000개_통과_20001개_실패 / test_F-I01_심볼릭링크_건너뜀 / test_F-I01_png는_디스크에_쓰지_않음. 화면 없음.",
         "priority": "high",
         "dependencies": [],
-        "status": "in-progress",
+        "status": "review",
         "subtasks": [
           {
             "id": 1,
