@@ -4,6 +4,7 @@
     {"이름": "화면패키지", "없으면": "node_modules", "명령": "npm ci --ignore-scripts", "폴더": "frontend", "제한초": 900}
   ],
   "검사": [
+    {"이름": "숨은글자", "명령": "python -I ops/scripts/check_hidden.py", "폴더": ".", "제한초": 60},
     {"이름": "서버린트", "명령": "uv run ruff check .", "폴더": "backend", "제한초": 300},
     {"이름": "서버형식", "명령": "uv run ruff format --check .", "폴더": "backend", "제한초": 300},
     {"이름": "서버타입", "명령": "uv run mypy .", "폴더": "backend", "제한초": 600},

@@ -11,3 +11,9 @@ APP_NAME_MAX = 40
 CONSENT_VERSION = "v1"
 REA_PROBE_SECONDS = 5
 REA_RUN_SECONDS = 120
+# 파일 하나에서 받는 걸림(F-S01 11·F-S03 9). 10,001번째가 나오면 멈춘다 (CR-005)
+HIT_LIMIT = 10_000
+# 점검 하나의 발견(1절 발견 상한). 파일을 마칠 때 넘었으면 남은 파일은 보지 않는다
+FINDINGS_LIMIT = 50_000
+# 값 칸·S02·S03 근거 조각 걸린 곳의 길이(코드 포인트). 가린 뒤 넘으면 앞 200자 + "…" (D-034)
+VALUE_MAX = 200
