@@ -59,11 +59,11 @@
         "id": "2",
         "title": "앱: 점검 기록 목록·앱 지우기·최근 점수 (F-P02, F-P03 앱 지우기)",
         "description": "앱별 점검 목록(최신순), 앱 목록의 최근 점수, 앱 지우기(확인·진행 중 거부)",
-        "details": "영역: 앱\n목적: 앱별 점검 기록을 보고, 지울 수 있다 (FR-09)\n읽을 문서: 기능명세 F-P02, F-P03 처리 규칙 3·4, 화면정의 SCR-01 01-02·01-03\n고칠 파일: backend/app/apps/**, backend/tests/apps/**, frontend/src/features/apps/**\n계약: GET /apps, GET /apps/{id}/scans, DELETE /apps/{id}?confirm=true (AppListItemOut, ScanListItemOut, DeletedOut)\n\nCR-001 영향: F-P01 출처 주소 형식(apps/**). CR-001 반영 뒤 명세 기준을 잡는다. SCR-03 기록 표시는 T16. 점검 지우기 규칙은 T15와 맞춘다(중복되면 설계에 공용 함수 요청).",
+        "details": "영역: 앱\n목적: 앱별 점검 기록을 보고, 지울 수 있다 (FR-09)\n읽을 문서: 기능명세 F-P02, F-P03 처리 규칙 3·4, 화면정의 SCR-01 01-02·01-03\n고칠 파일: backend/app/apps/**, backend/tests/apps/**, frontend/src/features/apps/**\n계약: GET /apps, GET /apps/{id}/scans, DELETE /apps/{id}?confirm=true (AppListItemOut, ScanListItemOut, DeletedOut)\n명세 기준: 0dd0d9c\n\nCR-001 영향: F-P01 출처 주소 형식(apps/**). CR-001 반영 뒤 명세 기준을 잡는다. SCR-03 기록 표시는 T16. 점검 지우기 규칙은 T15와 맞춘다(중복되면 설계에 공용 함수 요청).",
         "testStrategy": "test_F-P02_점검3개_최신순_점수_78 / test_F-P02_같은시각이면_점검ID큰것이_위 / test_F-P02_완료아님은_점수_대시 / test_F-P02_없는앱_404 / test_F-P03_앱지우기_점검2개_지운수2 / test_F-P03_진행중_점검있으면_거부. 화면: SCR-01 최근 점수·시각, 빈 상태 문구.",
         "priority": "medium",
         "dependencies": [],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
