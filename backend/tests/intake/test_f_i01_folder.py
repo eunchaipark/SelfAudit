@@ -244,7 +244,6 @@ def opener_from(data: dict[str, bytes], path: str) -> Iterator[BinaryIO]:
 
 def test_F_I01_격리폴더에_같은파일_있으면_덮어쓰지않고_실패(tmp_path: Path) -> None:
     root = make_quarantine(tmp_path / "work" / "1")
-    first = {"a.js": b"first"}
     entries = (Entry("a.js", 5), Entry("a.js", 5))
     contents = iter([b"first", b"second"])
 
@@ -255,7 +254,7 @@ def test_F_I01_격리폴더에_같은파일_있으면_덮어쓰지않고_실패(
     with pytest.raises(IntakeFailed) as err:
         write_bundle(entries, opener, root, engine.DEFAULT_LIMITS)
     assert err.value.reason == MSG_OTHER
-    assert (root / "a.js").read_bytes() == first["a.js"]
+    assert (root / "a.js").read_bytes() == b"first"
 
 
 def test_F_I01_풀다가_크기합을_넘으면_그자리에서_멈춘다(tmp_path: Path) -> None:
@@ -279,7 +278,9 @@ def test_F_I01_풀다가_파일하나_한도를_넘으면_그파일만_건너뜀
     data = {"a.js": b"x" * 4, "b.js": b"y" * 6}
     entries = (Entry("a.js", 4), Entry("b.js", 1))
 
-    result = write_bundle(entries, lambda p: opener_from(data, p), root, IntakeLimits(max_file_bytes=5))
+    result = write_bundle(
+        entries, lambda p: opener_from(data, p), root, IntakeLimits(max_file_bytes=5)
+    )
 
     assert result.targets == ("a.js",)
     assert result.skipped == (Skipped("b.js", SkipReason.TOO_LARGE),)
