@@ -13,6 +13,7 @@ from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 
 from app.contracts.engine import Finding, Location, Severity
+from app.core.limits import HIT_LIMIT
 from app.rules import text
 
 MAP_SUFFIX = ".map"
@@ -264,7 +265,7 @@ def _collect(
     cursor = text.LineCursor(content) if map_name is None else None
     prefix: str | None = None
     for hit in _hits(content):
-        if accepted >= text.HIT_LIMIT:
+        if accepted >= HIT_LIMIT:
             return accepted, True
         accepted += 1
         group = groups.get((hit.rule_id, hit.value))

@@ -29,9 +29,6 @@ LONG_RUN_KEEP = 4
 _LONG_RUN = re.compile(rf"[A-Za-z0-9+/=_-]{{{LONG_RUN_MIN},}}")
 _NEWLINE = re.compile(r"\r\n|\r|\n")
 
-# 파일 하나에서 받아들이는 걸림 수 (F-S01 11, F-S03 9). 10,001번째가 나오면 멈춘다
-HIT_LIMIT = 10_000
-
 # S01-GENERIC 키워드. 규칙(F-S01)과 근거 조각 ㉠이 같은 목록을 쓴다 (CR-003)
 GENERIC_KEYWORD = re.compile(
     r"password|passwd|pwd|secret|api_?key|access_?token|auth_?token|client_?secret",

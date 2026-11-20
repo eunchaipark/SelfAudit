@@ -13,6 +13,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 
 from app.contracts.engine import Finding, Location, Severity
+from app.core.limits import HIT_LIMIT
 from app.rules import text
 
 MAP_SUFFIX = ".map"
@@ -256,7 +257,7 @@ def scan_file(path: str, content: str, key: bytes) -> SecretsScan:
     """
     groups: dict[tuple[str, str], _Group] = {}
     all_spans: list[tuple[text.MaskedSpan, ...]] = []
-    budget = text.HIT_LIMIT
+    budget = HIT_LIMIT
     stopped = False
     for name, item in _texts(path, content):
         if stopped:
