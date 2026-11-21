@@ -39,6 +39,10 @@ NODE_BASE_URL = f"https://nodejs.org/dist/{NODE_VERSION}/"
 REA_VERSION = "6.10.1"
 # zip 안 node.exe의 sha256. 이미 깔린 node.exe가 이 값과 다르면 버전 글이 같아도 다시 깔지 않고 멈춘다
 NODE_EXE_SHA256 = "86fc4785327db5f5c7558dc6156c543b433c313e813a222e088086222ab4afa6"
+# 다시 쓸 때 맞춰 보는 실행 파일 두 개(npm·REA 진입점)의 sha256. 폴더 전체 해시는 이 PC에서 node 62초,
+# rea node_modules 328초가 걸려(2026-11-22 잼) 매번 돌리기엔 길다 — 진입점 해시 + lock 파일이 같은지로 대신한다
+NPM_CLI_SHA256 = "3ce7cba6f5128dd5f54c98b6a5036b0f850496878cc2e21044b675fe3c594e3e"
+REA_MJS_SHA256 = "029dbe9918c9af46f724915f255c94712b53afb8707a829fea35527a4d6a5576"
 ALLOWED_URL_PREFIX = "https://nodejs.org/dist/"
 
 # 받는 크기 상한(바이트). zip은 고정 크기와 정확히 같아야 하고, SHASUMS256.txt(3,171바이트)는 64KB 안이어야 한다
@@ -153,8 +157,9 @@ def setup_node(tools: Path, env: dict[str, str]) -> Path:
     node_dir = tools / "node"
     node = node_dir / "node.exe"
     if node.is_file():
-        if sha256_of(node) != NODE_EXE_SHA256:
-            raise SystemExit(f"{node}의 sha256이 고정값과 다릅니다. 폴더를 지우고 다시 돌리세요")
+        npm_cli = node_dir / "node_modules" / "npm" / "bin" / "npm-cli.js"
+        if sha256_of(node) != NODE_EXE_SHA256 or not npm_cli.is_file() or sha256_of(npm_cli) != NPM_CLI_SHA256:
+            raise SystemExit(f"{node_dir}의 node.exe·npm-cli.js sha256이 고정값과 다릅니다. 폴더를 지우고 다시 돌리세요")
         if run_version([str(node), "--version"], env) == NODE_VERSION:
             print(f"Node {NODE_VERSION}: 이미 있음 (node.exe sha256 일치)")
             return node_dir
@@ -182,9 +187,15 @@ def setup_rea(tools: Path, node_dir: Path, env: dict[str, str]) -> None:
     rea_dir = tools / "rea"
     rea_mjs = rea_dir / "node_modules" / "rea-agents" / "scripts" / "rea.mjs"
     node = str(node_dir / "node.exe")
-    if rea_mjs.is_file() and run_version([node, str(rea_mjs), "--version"], env) == REA_VERSION:
-        print(f"rea-agents {REA_VERSION}: 이미 있음")
-        return
+    if rea_mjs.is_file():
+        same_lock = all(
+            (rea_dir / name).is_file() and (rea_dir / name).read_bytes() == (PINNED_DIR / name).read_bytes()
+            for name in ("package.json", "package-lock.json")
+        )
+        if same_lock and sha256_of(rea_mjs) == REA_MJS_SHA256 and run_version([node, str(rea_mjs), "--version"], env) == REA_VERSION:
+            print(f"rea-agents {REA_VERSION}: 이미 있음 (lock·rea.mjs sha256 일치)")
+            return
+        print("rea-agents: lock이나 rea.mjs가 고정값과 달라 npm ci로 다시 깝니다")
     rea_dir.mkdir(parents=True, exist_ok=True)
     for name in ("package.json", "package-lock.json"):
         shutil.copyfile(PINNED_DIR / name, rea_dir / name)
