@@ -157,18 +157,29 @@ Remove-NetFirewallRule  -DisplayName "SelfAudit REA node 바깥 막기"
               "--", "<ROOT>\\.tools\\node\\node.exe", "<ROOT>\\.tools\\rea\\node_modules\\rea-agents\\scripts\\rea.mjs", "mcp"],
      "env": {"REA_MCP_TOOL_FAMILIES": "electron,artifact,application"}}}}
 ```
-- `rea_mcp_filter.py`(MCP 거르개, F-R이 만든다): Claude Code와 REA 사이에서 stdio를 잇는 작은 표준 라이브러리 프로그램. ⑴ REA를 **허용 목록 환경**으로 띄우고 ㉠(`NODE_OPTIONS`·`REA_NETGUARD_LOG`)과 빈 홈·TEMP 폴더를 넣는다 ⑵ `tools/list` 응답에서 허용 4개만 남긴다 ⑶ 허용 밖 `tools/call`은 REA에 보내지 않고 오류로 돌려준다. ㉡(netstat)은 실행기가 `<ROOT>\.tools\node\node.exe` 이미지인 프로세스와 그 자손에 감싼다(Claude Code 자신의 Anthropic API 연결은 실험의 일부라 REA 기록에서 뺀다).
+- `rea_mcp_filter.py`(MCP 거르개, F-R04가 만든다): Claude Code와 REA 사이에서 stdio를 잇는 작은 표준 라이브러리 프로그램. ⑴ REA를 **허용 목록 환경**으로, **작업 폴더 = 그 실행의 target**으로 띄우고 ㉠(`NODE_OPTIONS`·`REA_NETGUARD_LOG`)과 빈 홈·TEMP 폴더를 넣는다 ⑵ `tools/list` 응답에서 허용 4개만 남긴다 ⑶ 허용 밖 `tools/call`은 REA에 보내지 않고 오류로 돌려준다 **⑷ 허용 도구의 인자도 허용 꼴만 보낸다** (아래 '인자 거르기'). ㉡(netstat)은 실행기가 `<ROOT>\.tools\node\node.exe` 이미지인 프로세스와 그 자손에 감싼다(Claude Code 자신의 Anthropic API 연결은 실험의 일부라 REA 기록에서 뺀다).
+- **인자 거르기 ⑷ (반려 2, 높음)**: 도구 이름만 거르면 `analyze_javascript_application`의 `input_path`·`audit_release_exposure`의 `path`(파일을 주면 부모 폴더 목록까지 읽음)에 PC의 아무 경로나 넣을 수 있다. 그러면 조건 B만 `bench/sources/`(심은 곳)·저장소·다른 실행 결과·내 앱 원자료를 REA로 읽어 실험이 비대칭이 되고, 내 앱 비밀값이 git에 넣는 대화 기록으로 간다. 그래서:
+  1. 도구마다 **받는 인자 이름 허용 목록**(아래 표)을 두고, 그 밖의 인자가 하나라도 있으면 오류.
+  2. **경로 칸**(`input_path`, `path`)은 이 꼴만 받는다: 드라이브 문자 절대 경로(`C:\…`)나 target 기준 상대 경로, 또는 `\\?\C:\…`(앞 4자를 떼고 본다). UNC(`\\호스트\…`, `\\?\UNC\…`), 그 밖의 장치 경로(`\\.\…`), 드라이브 상대(`C:x`), 드라이브 뒤의 `:`(ADS), NUL 글자는 거절. 그다음 `os.path.realpath(…, strict=True)`로 정션·심볼릭 링크·8.3 짧은 이름·`..`을 모두 푼 경로가 **같은 방법으로 푼 target과 같거나 그 아래**(`normcase` 뒤 `target + "\"`로 시작)일 때만 보낸다. 없는 경로·풀 수 없는 경로는 거절. `audit_release_exposure`의 `path`가 파일이면 그 부모도 target 안이어야 한다(부모 목록을 읽으므로).
+  3. `source_paths`(배열)는 target 기준 상대 경로 글만, 각각 2번과 같이 풀어 target 안. 
+  4. trace 두 도구의 `application`은 **같은 세션의 참조만** 받는다(그 안에 경로 꼴 글이 있으면 거절). 참조의 정확한 꼴은 F-R04 첫 시험에서 REA 응답으로 정하고 그 키만 허용한다. 근거: 넣은 Evidence(inline)는 `subject.local_path` 같은 경로를 실어 나를 수 있다.
+  5. 모든 인자의 글 값을 훑어, 경로 꼴(드라이브 문자로 시작, `\\`·`//`로 시작, `file:`, `..` 마디)인 글은 2번을 통과해야 한다 — 1~4가 놓친 칸의 그물.
+  - 시제품 측정 (2026-11-22, scratchpad, 관리자 권한 없이): target 안 상대·절대·`\\?\`·8.3 짧은 이름·target 자신·`안/../안` → 허용 / `..`로 밖, 밖 절대, 저장소 절대(`C:\project\SelfAudit\CLAUDE.md`), **target 안 정션이 밖을 가리킴**, `\\?\` 밖, `\\?\UNC`, UNC, `\\.\C:\…` 밖, 8.3 밖, ADS, `/` 꼴 밖, 없는 파일, `C:x`, `target2`(이름 앞부분만 같은 형제) → 모두 거절. 심볼릭 링크는 이 PC에서 관리자 권한·개발자 모드 없이 만들 수 없어 재지 못했다(realpath가 정션과 같이 푼다 — 추정, F-R04 시험에서 개발자 모드가 켜진 환경이면 넣는다).
+  - **F-R04 시험 꼴** (명세 예시로 옮긴다): 위 목록 전부 + `source_paths`에 `../x`, 인자 목록 밖의 키(`evidence_output` 등), trace `application`에 inline Evidence.
 - 근거: `--strict-mcp-config`는 "`--mcp-config`의 서버만 쓰고 다른 MCP 설정은 무시"한다(Claude Code 2.1.119 도움말). `rea setup`을 하지 않으므로 사용자 전체 설정에는 REA가 없고, B만 설정 파일로 REA를 받는다. Claude Code가 MCP 서버에 자기 환경을 얼마나 물려주는지는 확인하지 않았다(추정: 물려준다) — 그래서 거르개가 REA 환경을 새로 만든다.
 - `--bare`는 쓰지 않는다: 도움말에 "OAuth를 읽지 않고 `ANTHROPIC_API_KEY`만" 쓴다고 되어 있어 구독 로그인으로는 못 돈다.
 
-**조건 B에 허용하는 REA 도구 (허용 목록)** — `electron`·`artifact`·`application` 세 묶음 68개를 하나씩 보고, 웹 번들 정적 분석에 쓰고 파일을 쓰지 않는 것만 남겼다:
+**조건 B에 허용하는 REA 도구 (허용 목록) [사용자 확인]** — `electron`·`artifact`·`application` 세 묶음 68개를 하나씩 보고, 웹 번들 정적 분석에 쓰는 것만 남겼다. 허용 넷의 '경로를 받는 칸'과 REA가 붙인 표시(MCP annotations)도 적었다:
 
-| 허용 | 도구 | 근거 |
-|---|---|---|
-| 예 | `analyze_javascript_application` | 웹 번들 폴더를 실행하지 않고 정적 그래프로 만든다(5절에서 시험). 질문 1의 핵심 도구 |
-| 예 | `audit_release_exposure` | 배포물의 소스맵·sourcesContent 노출을 점검한다(5절에서 시험). 시험 번들의 '소스맵' 문제와 맞다 |
-| 예 | `trace_javascript_semantics` | 위 그래프에서 데이터 흐름·호출을 따라간다. 나눠 쓴·숨긴 비밀값(어려움 단계)을 찾는 데 REA다운 쓸모가 있다. 입력이 앞 도구의 결과(같은 세션 참조나 넣은 Evidence)뿐이다(도구 설명) |
-| 예 | `trace_application_feature` | 같은 그래프에서 글자 씨앗(예: 경로 글)을 따라간다. 숨은 API 라우트·권한 검사 찾기에 쓴다. 입력은 앞 결과뿐 |
+| 허용 | 도구 | 받는 인자 (허용 목록) · 경로 칸 | REA 표시 | 근거 |
+|---|---|---|---|---|
+| 예 | `analyze_javascript_application` | `input_path`(**경로**, 필수), `source_paths`(**경로 배열**), `format`, `integrity_policy`, `semantic_precision`, `max_semantic_nodes`·`max_semantic_nodes_per_file`·`max_semantic_unknowns`·`max_semantic_unknowns_per_file`, `max_heap_mb`, `analysis_timeout_ms`, `detail`, `view` | readOnly 아님·openWorld | 웹 번들 폴더를 실행하지 않고 정적 그래프로 만든다(5절에서 시험). 질문 1의 핵심 도구 |
+| 예 | `audit_release_exposure` | `path`(**경로**, 필수 — 파일이면 부모 폴더 목록도 읽음), `max_file_bytes` | readOnly 아님·openWorld | 배포물의 소스맵·sourcesContent 노출을 점검한다(5절에서 시험). 시험 번들의 '소스맵' 문제와 맞다 |
+| 예 | `trace_javascript_semantics` | `application`(객체 — 같은 세션 참조만), `query` | readOnly 아님·openWorld 아님 | 위 그래프에서 데이터 흐름·호출을 따라간다. 나눠 쓴·숨긴 비밀값(어려움 단계)을 찾는 데 REA다운 쓸모가 있다 |
+| 예 | `trace_application_feature` | `application`(같은 세션 참조만), `seed`, `direction`, `semantic_page`, `view`, `native_observations` | readOnly 아님·openWorld 아님 | 같은 그래프에서 글자 씨앗(예: 경로 글)을 따라간다. 숨은 API 라우트·권한 검사 찾기에 쓴다 |
+
+REA 표시가 넷 모두 `readOnlyHint: false`이고 앞의 둘은 `openWorldHint: true`라, 표시만으로는 '쓰지 않는다·밖을 보지 않는다'를 믿을 수 없다. 그래서 **MCP 모드에서 디스크 쓰기를 직접 쟀다**(2026-11-22, 가짜 번들, 홈·APPDATA·LOCALAPPDATA·TEMP를 빈 폴더로, 작업 폴더 = 번들): `analyze_javascript_application`(7.9초, 응답 522,802바이트)·`audit_release_exposure`를 부른 뒤 실행 폴더 전체(번들·홈·TEMP)에 **새로 생기거나 바뀐 파일 0개**(㉠ 기록 파일만). ㉠ 기록에 바깥 시도 0. 경로 밖으로 나가는 것은 ⑷가 막는다.
+- 관찰: MCP 응답이 CLI 출력(212~243KB)보다 크다(본문 글과 `structuredContent`가 같이 온다, 추정). 조건 B의 비용에 바로 들어가므로 보정 실행(`실험구조.md` 3.5)에서 잰다.
 | 아니오 | `list_electron_targets`, `inspect_electron_page`, `reconcile_javascript_runtime`, `capture_electron_scenario` | **실행 중인 Electron 앱**(CDP 연결)을 다루거나 앱을 띄운다(`capture_electron_scenario`는 destructiveHint). 실험 대상은 실행하지 않는 웹 빌드 결과물이다(요구사항 5.1) |
 | 아니오 | `inspect_electron_fuses` | Electron 실행 파일 전용. 웹 번들에는 없다 |
 | 아니오 | `extract_artifact`, `export_web_scripts`, `recover_javascript_sources` | 출력 폴더에 파일을 쓴다. 마지막은 Linux·Wakaru가 필요해 Windows에서 못 돈다(도구 설명) |
@@ -176,7 +187,7 @@ Remove-NetFirewallRule  -DisplayName "SelfAudit REA node 바깥 막기"
 | 아니오 | 나머지 54개 (Apple·Go·Rust·EVM·WASM·APK·.pyc·NuGet·BEAM·Maven·SQLite·패킷·신호·GPU·모델 파일, 빌드 컴퓨터, 비교·설정 도구 등) | 웹 번들과 다른 형식이다. 쓸 일이 없는 도구를 주면 도구 설명만큼 비용이 늘고 에이전트가 헛짚을 길이 는다 |
 
 잰 크기: 세 묶음 68개의 tools/list는 137,204바이트, 허용 4개만이면 8,249바이트.
-**두 층에서 거른다**: ⑴ MCP 거르개가 허용 4개만 보이고 부른다 ⑵ Claude Code `--permission-mode dontAsk --allowedTools "Read Grep Glob mcp__rea__analyze_javascript_application mcp__rea__audit_release_exposure mcp__rea__trace_javascript_semantics mcp__rea__trace_application_feature"`로 허용 목록 밖은 묻지 않고 거절한다. 근거: 허용 꼴만 통과시키는 것을 두 층에 두면 한 층의 설정이 틀려도 다른 층이 막는다. 거르개는 도구 설명 비용도 137KB → 8KB로 줄인다(조건 B의 비용이 REA의 쓸모가 아니라 도구 목록 크기 때문에 커지지 않게).
+**두 층에서 거른다**: ⑴ MCP 거르개가 허용 4개만 보이고 부른다 ⑵ Claude Code `--permission-mode dontAsk --allowedTools "Read(./**) Grep(./**) Glob(./**) mcp__rea__analyze_javascript_application …(4개)"`로 허용 목록 밖은 묻지 않고 거절한다(`실험구조.md` 3.3). 근거: 허용 꼴만 통과시키는 것을 두 층에 두면 한 층의 설정이 틀려도 다른 층이 막는다. 거르개는 도구 설명 비용도 137KB → 8KB로 줄인다(조건 B의 비용이 REA의 쓸모가 아니라 도구 목록 크기 때문에 커지지 않게).
 
 | 묶음 (참고, 거르개 없이) | 도구 수 | tools/list 크기 | 들어 있는 것 |
 |---|---|---|---|
@@ -210,7 +221,7 @@ REA 출력에는 번들 안의 글이 그대로 들어간다(5절). 시험 번�
 | 규칙 | 근거 |
 |---|---|
 | `rea_smoke.py`는 자기가 만든 가짜 번들만 돌린다(바깥 경로를 받지 않는다). 내 앱은 실행기(F-R)로만 돌린다 | 시험 도구로 내 앱이 들어갈 길을 없앤다 |
-| 내 앱의 REA 출력·에이전트 결과·stderr는 **저장소 밖**(`%LOCALAPPDATA%\SelfAudit-bench\private\`)에만 쓰고 git에 넣지 않는다. 검사 `check_bench.py`가 `bench/results/`에 내 앱 결과가 없음을 본다 | 공개 저장소에 비밀값 원문이 올라가지 않게(CLAUDE.md '하지 않는 것'). 규칙과 검사는 `docs/설계/실험구조.md` 4절 |
+| 내 앱의 REA 출력·에이전트 결과·stderr는 **저장소 밖**(`%LOCALAPPDATA%\SelfAudit-private\`, 실행 폴더들과 떨어진 곳)에만 쓰고 git에 넣지 않는다. 검사 `check_bench.py`가 `bench/results/`에 내 앱 결과가 없음을 본다 | 공개 저장소에 비밀값 원문이 올라가지 않게(CLAUDE.md '하지 않는 것'). 규칙과 검사는 `docs/설계/실험구조.md` 4절 |
 | 요약에 남는 경로는 `<WORK>`·`<HOME>`으로 가린다(`rea_smoke.py` `mask`). stderr는 앞 2,000자만 남기고 같은 가림을 거친다. 프로세스는 이름만 남긴다(PID 없음) | 절대 경로에 사용자 이름이 들어간다. REA stderr는 진행 기록(파일 이름)이라 내 앱이면 파일 구조가 드러난다. 2,000자는 진행 기록(한 줄 약 150자)의 처음 10여 줄로, 어디서 멈췄는지 보기에 충분하다(추정) |
 | `--keep`의 REA 원본(`*.rea.json`)은 가짜 번들 결과뿐이고, 그래도 git에 넣지 않는다(scratchpad에 둔다) | 원본에는 임시 폴더 절대 경로가 그대로 있다(가리지 않음) |
 | 실행기도 홈·APPDATA·TEMP를 실행 폴더 안 빈 폴더로 돌린다 | REA가 이 셋에 쓰지 않음은 이 번들에서만 확인했다(5절). 돌려 두면 다른 번들에서 쓰더라도 실행 폴더 안에 남아 함께 관리된다 |
