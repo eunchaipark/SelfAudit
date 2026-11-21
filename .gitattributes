@@ -9,3 +9,6 @@
 *.webp binary
 *.pdf binary
 *.woff2 binary
+
+# 실험 번들은 바이트 그대로 둔다: 지문(F-B04)이 파일 바이트의 sha256이라 줄바꿈을 바꾸면 정답지와 어긋난다
+bench/bundles/** -text

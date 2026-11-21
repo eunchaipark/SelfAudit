@@ -1,4 +1,4 @@
-"""docs·ops·.taskmaster 글 파일에서 보이지 않는 글자를 찾는다 (check.py '숨은글자').
+"""docs·ops·.taskmaster·bench 글 파일에서 보이지 않는 글자를 찾는다 (check.py '숨은글자').
 
 찾는 것: 폭 없는 글자·방향 표시 U+200B~U+200F, 방향 문자 U+202A~U+202E·U+2066~U+2069,
 탭·줄바꿈(\\t \\n \\r) 밖의 제어 문자(Cc: U+0000~U+001F, U+007F~U+009F).
@@ -14,8 +14,8 @@ import unicodedata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-FOLDERS = ("docs", "ops", ".taskmaster")
-SKIP_DIRS = {"node_modules", ".git", "__pycache__"}
+FOLDERS = ("docs", "ops", ".taskmaster", "bench")
+SKIP_DIRS = {"node_modules", ".git", "__pycache__", ".venv", ".mypy_cache", ".ruff_cache", ".pytest_cache"}
 ALLOWED_CC = {chr(0x09), chr(0x0A), chr(0x0D)}
 HIDDEN = (
     {chr(c) for c in range(0x200B, 0x2010)}
