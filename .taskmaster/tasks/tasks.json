@@ -206,7 +206,7 @@
         "dependencies": [
           "3"
         ],
-        "status": "review",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
