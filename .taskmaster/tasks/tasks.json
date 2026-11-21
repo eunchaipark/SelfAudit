@@ -9,7 +9,7 @@
         "testStrategy": "test_F-I01_시작때_진행중점검이_실패로_바뀐다 / test_F-I01_시작때_work폴더가_비워진다 / test_F-I01_완료된_점검은_건드리지_않는다. 화면 없음.",
         "priority": "high",
         "dependencies": [],
-        "status": "in-progress",
+        "status": "review",
         "subtasks": [
           {
             "id": 1,
@@ -887,7 +887,7 @@
         "id": "14",
         "title": "점검 흐름: 점검 시작·실행·저장 (F-I01 A·11)",
         "description": "점검 시작 API와 거부, intake→rules→score→rea→지문 잇기, 상태 전이, 격리 폴더 삭제",
-        "details": "영역: 점검 흐름\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02) / 발견마다 심각도를 매기고 점검 점수를 낸다 (FR-08)\n읽을 문서: 기능명세 F-I01 A·B 1·11, 예외·예시, F-S06 4, F-S02 6·F-S04 안내, 1절 '발견 상한'(안내), F-S01 11(건너뜀 이유)\n고칠 파일: backend/app/scans/**, backend/tests/scans/**\n계약: POST /apps/{id}/scans/zip, POST /apps/{id}/scans/folder → ScanStartedOut, 모델 Scan·FindingRow·SkippedRow·ReaRow, RuleRun.skipped·notices(CR-003·004)\n변경: CR-003, CR-004\n\n마이그레이션 없음(skipped.reason은 String(32)이고 '걸림이 너무 많아 일부만 점검'은 15자). 로컬 키는 app.state.local_key.\nT3 검증 넘김: receive_folder의 OSError str(exc)에는 원본·격리 폴더 전체 경로가 있다 → 점검 실패 이유·로그에는 고정 문구만 저장한다.",
+        "details": "영역: 점검 흐름\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02) / 발견마다 심각도를 매기고 점검 점수를 낸다 (FR-08)\n읽을 문서: 기능명세 F-I01 A·B 1·11, 예외·예시, F-S06 4, F-S02 6·F-S04 안내, 1절 '발견 상한'(안내), F-S01 11(건너뜀 이유)\n고칠 파일: backend/app/scans/**, backend/tests/scans/**\n계약: POST /apps/{id}/scans/zip, POST /apps/{id}/scans/folder → ScanStartedOut, 모델 Scan·FindingRow·SkippedRow·ReaRow, RuleRun.skipped·notices(CR-003·004)\n변경: CR-003, CR-004\n\n마이그레이션 없음(skipped.reason은 String(32)이고 '걸림이 너무 많아 일부만 점검'은 15자). 로컬 키는 app.state.local_key.\nT3 검증 넘김: receive_folder의 OSError str(exc)에는 원본·격리 폴더 전체 경로가 있다 → 점검 실패 이유·로그에는 고정 문구만 저장한다.\n설계 요청(T1): 점검을 만들 때 make_quarantine 전에 core.workdirs.remove_work_dir(work, id)를 부른다 — 서버가 켜진 동안 못 지운 폴더가 scans ID 재사용으로 같은 ID 새 점검을 막지 않게. 근본 해결(AUTOINCREMENT)은 다음 마이그레이션 때 설계.",
         "testStrategy": "test_F-I01_zip아님_거부 / test_F-I01_209715201바이트_거부 / test_F-I01_폴더상대경로_거부 / test_F-I01_진행중_다른점검_거부 / test_F-I01_png만_대상없음 / test_F-I01_끝나면_격리폴더_삭제 / test_F-I01_intake실패_이유_저장 / test_F-S01_DB응답에_원문_없음 / test_NFR-01_네트워크_차단에서_점검됨 / test_F-S06_대상없음_실패면_점수_대시 (T8에서 옮김: score는 상태를 받지 않는다, 설계 0c36654) / test_F-S01_걸림상한_건너뜀이_점검에_저장 / test_F-S01_발견상한_안내가_점검에_저장. 화면 없음.",
         "priority": "high",
         "dependencies": [
