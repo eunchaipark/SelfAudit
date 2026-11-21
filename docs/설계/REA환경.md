@@ -24,7 +24,7 @@ python -I ops/scripts/rea_smoke.py --out <요약 JSON 절대 경로> [--keep] [-
 | `ops/scripts/setup_rea.py` | 받기(허용 주소·크기·시간 상한) → sha256 두 번 맞추기 → 안전하게 풀기 → `npm ci --ignore-scripts` → node.exe sha256·버전 확인 |
 | `ops/scripts/rea/package.json`, `package-lock.json` | rea-agents 6.10.1과 하위 패키지의 버전을 고정한다. lock 항목 175개 중 30개는 자기 sha512로, 145개는 rea-agents 묶음 안에 든 것(`inBundle`)이라 묶음의 sha512로 확인된다 |
 | `ops/scripts/rea_netguard.cjs` | Node 미리 읽기 파일. 바깥 TCP·UDP·이름 풀기·원격 파이프·UNC 경로를 기록하고, 보이는 것은 막는다 (4절) |
-| `ops/scripts/rea_netguard_selftest.mjs` | 위 파일의 자체 시험 27개(감싼 길마다 하나, 허용 꼴 확인 포함) |
+| `ops/scripts/rea_netguard_selftest.mjs` | 위 파일의 자체 시험 35개(감싼 길마다 하나, 허용 꼴 확인 포함) |
 | `ops/scripts/rea_smoke.py` | 가짜 시험 번들을 만들고 REA를 셸 없이, 허용 목록 환경으로 돌려 시간·크기·필드·네트워크·디스크 쓰기를 요약한다 |
 
 ## 2. 버전과 해시
@@ -65,16 +65,18 @@ REA가 바깥으로 나가는지 **두 겹으로 기록**했다(셋째 겹은 �
 | ㉡ 프로세스 밖 기록 | `POLL_S`(0.2)초마다 `netstat -ano`를 읽고, Toolhelp로 구한 REA 프로세스 나무의 TCP·UDP 끝점을 모은다. 0.2초 근거: `netstat -ano` 한 번이 이 PC에서 0.04~0.07초(5번 잼)라 한 코어의 약 20~35%만 쓴다. 더 짧으면 감시가 분석 시간을 늘리고, 더 길면 놓치는 짧은 연결이 는다 | REA 나무의 모든 프로세스(언어 무관), 폴링 순간에 열려 있던 끝점 |
 | ㉢ 프록시 | `HTTP(S)_PROXY=http://127.0.0.1:9`(닫힌 포트) | 프록시 설정을 따르는 클라이언트. 기록은 없다 |
 
-**㉠이 감싼 것** (자체 시험 `rea_netguard_selftest.mjs` 27개가 하나씩 확인. 바깥 주소는 RFC 5737 문서용 주소 192.0.2.1과 RFC 2606 `.invalid` 이름이라 감시가 뚫려도 실제 기기에 닿지 않는다):
+**㉠이 감싼 것** (자체 시험 `rea_netguard_selftest.mjs` 35개가 하나씩 확인. 바깥 주소는 RFC 5737 문서용 주소 192.0.2.1과 RFC 2606 `.invalid` 이름이라 감시가 뚫려도 실제 기기에 닿지 않는다):
 
 | 길 | 감싼 함수 | 시험 |
 |---|---|---|
 | TCP·TLS·http·https·fetch·ws | `net.Socket.prototype.connect` (모두 이것을 거친다) | fetch 바깥 IP, net.connect, worker thread 안 net.connect → 막힘 · 루프백 → 통과 |
 | UDP·QUIC | `dgram.createSocket` (만들기부터 막음) | 막힘 |
 | 이름 풀기 | `dns`·`dns.promises`의 **통과 목록 밖 모든 함수**(lookup, lookupService, resolve, resolve4·6·Any·Caa·Cname·Mx·Naptr·Ns·Ptr·Soa·Srv·Tlsa·Txt, reverse …)와 `dns.Resolver`·`dns.promises.Resolver`의 메서드. 통과 목록은 이름을 풀지 않는 설정 함수뿐: getServers·setServers·setDefaultResultOrder·getDefaultResultOrder·setLocalAddress·cancel | lookup, resolveMx·Txt·Soa, lookupService, reverse, Resolver.resolve4, promises.Resolver.resolveNs, ESM 이름 가져오기, `util.promisify(dns.lookup)`, `node:dns/promises` 동적 가져오기 → 모두 막힘 |
-| 파이프 | `connect({path})` — 로컬 파이프만 허용. `\\호스트\pipe\…`는 SMB로 다른 기기에 붙으므로 막음 | 원격 파이프 막힘, 로컬 파이프 통과 |
-| UNC 파일 | `fs`·`fs.promises`의 경로 받는 함수(앞 두 인자). `\\호스트\공유`, `//호스트/`, `\\?\UNC\…`, `file://호스트/` 막음 | 다섯 꼴 막힘, 로컬 파일·`\\?\C:\` 꼴 통과, `fs.realpathSync.native` 같은 덧붙은 속성 유지 |
-| 우회 | `process.binding('tcp_wrap'·'udp_wrap'·'pipe_wrap'·'tls_wrap'·'cares_wrap'·'stream_wrap'·'js_stream')` | 막힘 |
+| 파이프 | `connect({path})` — 로컬 파이프만 허용하고, **이름 쪽 마디에 `.`·`..`·빈 마디가 있으면 막음**. `\\호스트\pipe\…`는 SMB로 다른 기기에 붙으므로 막음 | 원격 파이프 막힘, 로컬 파이프 통과, `\\.\pipe\..\UNC\…`·`\\.\pipe\..\GLOBALROOT\…`·`\\?\pipe\.\x` 막힘 |
+| UNC 파일 | `fs`·`fs.promises`의 경로 받는 함수(앞 두 인자, 글·Buffer·Uint8Array·URL·URL 비슷한 객체). `\\호스트\공유`, `//호스트/`, `\\?\UNC\…`, `file://호스트/`, 그리고 `.`·`..` 마디가 든 장치 경로(`\\.\C:\..\UNC\…`) 막음 | 꼴마다 막힘, 로컬 파일·`\\?\C:\` 꼴 통과, `fs.realpathSync.native` 같은 덧붙은 속성 유지 |
+| 우회 | `process.binding('tcp_wrap'·'udp_wrap'·'pipe_wrap'·'tls_wrap'·'cares_wrap'·'stream_wrap'·'js_stream'·'fs'·'fs_dir')` | 막힘 |
+
+장치 경로를 마디로 보는 근거(반려 2): Win32는 `\\.\` 경로의 `..`를 풀어 `\\.\UNC\`·`\\.\GLOBALROOT\`로 옮길 수 있어, 앞부분(`\\.\pipe\`)만 맞추는 정규식은 우회된다. 허용 꼴을 '앞부분'이 아니라 '모든 마디'로 정한다.
 | ESM | 감싼 뒤 `module.syncBuiltinESMExports()` — `import { lookup } from "node:dns"`도 감싼 함수를 본다 | 위 ESM 시험 |
 
 **한계 (두 겹이 덮지 못하는 것)**
