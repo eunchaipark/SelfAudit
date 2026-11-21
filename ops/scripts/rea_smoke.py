@@ -1,15 +1,17 @@
 """REA가 이 PC(Windows)에서 도는지 한 번 시험한다 (설계, docs/설계/REA환경.md).
 
 하는 일:
-1. 새 임시 폴더에 작은 시험 번들(직접 만든 js 3개 + 소스맵 + html, 값은 모두 가짜)을 만든다.
-2. `.tools/node/node.exe .tools/rea/.../scripts/rea.mjs analyze-javascript-application <번들 절대 경로> --json`
-   을 셸 없이 돌린다. PATH 앞에 `.tools/node`를 붙여 REA의 Node 자식도 휴대용 Node를 쓰게 한다.
-3. 네트워크를 두 겹으로 본다.
-   ㉠ `rea_netguard.cjs`를 NODE_OPTIONS로 미리 읽혀 Node 안의 바깥 연결·UDP·이름 풀기를 막고 기록한다.
-   ㉡ 실행 중 0.2초마다 `netstat -ano`를 읽어 REA 프로세스 나무(자식 포함)의 TCP·UDP 끝점을 모은다.
-      Node가 아닌 자식 프로그램은 ㉠을 읽지 않으므로 ㉡이 그 몫을 본다.
-4. 걸린 시간, 출력 크기, 맨 위·두 번째 단계 필드 이름, 종료 코드, stderr 앞부분, 네트워크 기록을
-   요약 JSON으로 `--out`에 쓴다. REA 출력 원본은 `--keep`을 줄 때만 같은 폴더에 남긴다.
+1. 새 임시 폴더에 작은 시험 번들(직접 만든 js 4개 + 소스맵 2개 + html, 값은 모두 가짜)을 만든다.
+   번들은 이 파일이 만든 것뿐이다 — 바깥 경로를 받지 않으므로 내 앱이 여기로 들어오지 않는다.
+2. `.tools/node/node.exe .tools/rea/.../scripts/rea.mjs <명령> <번들 절대 경로> --json`을 셸 없이 돌린다.
+   환경은 허용 목록(ENV_PASS)만 넘기고, 홈·APPDATA·TEMP는 새 빈 폴더로 돌린다.
+3. 네트워크를 두 겹으로 기록한다(막는 것은 ㉠이 볼 수 있는 것뿐, 한계는 문서 4절).
+   ㉠ `rea_netguard.cjs`를 NODE_OPTIONS로 미리 읽혀 Node 안의 바깥 연결·UDP·이름 풀기·UNC를 기록하고 막는다.
+   ㉡ 실행 중 POLL_S초마다 `netstat -ano`를 읽어 REA 프로세스 나무(자식 포함)의 TCP·UDP 끝점을 모은다.
+      NODE_OPTIONS를 지운 자식과 Node가 아닌 자식 프로그램은 ㉠을 읽지 않으므로 ㉡이 그 몫을 본다.
+4. 걸린 시간, 출력 크기, 필드 이름, 종료 코드, stderr 앞부분, 네트워크 기록, 소스맵을 디스크에서 따라 읽었는지,
+   돌린 홈·TEMP에 쓴 파일을 요약 JSON으로 `--out`에 쓴다. 임시 폴더·홈 경로는 `<WORK>`·`<HOME>`으로 가린다.
+   REA 출력 원본은 `--keep`을 줄 때만 같은 폴더에 남긴다(가짜 번들 결과뿐, git에는 넣지 않는다).
 
 쓰는 법: python -I ops/scripts/rea_smoke.py --out <요약 JSON 절대 경로> [--keep] [--timeout 300]
         [--operation analyze-javascript-application|audit-release-exposure]
@@ -39,6 +41,11 @@ REA_MJS = ROOT / ".tools" / "rea" / "node_modules" / "rea-agents" / "scripts" / 
 GUARD = Path(__file__).resolve().parent / "rea_netguard.cjs"
 # 시험할 수 있는 REA 명령(허용 목록). 둘 다 정적 분석이고 번들을 실행하지 않는다(REA 도움말 기준)
 OPERATIONS = ("analyze-javascript-application", "audit-release-exposure")
+# 요약에 남길 stderr 앞부분. REA 진행 기록(한 줄 약 150자)의 처음 10여 줄이면 어디서 멈췄는지 보인다
+STDERR_HEAD = 2000
+# netstat 간격. netstat -ano 한 번이 이 PC에서 0.04~0.07초라(5번 잼) 0.2초면 한 코어의 약 20~35%만 쓴다.
+# 더 짧으면 감시가 분석 시간을 늘리고, 더 길면 놓치는 짧은 연결이 는다(한계는 문서 4절)
+POLL_S = 0.2
 
 # 시험 번들. 값은 모두 가짜이고 'FAKE'를 넣어 진짜 비밀값으로 오인되지 않게 한다.
 APP_JS = """\
@@ -70,6 +77,11 @@ APP_MAP = {
     "names": [],
     "mappings": "AAAA",
 }
+# 소스맵이 sources를 디스크에서 따라 읽는지 보는 짝(sourcesContent 없음). 표식 글이 REA 출력에 나오면 읽은 것이다.
+# UNC 항목은 RFC 5737 문서용 주소라 실제 기기에 닿지 않는다.
+EXT_JS = "function ext(){return 1}\n//# sourceMappingURL=ext.js.map\n"
+SENTINEL = "REA_SMOKE_SENTINEL_OUTSIDE_BUNDLE_7f3a"
+UNC_SOURCE = r"\\192.0.2.1\share\x.ts"
 INDEX_HTML = """\
 <!doctype html><html><head><meta charset="utf-8"><title>fake</title></head>
 <body><script src="assets/vendor.js"></script><script src="assets/app.js"></script></body></html>
@@ -84,7 +96,68 @@ def make_bundle(base: Path) -> Path:
     (root / "assets" / "chunk-admin.js").write_text(CHUNK_ADMIN_JS, encoding="utf-8")
     (root / "assets" / "vendor.js").write_text(VENDOR_JS, encoding="utf-8")
     (root / "assets" / "app.js.map").write_text(json.dumps(APP_MAP), encoding="utf-8")
+    outside = base / "outside"
+    outside.mkdir()
+    sentinel = outside / "sentinel.ts"
+    sentinel.write_text(f"export const marker = '{SENTINEL}';\n", encoding="utf-8")
+    ext_map = {
+        "version": 3,
+        "file": "ext.js",
+        "sources": ["../../outside/sentinel.ts", str(sentinel), UNC_SOURCE],
+        "names": [],
+        "mappings": "AAAA",
+    }
+    (root / "assets" / "ext.js").write_text(EXT_JS, encoding="utf-8")
+    (root / "assets" / "ext.js.map").write_text(json.dumps(ext_map), encoding="utf-8")
     return root
+
+
+# REA에 넘기는 환경 변수 허용 목록. 이것 말고는 넘기지 않는다(토큰·키가 든 변수가 섞이지 않게).
+# Windows에서 프로세스를 띄우는 데 필요한 것만 둔다. PATH·홈·임시 폴더는 아래에서 새로 만든다.
+ENV_PASS = (
+    "SystemRoot",
+    "SystemDrive",
+    "windir",
+    "ComSpec",
+    "PATHEXT",
+    "NUMBER_OF_PROCESSORS",
+    "PROCESSOR_ARCHITECTURE",
+    "OS",
+)
+HOME_VARS = ("USERPROFILE", "HOME", "APPDATA", "LOCALAPPDATA")
+
+
+def safe_env(work: Path, guard_log: Path) -> dict[str, str]:
+    """허용 목록 환경. 홈·APPDATA·TEMP는 새 빈 폴더로 돌려 REA가 거기 쓰는 것을 따로 본다."""
+    env = {k: os.environ[k] for k in ENV_PASS if k in os.environ}
+    system_root = os.environ.get("SystemRoot", r"C:\Windows")
+    env["PATH"] = os.pathsep.join([str(NODE_DIR), str(Path(system_root) / "System32"), system_root])
+    for name in HOME_VARS:
+        (work / "home" / name).mkdir(parents=True)
+        env[name] = str(work / "home" / name)
+    (work / "tmp").mkdir()
+    env["TEMP"] = env["TMP"] = str(work / "tmp")
+    # NODE_OPTIONS 안의 따옴표 글에서 '\'는 이스케이프로 읽히므로 '/' 꼴 경로를 쓴다
+    env["NODE_OPTIONS"] = f'--require "{GUARD.as_posix()}"'
+    env["REA_NETGUARD_LOG"] = str(guard_log)
+    # 프록시를 따르는 클라이언트도 바깥으로 못 나가게 닫힌 로컬 포트로 돌린다(기록은 ㉠·㉡이 한다)
+    for name in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"):
+        env[name] = "http://127.0.0.1:9"
+    return env
+
+
+def written_files(base: Path) -> list[str]:
+    return sorted(p.relative_to(base).as_posix() for p in base.rglob("*") if p.is_file())
+
+
+def mask(text: str, work: Path) -> str:
+    """요약에 임시 폴더 절대 경로와 사용자 홈 경로가 남지 않게 바꾼다(JSON 안의 '\\\\' 꼴 포함)."""
+    for raw, label in ((str(work), "<WORK>"), (os.environ.get("USERPROFILE", ""), "<HOME>")):
+        if not raw:
+            continue
+        for form in (raw, raw.replace("\\", "\\\\"), raw.replace("\\", "/")):
+            text = text.replace(form, label)
+    return text
 
 
 class _PE32(ctypes.Structure):
@@ -148,7 +221,7 @@ def watch_network(root_pid: int, stop: threading.Event, seen: dict[str, dict[str
             if pid in procs:
                 key = f"{proto} {local} {remote} {state}"
                 seen.setdefault(key, {"pid": pid, "exe": procs[pid]})
-        stop.wait(0.2)
+        stop.wait(POLL_S)
 
 
 def field_names(value: object, depth: int = 2) -> object:
@@ -173,16 +246,8 @@ def main() -> int:
     work = Path(tempfile.mkdtemp(prefix="rea-smoke-"))
     bundle = make_bundle(work)
     guard_log = work / "netguard.jsonl"
-    env = dict(os.environ)
-    env["PATH"] = str(NODE_DIR) + os.pathsep + env.get("PATH", "")
-    # NODE_OPTIONS 안의 따옴표 글에서 '\'는 이스케이프로 읽히므로 '/' 꼴 경로를 쓴다
-    env["NODE_OPTIONS"] = f'--require "{GUARD.as_posix()}"'
-    env["REA_NETGUARD_LOG"] = str(guard_log)
-    # 프록시를 따르는 클라이언트도 바깥으로 못 나가게 닫힌 로컬 포트로 돌린다(세 번째 겹, 기록은 ㉠·㉡이 한다)
-    for name in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"):
-        env[name] = "http://127.0.0.1:9"
-    env["NO_PROXY"] = ""
-    cmd = [str(NODE), str(REA_MJS), args.operation, str(bundle), "--json"]
+    env = safe_env(work, guard_log)
+    cmd =[str(NODE), str(REA_MJS), args.operation, str(bundle), "--json"]
 
     seen: dict[str, dict[str, object]] = {}
     procs: dict[int, str] = {}
@@ -217,25 +282,31 @@ def main() -> int:
             except json.JSONDecodeError:
                 continue
 
+    out_text = stdout.decode("utf-8", "replace")
     summary = {
-        "command": cmd[1:],
-        "node": str(NODE),
+        "command": [args.operation, "<WORK>/bundle", "--json"],
         "exit_code": proc.returncode,
         "timed_out": timed_out,
         "seconds": round(elapsed, 2),
         "stdout_bytes": len(stdout),
-        "stderr_head": stderr.decode("utf-8", "replace")[:2000],
+        "stderr_head": mask(stderr.decode("utf-8", "replace")[:STDERR_HEAD], work),
         "json_error": parse_error,
         "fields": field_names(parsed, 3) if parsed is not None else None,
         "netguard": {
             "blocked": [r for r in guard_records if r.get("blocked")],
             "local": [r for r in guard_records if not r.get("blocked") and r.get("kind") != "start"],
-            "guarded_starts": sorted({(r.get("pid"), r.get("detail")) for r in guard_records if r.get("kind") == "start"}),
+            "guarded_processes": len({r.get("pid") for r in guard_records if r.get("kind") == "start"}),
         },
         "netstat_endpoints": seen,
-        "processes": sorted(f"{pid} {name}" for pid, name in procs.items()),
-        "bundle": str(bundle),
+        "process_names": sorted(procs.values()),
+        # 소스맵 sources를 디스크에서 따라 읽었는가: 번들 밖 표식 글이 출력에 나오면 읽은 것이다
+        "sourcemap_followed_outside": SENTINEL in out_text,
+        "sourcemap_unc_in_output": UNC_SOURCE.replace("\\", "\\\\") in out_text,
+        # 홈·APPDATA·TEMP로 돌린 빈 폴더에 REA가 쓴 파일
+        "home_writes": written_files(work / "home"),
+        "temp_writes": written_files(work / "tmp"),
     }
+    summary = json.loads(mask(json.dumps(summary, ensure_ascii=False), work))
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     if args.keep:
