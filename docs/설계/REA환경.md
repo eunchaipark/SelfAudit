@@ -24,7 +24,7 @@ python -I ops/scripts/rea_smoke.py --out <요약 JSON 절대 경로> [--keep] [-
 | `ops/scripts/setup_rea.py` | 받기(허용 주소·크기·시간 상한) → sha256 두 번 맞추기 → 안전하게 풀기 → `npm ci --ignore-scripts` → node.exe sha256·버전 확인 |
 | `ops/scripts/rea/package.json`, `package-lock.json` | rea-agents 6.10.1과 하위 패키지의 버전을 고정한다. lock 항목 175개 중 30개는 자기 sha512로, 145개는 rea-agents 묶음 안에 든 것(`inBundle`)이라 묶음의 sha512로 확인된다 |
 | `ops/scripts/rea_netguard.cjs` | Node 미리 읽기 파일. 바깥 TCP·UDP·이름 풀기·원격 파이프·UNC 경로를 기록하고, 보이는 것은 막는다 (4절) |
-| `ops/scripts/rea_netguard_selftest.mjs` | 위 파일의 자체 시험 35개(감싼 길마다 하나, 허용 꼴 확인 포함) |
+| `ops/scripts/rea_netguard_selftest.mjs` | 위 파일의 자체 시험 38개(감싼 길마다 하나, 허용 꼴 확인 포함) |
 | `ops/scripts/rea_smoke.py` | 가짜 시험 번들을 만들고 REA를 셸 없이, 허용 목록 환경으로 돌려 시간·크기·필드·네트워크·디스크 쓰기를 요약한다 |
 
 ## 2. 버전과 해시
@@ -65,7 +65,7 @@ REA가 바깥으로 나가는지 **두 겹으로 기록**했다(셋째 겹은 �
 | ㉡ 프로세스 밖 기록 | `POLL_S`(0.2)초마다 `netstat -ano`를 읽고, Toolhelp로 구한 REA 프로세스 나무의 TCP·UDP 끝점을 모은다. 0.2초 근거: `netstat -ano` 한 번이 이 PC에서 0.04~0.07초(5번 잼)라 한 코어의 약 20~35%만 쓴다. 더 짧으면 감시가 분석 시간을 늘리고, 더 길면 놓치는 짧은 연결이 는다 | REA 나무의 모든 프로세스(언어 무관), 폴링 순간에 열려 있던 끝점 |
 | ㉢ 프록시 | `HTTP(S)_PROXY=http://127.0.0.1:9`(닫힌 포트) | 프록시 설정을 따르는 클라이언트. 기록은 없다 |
 
-**㉠이 감싼 것** (자체 시험 `rea_netguard_selftest.mjs` 35개가 하나씩 확인. 바깥 주소는 RFC 5737 문서용 주소 192.0.2.1과 RFC 2606 `.invalid` 이름이라 감시가 뚫려도 실제 기기에 닿지 않는다):
+**㉠이 감싼 것** (자체 시험 `rea_netguard_selftest.mjs` 38개가 하나씩 확인. 바깥 주소는 RFC 5737 문서용 주소 192.0.2.1과 RFC 2606 `.invalid` 이름이라 감시가 뚫려도 실제 기기에 닿지 않는다):
 
 | 길 | 감싼 함수 | 시험 |
 |---|---|---|
@@ -163,11 +163,13 @@ Remove-NetFirewallRule  -DisplayName "SelfAudit REA node 바깥 막기"
 - **인자 거르기 ⑷ (반려 2, 높음)**: 도구 이름만 거르면 `analyze_javascript_application`의 `input_path`·`audit_release_exposure`의 `path`(파일을 주면 부모 폴더 목록까지 읽음)에 PC의 아무 경로나 넣을 수 있다. 그러면 조건 B만 `bench/sources/`(심은 곳)·저장소·다른 실행 결과·내 앱 원자료를 REA로 읽어 실험이 비대칭이 되고, 내 앱 비밀값이 git에 넣는 대화 기록으로 간다. 그래서:
   1. 도구마다 **받는 인자 이름 허용 목록**(아래 표)을 두고, 그 밖의 인자가 하나라도 있으면 오류.
   2. **경로 칸**(`input_path`, `path`)은 이 꼴만 받는다: 드라이브 문자 절대 경로(`C:\…`)나 target 기준 상대 경로, 또는 `\\?\C:\…`(앞 4자를 떼고 본다). UNC(`\\호스트\…`, `\\?\UNC\…`), 그 밖의 장치 경로(`\\.\…`), 드라이브 상대(`C:x`), 드라이브 뒤의 `:`(ADS), NUL 글자는 거절. 그다음 `os.path.realpath(…, strict=True)`로 정션·심볼릭 링크·8.3 짧은 이름·`..`을 모두 푼 경로가 **같은 방법으로 푼 target과 같거나 그 아래**(`normcase` 뒤 `target + "\"`로 시작)일 때만 보낸다. 없는 경로·풀 수 없는 경로는 거절. `audit_release_exposure`의 `path`가 파일이면 그 부모도 target 안이어야 한다(부모 목록을 읽으므로).
-  3. `source_paths`(배열)는 target 기준 상대 경로 글만, 각각 2번과 같이 풀어 target 안. 
+     **REA에는 에이전트가 쓴 글이 아니라 realpath로 푼 경로를 보낸다**(반려 3). 근거: 검사한 것과 REA가 여는 것이 같아야 한다 — 원래 글을 넘기면 REA가 그 글을 다르게 풀(8.3·대소문자·`/` 꼴) 여지가 남는다. 검사와 사용 사이에 링크가 바뀌는 경우는 대상 에이전트에게 쓰기 도구가 없고(`--tools Read,Grep,Glob`) 실행기가 target 안 재분석 지점을 미리 막아(`실험구조.md` 3.10 #12) 생기지 않는다.
+  3. `source_paths`(배열)는 **`input_path` 기준** 상대 경로 글만(REA 정의: "relative to the application root"). 각각 `realpath(input_path의 푼 경로 / 그 글)`이 input_path의 푼 경로 안이어야 하고(그러면 target 안이기도 하다), REA에도 그 기준의 상대 경로를 정규화해(`\`·`..` 없는 꼴) 보낸다.
   4. trace 두 도구의 `application`은 **같은 세션의 참조만** 받는다(그 안에 경로 꼴 글이 있으면 거절). 참조의 정확한 꼴은 F-R04 첫 시험에서 REA 응답으로 정하고 그 키만 허용한다. 근거: 넣은 Evidence(inline)는 `subject.local_path` 같은 경로를 실어 나를 수 있다.
-  5. 모든 인자의 글 값을 훑어, 경로 꼴(드라이브 문자로 시작, `\\`·`//`로 시작, `file:`, `..` 마디)인 글은 2번을 통과해야 한다 — 1~4가 놓친 칸의 그물.
+  5. 모든 인자의 글 값을 훑어, 경로 꼴인 글은 2번을 통과해야 한다 — 1~4가 놓친 칸의 그물. 경로 꼴: 드라이브 문자로 시작, `\\`·`//`로 시작, `file:`, `..` 마디, **`~`로 시작, `%이름%`, `$이름`·`${이름}`**(반려 3). 펼침 꼴(`~`·`%…%`·`$…`)은 REA나 그 아래 프로그램이 홈·환경 변수로 펼칠 수 있어 2번을 거치지 않고 **늘 거절**한다(대상 번들 경로에 이 글자가 필요할 일이 없다).
+  6. **JSON-RPC 메서드 허용 목록**(반려 3): Claude Code → REA로는 `initialize`, `notifications/initialized`, `notifications/cancelled`, `ping`, `tools/list`, `tools/call`만 보낸다. 그 밖(`prompts/list`·`prompts/get`, `resources/*`, `completion/complete`, `logging/setLevel` 등)은 REA에 보내지 않고 `-32601`(메서드 없음) 오류로 답한다. `initialize` 응답에서는 `tools` 말고 다른 능력(prompts·resources 등)을 지워 Claude Code가 묻지 않게 한다. REA → Claude Code로는 응답과 알림만 넘기고, REA가 먼저 거는 요청(`sampling/createMessage`·`roots/list`·`elicitation/*`)은 Claude Code에 넘기지 않고 거르개가 오류로 답한다. `notifications/tools/list_changed`는 넘기되, 그 뒤 Claude Code가 다시 받는 `tools/list` 응답도 **매번** 허용 4개로 거른다. 근거: REA에는 MCP 프롬프트 6개가 있고(`rea doctor` 목록), 도구만 걸러도 프롬프트·리소스 길로 같은 기능이나 글이 들어올 수 있다. 허용 꼴만 통과시킨다.
   - 시제품 측정 (2026-11-22, scratchpad, 관리자 권한 없이): target 안 상대·절대·`\\?\`·8.3 짧은 이름·target 자신·`안/../안` → 허용 / `..`로 밖, 밖 절대, 저장소 절대(`C:\project\SelfAudit\CLAUDE.md`), **target 안 정션이 밖을 가리킴**, `\\?\` 밖, `\\?\UNC`, UNC, `\\.\C:\…` 밖, 8.3 밖, ADS, `/` 꼴 밖, 없는 파일, `C:x`, `target2`(이름 앞부분만 같은 형제) → 모두 거절. 심볼릭 링크는 이 PC에서 관리자 권한·개발자 모드 없이 만들 수 없어 재지 못했다(realpath가 정션과 같이 푼다 — 추정, F-R04 시험에서 개발자 모드가 켜진 환경이면 넣는다).
-  - **F-R04 시험 꼴** (명세 예시로 옮긴다): 위 목록 전부 + `source_paths`에 `../x`, 인자 목록 밖의 키(`evidence_output` 등), trace `application`에 inline Evidence.
+  - **F-R04 시험 꼴** (명세 예시로 옮긴다): `docs/설계/실험구조.md` 3.10 **공통 표의 꼴 전부**(문지기 F-R10과 같은 표 — `bench/run/escape_cases.json` 한 파일) + `source_paths`에 `../x`와 input_path 밖으로 나가는 꼴, 인자 목록 밖의 키(`evidence_output` 등), trace `application`에 inline Evidence, 펼침 꼴(`~/x`·`%TEMP%\x`·`$HOME/x`), 허용 밖 메서드(`prompts/get`·`resources/read`), REA가 먼저 거는 요청, `list_changed` 뒤 다시 받은 목록. 꼴마다 'REA에 보낸 것이 없음(또는 realpath로 푼 안쪽 경로뿐)'과 '오류 응답 남음'을 본다.
 - 근거: `--strict-mcp-config`는 "`--mcp-config`의 서버만 쓰고 다른 MCP 설정은 무시"한다(Claude Code 2.1.119 도움말). `rea setup`을 하지 않으므로 사용자 전체 설정에는 REA가 없고, B만 설정 파일로 REA를 받는다. Claude Code가 MCP 서버에 자기 환경을 얼마나 물려주는지는 확인하지 않았다(추정: 물려준다) — 그래서 거르개가 REA 환경을 새로 만든다.
 - `--bare`는 쓰지 않는다: 도움말에 "OAuth를 읽지 않고 `ANTHROPIC_API_KEY`만" 쓴다고 되어 있어 구독 로그인으로는 못 돈다.
 
