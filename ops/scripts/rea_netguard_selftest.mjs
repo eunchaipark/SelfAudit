@@ -93,7 +93,24 @@ await blocked("fs 마디 \\\\.\\C:\\..\\UNC", () => fs.readFileSync(`\\\\.\\C:\\
 await blocked("fs 마디 \\\\?\\pipe\\..\\UNC", () => fs.readFileSync(`\\\\?\\pipe\\..\\UNC\\${OUT}\\share\\x`));
 // 경로 값의 다른 꼴
 await blocked("fs Uint8Array UNC", () => fs.readFileSync(new TextEncoder().encode(`\\\\${OUT}\\share\\x`)));
-await blocked("fs URL 비슷한 객체", () => fs.readFileSync({ href: `file://${OUT}/share/x`, protocol: "file:" }));
+await blocked("fs URL 비슷한 객체", () =>
+  fs.readFileSync({ href: `file://${OUT}/share/x`, protocol: "file:", hostname: OUT, pathname: "/share/x" }),
+);
+// hostname·pathname이 없는 객체는 fs 자신이 TypeError로 거절한다(읽히지 않음만 본다)
+try {
+  fs.readFileSync({ href: `file://${OUT}/share/x`, protocol: "file:" });
+  expect("fs URL 비슷한 객체(칸 없음) 읽히지 않음", false, "읽힘");
+} catch (e) {
+  expect("fs URL 비슷한 객체(칸 없음) 읽히지 않음", true, e.message);
+}
+// href는 로컬인데 fs가 쓰는 hostname·pathname은 원격인 객체 (반려 3)
+await blocked("fs URL 비슷한 객체 href와 hostname 어긋남", () =>
+  fs.readFileSync({ href: "file:///C:/Windows/win.ini", protocol: "file:", hostname: OUT, pathname: "/share/x" }),
+);
+expect(
+  "로컬 file URL 허용",
+  fs.readFileSync(new URL(import.meta.url), "utf8").includes("rea_netguard"),
+);
 // 우회
 await blocked("process.binding tcp_wrap", () => process.binding("tcp_wrap"));
 await blocked("process.binding fs", () => process.binding("fs"));

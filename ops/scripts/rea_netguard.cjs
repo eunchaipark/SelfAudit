@@ -18,6 +18,7 @@ const net = require("node:net");
 const dgram = require("node:dgram");
 const dns = require("node:dns");
 const nodeModule = require("node:module");
+const nodeUrl = require("node:url");
 
 const LOG = process.env.REA_NETGUARD_LOG || "";
 const appendLog = fs.appendFileSync; // fs를 감싸기 전에 잡아 둔다(기록이 자기 감시에 걸리지 않게)
@@ -61,16 +62,17 @@ function isLoopbackHost(host) {
 function toPathString(p) {
   if (typeof p === "string") return p;
   if (p instanceof Uint8Array) return Buffer.from(p.buffer, p.byteOffset, p.byteLength).toString("utf8");
-  let url = null;
-  if (p instanceof URL) url = p;
-  else if (p && typeof p === "object" && typeof p.href === "string" && typeof p.protocol === "string") {
+  // URL과 URL 비슷한 객체(href·protocol이 있는 객체)는 fs가 쓰는 것과 같은 `url.fileURLToPath`로 바꾼다.
+  // fs는 href가 아니라 hostname·pathname으로 경로를 만들므로, href만 보면 다른 경로를 검사하게 된다(반려 3)
+  if (p instanceof URL || (p && typeof p === "object" && typeof p.href === "string" && typeof p.protocol === "string")) {
+    if (p.protocol !== "file:") return String(p.href);
     try {
-      url = new URL(p.href);
+      return nodeUrl.fileURLToPath(p);
     } catch {
-      return p.href;
+      // fs도 같은 이유로 거절하므로 경로가 아닌 것으로 둔다. 다만 hostname이 있으면 UNC로 본다
+      return typeof p.hostname === "string" && p.hostname !== "" ? `\\\\${p.hostname}\\` : null;
     }
   }
-  if (url) return url.protocol === "file:" ? (url.host ? `//${url.host}${decodeURIComponent(url.pathname)}` : decodeURIComponent(url.pathname)) : url.href;
   return null;
 }
 
