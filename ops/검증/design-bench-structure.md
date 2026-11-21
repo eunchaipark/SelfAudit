@@ -35,3 +35,8 @@
   4. [낮음] 실험구조.md:232 `…-runs` 맨 위 거절이 자기 target까지 막음 → 실행마다 형제 실행 폴더만 거절(또는 지난 실행 폴더를 치움), 규칙 꼴(`//C:/…` vs `//c/…`)은 문지기 실행에서 확인한다고.
   5. [낮음] REA환경.md 6절 ⑷: realpath로 푼 경로를 REA에 보냄, JSON-RPC 메서드 허용 목록(initialize·tools/list·tools/call·알림, 다시 받은 목록도 거름, prompts/get 거절), ⑤ 그물에 `~`·`%VAR%`·`$VAR`, `source_paths` 기준은 REA 정의대로 `input_path`.
 - 5시간 92% → 07:2x 리셋 뒤 보낸다. 고친 뒤는 문서 중심이라 총괄이 diff로 확인하고 병합한다(높음·중간 없음, 남은 것은 명세 꼴 보강).
+
+## 반려 3 고침 (70b693d..f5483c1): 병합 b5e11fe (총괄, 2026-11-22 07:4x)
+- 총괄이 diff로 확인: 공통 우회 꼴 표(실험구조 3.10, 14가지 꼴, 시도 안 한 꼴도 실패), netguard URL 객체를 fileURLToPath로(자체 시험 38/38), check_bench가 작업 폴더·색인 버전 모두 검사(종류는 두 버전 다 허용된 것만 남김), 거절 규칙은 형제 실행 폴더만, REA에는 realpath 경로·JSON-RPC 메서드 허용 목록. 높음·중간 없음이라 보안 재검토는 돌리지 않았다.
+- 병합: env-rea + bench-structure 한 번에. check.py 12/12.
+- 남은 확인(구현 때): Claude Code가 target 안 정션을 따라 읽는지 — 실행기가 정션을 미리 막고 문지기가 기록.
