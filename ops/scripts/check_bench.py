@@ -151,34 +151,47 @@ class Files:
         if staged is not None and staged[: MAX_TEXT_BYTES + 1] != seen:
             yield staged[: MAX_TEXT_BYTES + 1]
 
-    def json(self, path: str) -> object:
-        for raw in self.versions(path):
-            return json.loads(raw.decode("utf-8"))
-        raise FileNotFoundError(path)
+    def json_versions(self, path: str) -> list[tuple[str, object]]:
+        """작업 폴더·색인 버전을 모두 JSON으로 읽는다. 버전마다 (이름, 값). 읽지 못하면 값 자리에 예외 이름 글.
+        한 버전만 보면 색인에만 올린 내용이 검사를 건너뛴다(반려 3)."""
+        out: list[tuple[str, object]] = []
+        for i, raw in enumerate(self.versions(path)):
+            label = "작업 폴더" if i == 0 and path in self.work else "색인"
+            try:
+                out.append((label, json.loads(raw.decode("utf-8"))))
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                out.append((label, JsonError(type(exc).__name__)))
+        return out
+
+
+class JsonError(str):
+    """JSON으로 읽지 못한 버전."""
 
 
 def load_targets(files: Files, problems: list[str]) -> dict[str, str]:
     """{대상 ID: 종류}. ㉢: 종류는 허용 목록 안이어야 한다."""
+    """버전(작업 폴더·색인)이 여럿이면 모든 버전에서 같은 종류로 허용된 대상만 남긴다."""
     if TARGETS_REL not in files.paths():
         return {}
-    try:
-        data = files.json(TARGETS_REL)
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        problems.append(f"{TARGETS_REL}: JSON으로 읽지 못함 ({type(exc).__name__})")
-        return {}
-    entries = data.get("targets") if isinstance(data, dict) else None
-    if not isinstance(entries, list):
-        problems.append(f"{TARGETS_REL}: 'targets' 목록이 없음")
-        return {}
-    kinds: dict[str, str] = {}
-    for entry in entries:
-        tid = entry.get("id") if isinstance(entry, dict) else None
-        kind = entry.get("kind") if isinstance(entry, dict) else None
-        if not isinstance(tid, str) or not TARGET_ID.match(tid) or kind not in ALLOWED_KINDS:
-            problems.append(f"{TARGETS_REL}: 대상 {tid!r}의 종류 {kind!r}는 허용되지 않음 (planted·practice만)")
-            continue
-        kinds[tid] = kind
-    return kinds
+    merged: dict[str, str] | None = None
+    for label, data in files.json_versions(TARGETS_REL):
+        if isinstance(data, JsonError):
+            problems.append(f"{TARGETS_REL}({label}): JSON으로 읽지 못함 ({data})")
+            return {}
+        entries = data.get("targets") if isinstance(data, dict) else None
+        if not isinstance(entries, list):
+            problems.append(f"{TARGETS_REL}({label}): 'targets' 목록이 없음")
+            return {}
+        kinds: dict[str, str] = {}
+        for entry in entries:
+            tid = entry.get("id") if isinstance(entry, dict) else None
+            kind = entry.get("kind") if isinstance(entry, dict) else None
+            if not isinstance(tid, str) or not TARGET_ID.match(tid) or kind not in ALLOWED_KINDS:
+                problems.append(f"{TARGETS_REL}({label}): 대상 {tid!r}의 종류 {kind!r}는 허용되지 않음 (planted·practice만)")
+                continue
+            kinds[tid] = kind
+        merged = kinds if merged is None else {k: v for k, v in merged.items() if kinds.get(k) == v}
+    return merged or {}
 
 
 def check_results(files: Files, kinds: dict[str, str], problems: list[str]) -> None:
@@ -203,10 +216,15 @@ def check_run(files: Files, run_dir: str, kinds: dict[str, str], problems: list[
     if run_path not in files.paths():
         problems.append(f"{run_dir}: run.json 없음")
         return
-    try:
-        run = files.json(run_path)
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        problems.append(f"{run_path}: JSON으로 읽지 못함 ({type(exc).__name__})")
+    for label, run in files.json_versions(run_path):
+        check_run_version(files, run_dir, f"{run_path}({label})", run, kinds, problems)
+
+
+def check_run_version(
+    files: Files, run_dir: str, run_path: str, run: object, kinds: dict[str, str], problems: list[str]
+) -> None:
+    if isinstance(run, JsonError):
+        problems.append(f"{run_path}: JSON으로 읽지 못함 ({run})")
         return
     if not isinstance(run, dict):
         problems.append(f"{run_path}: 객체가 아님")
@@ -221,17 +239,17 @@ def check_run(files: Files, run_dir: str, kinds: dict[str, str], problems: list[
         problems.append(f"{run_path}: 대상 {tid!r}가 bench/targets.json에 {kind}로 없음")
         return
     answers_path = f"{ANSWERS_PREFIX}{tid}.json"
-    try:
-        answers = files.json(answers_path)
-    except FileNotFoundError:
+    versions = files.json_versions(answers_path)
+    if not versions:
         problems.append(f"{run_path}: 대상의 정답지 {answers_path}가 없어 지문을 맞출 수 없음")
         return
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        problems.append(f"{answers_path}: JSON으로 읽지 못함 ({type(exc).__name__})")
-        return
-    expected = answers.get("bundle_manifest_sha256") if isinstance(answers, dict) else None
-    if not isinstance(expected, str) or run.get("bundle_manifest_sha256") != expected:
-        problems.append(f"{run_path}: bundle_manifest_sha256이 정답지 지문과 다름 — 이 대상의 번들이 아님")
+    for label, answers in versions:
+        if isinstance(answers, JsonError):
+            problems.append(f"{answers_path}({label}): JSON으로 읽지 못함 ({answers})")
+            continue
+        expected = answers.get("bundle_manifest_sha256") if isinstance(answers, dict) else None
+        if not isinstance(expected, str) or run.get("bundle_manifest_sha256") != expected:
+            problems.append(f"{run_path}: bundle_manifest_sha256이 정답지({label}) 지문과 다름 — 이 대상의 번들이 아님")
 
 
 def check_secret_shapes(files: Files, problems: list[str]) -> None:
