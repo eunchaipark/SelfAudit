@@ -34,6 +34,6 @@ local.key.*.tmp
 uploads/
 work/
 
-# 실험: 내 앱 결과는 저장소 밖(%LOCALAPPDATA%\SelfAudit-bench\private)에만 쓴다. 잘못 들어와도 올라가지 않게 (docs/설계/실험구조.md 4절)
+# 실험: 내 앱 결과는 저장소 밖(%LOCALAPPDATA%\SelfAudit-private)에만 쓴다. 잘못 들어와도 올라가지 않게 (docs/설계/실험구조.md 4절)
 bench/private/
 bench/results/**/mine-*/

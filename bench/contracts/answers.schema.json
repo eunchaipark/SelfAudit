@@ -36,7 +36,7 @@
   "properties": {
     "schema": { "const": "selfaudit-bench/answers@1" },
     "bundle_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,40}$" },
-    "origin": { "enum": ["planted", "juice-shop"] },
+    "origin": { "enum": ["planted", "practice"] },
     "difficulty": { "$ref": "#/$defs/difficulty" },
     "bundle_manifest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "complete": { "type": "boolean" },

@@ -1,6 +1,6 @@
 ---
 name: lane-score
-description: 총괄이 부른다. 채점·측정 레인(F-G01~G05, F-M01~M03, 결과물 R5와 R1·R2의 표·그림)의 태스크 하나를 자기 worktree에서 만들고 시험·검사까지 끝낸 뒤 몇 줄로 보고한다.
+description: 총괄이 부른다. 채점·측정 레인(F-G01~G06, F-M01~M04, 결과물 R5와 R1·R2의 표·그림)의 태스크 하나를 자기 worktree에서 만들고 시험·검사까지 끝낸 뒤 몇 줄로 보고한다.
 tools: Read, Edit, Write, Grep, Glob, Bash
 model: opus
 effort: high

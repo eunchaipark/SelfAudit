@@ -1,6 +1,6 @@
 ---
 name: lane-bench
-description: 총괄이 부른다. 번들·정답지 레인(F-B01~B06, 결과물 R3)의 태스크 하나를 자기 worktree에서 만들고 시험·검사까지 끝낸 뒤 몇 줄로 보고한다.
+description: 총괄이 부른다. 번들·정답지 레인(F-B01~B07, 결과물 R3)의 태스크 하나를 자기 worktree에서 만들고 시험·검사까지 끝낸 뒤 몇 줄로 보고한다.
 tools: Read, Edit, Write, Grep, Glob, Bash
 model: opus
 effort: high
