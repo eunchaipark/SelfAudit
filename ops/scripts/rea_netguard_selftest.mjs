@@ -85,8 +85,18 @@ const self = fileURLToPath(import.meta.url);
 expect("로컬 파일 읽기 허용", fs.readFileSync(self, "utf8").includes("rea_netguard"));
 expect("\\\\?\\C:\\ 꼴 허용", fs.existsSync(`\\\\?\\${self}`));
 expect("fs.realpathSync.native 남음", typeof fs.realpathSync.native === "function");
+// 마디 우회: Win32는 \\.\ 경로의 `..`를 풀어 \\.\UNC\·GLOBALROOT로 옮길 수 있다 (반려 2)
+await blocked("파이프 마디 \\\\.\\pipe\\..\\UNC", () => connectOnce({ path: `\\\\.\\pipe\\..\\UNC\\${OUT}\\pipe\\x` }));
+await blocked("파이프 마디 \\\\.\\pipe\\..\\GLOBALROOT", () => connectOnce({ path: "\\\\.\\pipe\\..\\GLOBALROOT\\Device\\Mup\\x" }));
+await blocked("파이프 마디 \\\\?\\pipe\\.\\x", () => connectOnce({ path: "\\\\?\\pipe\\.\\x" }));
+await blocked("fs 마디 \\\\.\\C:\\..\\UNC", () => fs.readFileSync(`\\\\.\\C:\\..\\UNC\\${OUT}\\share\\x`));
+await blocked("fs 마디 \\\\?\\pipe\\..\\UNC", () => fs.readFileSync(`\\\\?\\pipe\\..\\UNC\\${OUT}\\share\\x`));
+// 경로 값의 다른 꼴
+await blocked("fs Uint8Array UNC", () => fs.readFileSync(new TextEncoder().encode(`\\\\${OUT}\\share\\x`)));
+await blocked("fs URL 비슷한 객체", () => fs.readFileSync({ href: `file://${OUT}/share/x`, protocol: "file:" }));
 // 우회
 await blocked("process.binding tcp_wrap", () => process.binding("tcp_wrap"));
+await blocked("process.binding fs", () => process.binding("fs"));
 // 루프백 허용
 const tcpServer = net.createServer((c) => c.end()).listen(0, "127.0.0.1");
 await new Promise((r) => tcpServer.on("listening", r));
