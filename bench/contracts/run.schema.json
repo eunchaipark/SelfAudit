@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "selfaudit-bench/run@1",
+  "title": "실행 한 번의 원자료 머리 (bench/results/<날짜>/<실행 ID>/run.json)",
+  "description": "docs/설계/실험구조.md 2.4절·3절. 같은 폴더에 findings.json(에이전트 결과), transcript.jsonl, netguard.jsonl, netstat.json이 있다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "run_id", "batch_id", "target_id", "target_kind", "bundle_manifest_sha256", "condition", "repeat_index",
+    "started_at", "ended_at", "versions", "settings", "outcome", "metrics", "network"
+  ],
+  "properties": {
+    "schema": { "const": "selfaudit-bench/run@1" },
+    "run_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{3,80}$" },
+    "batch_id": { "type": "string", "pattern": "^[0-9]{8}-[0-9]{4}-[a-z0-9]{4,12}$" },
+    "target_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,40}$" },
+    "target_kind": { "enum": ["planted", "practice", "mine"] },
+    "bundle_manifest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "condition": { "enum": ["A", "B", "C"] },
+    "repeat_index": { "type": "integer", "minimum": 1 },
+    "started_at": { "type": "string", "format": "date-time" },
+    "ended_at": { "type": "string", "format": "date-time" },
+    "versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claude_code", "model", "rea", "node", "prompt_sha256", "findings_schema_sha256", "mcp_config_sha256"],
+      "properties": {
+        "claude_code": { "type": "string" },
+        "model": { "type": "string" },
+        "rea": { "type": ["string", "null"] },
+        "node": { "type": ["string", "null"] },
+        "prompt_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "findings_schema_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "mcp_config_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["effort", "timeout_s", "max_budget_usd", "tools", "allowed_tools", "rea_tools", "order_seed", "firewall_rule"],
+      "properties": {
+        "effort": { "type": "string" },
+        "timeout_s": { "type": "integer", "minimum": 1 },
+        "max_budget_usd": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "tools": { "type": "array", "items": { "type": "string" } },
+        "allowed_tools": { "type": "array", "items": { "type": "string" } },
+        "rea_tools": { "type": "array", "items": { "type": "string" } },
+        "order_seed": { "type": "integer" },
+        "firewall_rule": { "enum": ["on", "off", "absent", "unknown"] }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "exit_code", "init_check", "detail"],
+      "properties": {
+        "status": { "enum": ["ok", "format_failure", "timeout", "budget_exceeded", "condition_mismatch", "error"] },
+        "exit_code": { "type": ["integer", "null"] },
+        "init_check": { "enum": ["passed", "failed", "missing"] },
+        "detail": { "type": "string", "maxLength": 500 }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["wall_s", "duration_ms", "duration_api_ms", "num_turns", "total_cost_usd", "usage", "tool_calls"],
+      "properties": {
+        "wall_s": { "type": "number", "minimum": 0 },
+        "duration_ms": { "type": ["integer", "null"] },
+        "duration_api_ms": { "type": ["integer", "null"] },
+        "num_turns": { "type": ["integer", "null"] },
+        "total_cost_usd": { "type": ["number", "null"] },
+        "usage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"],
+          "properties": {
+            "input_tokens": { "type": ["integer", "null"] },
+            "output_tokens": { "type": ["integer", "null"] },
+            "cache_creation_input_tokens": { "type": ["integer", "null"] },
+            "cache_read_input_tokens": { "type": ["integer", "null"] }
+          }
+        },
+        "tool_calls": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } }
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["netguard_blocked", "netguard_local", "netstat_endpoints", "guarded_processes", "rea_processes"],
+      "properties": {
+        "netguard_blocked": { "type": "integer", "minimum": 0 },
+        "netguard_local": { "type": "integer", "minimum": 0 },
+        "netstat_endpoints": { "type": "integer", "minimum": 0 },
+        "guarded_processes": { "type": "integer", "minimum": 0 },
+        "rea_processes": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "selfaudit-bench/findings@1",
+  "title": "에이전트 결과 (조건 A·B 공통, Claude Code --json-schema로 넘긴다)",
+  "description": "docs/설계/실험구조.md 2.3절. 값마다 근거는 그 절에 있다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["findings"],
+  "properties": {
+    "findings": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["category", "file", "line", "evidence", "reason", "confidence"],
+        "properties": {
+          "category": {
+            "enum": [
+              "secret",
+              "source_map",
+              "internal_address",
+              "admin_path",
+              "hidden_route",
+              "client_authz",
+              "debug_flag",
+              "vulnerable_library",
+              "other"
+            ]
+          },
+          "file": { "type": "string", "minLength": 1, "maxLength": 300 },
+          "line": { "type": ["integer", "null"], "minimum": 1 },
+          "evidence": { "type": "string", "minLength": 1, "maxLength": 300 },
+          "reason": { "type": "string", "maxLength": 500 },
+          "confidence": { "enum": ["high", "medium", "low"] }
+        }
+      }
+    },
+    "notes": { "type": "string", "maxLength": 2000 }
+  }
+}
