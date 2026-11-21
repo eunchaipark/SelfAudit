@@ -63,7 +63,7 @@ def test_common_지문_폴더아님_멈춤(tmp_path: Path) -> None:
 def test_common_지문_정션_멈춤(make_bundle: MakeBundle, tmp_path: Path) -> None:
     if sys.platform != "win32":
         pytest.skip("정션은 Windows에만 있다")
-    import _winapi  # noqa: PLC0415 — Windows에서만 있는 모듈
+    import _winapi  # Windows에서만 있는 모듈이라 여기서 부른다
 
     outside = tmp_path / "outside"
     outside.mkdir()

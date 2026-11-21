@@ -31,7 +31,14 @@ REJECTED = [
     "assets/a" + chr(13) + ".js",  # ECMA-262 `.`은 U+000D를 받지 않는다
     "a" * 301,
 ]
-ACCEPTED = ["assets/index-3f2a.js", "index.html", ".well-known/a.txt", "a..b/c.js", "...js", "a" * 300]
+ACCEPTED = [
+    "assets/index-3f2a.js",
+    "index.html",
+    ".well-known/a.txt",
+    "a..b/c.js",
+    "...js",
+    "a" * 300,
+]
 
 
 @pytest.mark.parametrize("path", REJECTED)
@@ -78,7 +85,7 @@ def test_common_결과경로_대상절대경로_지움(file: str, expected: str)
 
 def test_common_결과경로_대상폴더_끝슬래시_같음() -> None:
     assert normalize_finding_path(ROOT + "\\x.js", ROOT + "\\") == "x.js"
-    assert normalize_finding_path("/tmp/run/target/x.js", "/tmp/run/target/") == "x.js"
+    assert normalize_finding_path("/runs/b1/target/x.js", "/runs/b1/target/") == "x.js"
 
 
 def test_common_결과경로_대상폴더없음() -> None:

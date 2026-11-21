@@ -11,6 +11,7 @@ from pytest_socket import SocketConnectBlockedError
 DOC_ADDRESS = ("192.0.2.1", 80)
 
 
+@pytest.mark.filterwarnings("ignore:A test tried to use socket")
 def test_common_소켓_열면_실패() -> None:
     with pytest.raises(SocketConnectBlockedError):
         socket.create_connection(DOC_ADDRESS, timeout=1)
