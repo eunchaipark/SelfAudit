@@ -10,6 +10,7 @@
 
 # 의존성·빌드·캐시
 node_modules/
+.tools/
 dist/
 .venv/
 __pycache__/
