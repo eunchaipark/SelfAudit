@@ -41,6 +41,7 @@ uv run --frozen --offline pytest tests/<영역> -q # 영역 하나
 | `common.paths.is_bundle_relpath(path)` | 번들 경로 허용 꼴(2.2)인지. 계약의 `format: bundle-relpath`가 이것 |
 | `common.paths.resolve_in_bundle(bundle_dir, rel)` | 번들 안 파일의 디스크 경로. 허용 꼴이 아니거나 풀어 보니 밖이면 `BundlePathError`. **번들 파일을 열 때는 늘 이것** |
 | `common.paths.normalize_finding_path(file, target_root)` | 결과 경로를 정답지 꼴로(2.5 조건 2, F-G02 1, 글자 그대로) |
+| `common.lines.count_lines(data)` · `window_covers_file(...)` | 정답지 `file_lines` 셈(끝 줄바꿈 하나는 새 줄 아님) · 줄 허용 범위가 파일 전체를 덮는지(덮으면 줄로 못 가름, 2.5 ㉢) |
 
 - 오류 글에는 값이 없다(위치와 규칙만). 결과·정답지의 글은 비밀값일 수 있어서다. 레인도 로그에 이 꼴을 쓴다.
 - 검증기는 JSON 뜻이라 `"line": 12.0`도 정수로 통과한다. 줄 번호를 쓸 때는 `int`로 바꾼다.
