@@ -295,10 +295,25 @@ def test_F_B01_쓰다가_멈추면_지난결과물_그대로(
         return real(bundle_dir, rel)
 
     monkeypatch.setattr(build_module, "resolve_in_bundle", failing)
-    with pytest.raises(OSError):
+    with pytest.raises(BuildError, match="쓸 수 없음"):  # OSError는 BuildError로 알린다(T21 넘김)
         build("easy-1", dirs.sources, dirs.bundles)
     assert _bundle_bytes(first.bundle_dir) == before
     assert [p.name for p in dirs.bundles.iterdir()] == ["easy-1"]  # 임시 폴더가 남지 않음
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="열린 파일 잠금은 Windows")
+def test_F_B01_열린파일이_있으면_옛결과물_그대로(write_source: WriteSource, dirs: Dirs) -> None:
+    """T21 검증 넘김: 바꿔 넣기가 열린 파일(Windows 잠금)에 막히면 되돌리고 BuildError."""
+    write_source("easy-1", _plan("easy-1"), FILES)
+    first = build("easy-1", dirs.sources, dirs.bundles)
+    before = _bundle_bytes(first.bundle_dir)
+    (dirs.sources / "easy-1" / "src" / "index.html").write_bytes(b"<!doctype html>\n")
+    with (first.bundle_dir / "index.html").open("rb"), pytest.raises(BuildError, match="그대로"):
+        build("easy-1", dirs.sources, dirs.bundles)
+    assert _bundle_bytes(first.bundle_dir) == before
+    assert [p.name for p in dirs.bundles.iterdir()] == ["easy-1"]
+    again = build("easy-1", dirs.sources, dirs.bundles)  # 닫은 뒤에는 바꿔 넣는다
+    assert _bundle_bytes(again.bundle_dir)["index.html"] == b"<!doctype html>\n"
 
 
 def test_F_B01_원본파일_크기상한(write_source: WriteSource, dirs: Dirs) -> None:
