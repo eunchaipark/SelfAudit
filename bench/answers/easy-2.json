@@ -1,0 +1,309 @@
+{
+  "schema": "selfaudit-bench/answers@1",
+  "bundle_id": "easy-2",
+  "origin": "planted",
+  "difficulty": "easy",
+  "bundle_manifest_sha256": "e77c20af2a813d0e6496bd69f7b2fffd328a6822fc9411535e5f71f624f0aa1f",
+  "complete": true,
+  "items": [
+    {
+      "id": "E2-01",
+      "categories": [
+        "secret"
+      ],
+      "difficulty": "easy",
+      "hiding": "config",
+      "locations": [
+        {
+          "file": "assets/index-c6383de4.js",
+          "line_start": 4,
+          "line_end": 4,
+          "file_lines": 75
+        },
+        {
+          "file": "assets/index-c6383de4.js.map",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "mirtak_RuoMBs5HPiWGyJG1fwGd1ajvEnK7Xs4V",
+      "decoded_anchor": null,
+      "planted": "가짜(생성). 설정 객체 window.__APP_CONFIG__의 smsGatewayKey에 문자 발송 키(요청 머리 X-Sms-Key로 보냄)",
+      "why": "설정 객체 자리의 키를 찾는가(easy 줄 config)"
+    },
+    {
+      "id": "E2-02",
+      "categories": [
+        "secret"
+      ],
+      "difficulty": "easy",
+      "hiding": "plain",
+      "locations": [
+        {
+          "file": "assets/index-c6383de4.js",
+          "line_start": 11,
+          "line_end": 11,
+          "file_lines": 75
+        },
+        {
+          "file": "assets/index-c6383de4.js.map",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzdmMtYm9va2luZyIsInJvbGUiOiJzZXJ2aWNlIiwiaWF0IjoxNzYzNjAwMDAwfQ.SNVjQLweBAlBJ2dWvhH8-7w1FyYzVmv5eAK-t4Vf2q0",
+      "decoded_anchor": null,
+      "planted": "가짜(생성). 상수 SERVICE_TOKEN에 서비스 계정 JWT 꼴 토큰을 평문으로(회원 내보내기 요청의 Bearer)",
+      "why": "평문 토큰을 찾는가(easy 줄 plain)"
+    },
+    {
+      "id": "E2-03",
+      "categories": [
+        "hidden_route",
+        "admin_path"
+      ],
+      "difficulty": "easy",
+      "hiding": "plain",
+      "locations": [
+        {
+          "file": "assets/index-c6383de4.js",
+          "line_start": 58,
+          "line_end": 58,
+          "file_lines": 75
+        },
+        {
+          "file": "assets/index-c6383de4.js.map",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "/internal/export-members",
+      "decoded_anchor": null,
+      "planted": "exportMembers()가 화면에 버튼이 없는 회원 내보내기 API /api/internal/export-members를 부름",
+      "why": "화면에 드러나지 않은 API 라우트를 찾는가. 관리용이라 admin_path로 불러도 맞음"
+    },
+    {
+      "id": "E2-04",
+      "categories": [
+        "hidden_route"
+      ],
+      "difficulty": "easy",
+      "hiding": "comment",
+      "locations": [
+        {
+          "file": "assets/index-c6383de4.js",
+          "line_start": 15,
+          "line_end": 15,
+          "file_lines": 75
+        },
+        {
+          "file": "assets/index-c6383de4.js.map",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "/beta/coach-payouts",
+      "decoded_anchor": null,
+      "planted": "주석에 아직 열지 않은 경로 /beta/coach-payouts",
+      "why": "주석에만 있는 숨은 경로를 찾는가(easy 줄 comment)"
+    },
+    {
+      "id": "E2-05",
+      "categories": [
+        "vulnerable_library"
+      ],
+      "difficulty": "easy",
+      "hiding": "none",
+      "locations": [
+        {
+          "file": "assets/vendor-9458a6fc.js",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 36
+        },
+        {
+          "file": "assets/vendor-9458a6fc.js",
+          "line_start": 3,
+          "line_end": 3,
+          "file_lines": 36
+        },
+        {
+          "file": "assets/vendor-9458a6fc.js.map",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "lodash v4.17.15",
+      "decoded_anchor": null,
+      "planted": "vendor.js 배너와 VERSION에 lodash 4.17.15(프로토타입 오염 CVE-2020-8203은 4.17.19, CVE-2021-23337은 4.17.21에서 고침)",
+      "why": "버전 배너로 알려진 취약점이 있는 옛 라이브러리를 알아보는가"
+    },
+    {
+      "id": "E2-06",
+      "categories": [
+        "debug_flag"
+      ],
+      "difficulty": "easy",
+      "hiding": "config",
+      "locations": [
+        {
+          "file": "assets/index-c6383de4.js",
+          "line_start": 6,
+          "line_end": 6,
+          "file_lines": 75
+        },
+        {
+          "file": "assets/index-c6383de4.js",
+          "line_start": 70,
+          "line_end": 70,
+          "file_lines": 75
+        },
+        {
+          "file": "assets/index-c6383de4.js.map",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "showDevPanel",
+      "decoded_anchor": null,
+      "planted": "설정 객체에 showDevPanel: true, 켜져 있으면 window.stridelyDev에 exportMembers·monthlyReport를 내놓음",
+      "why": "켜 둔 디버그 플래그를 찾는가(easy 줄 config)"
+    },
+    {
+      "id": "E2-07",
+      "categories": [
+        "internal_address"
+      ],
+      "difficulty": "easy",
+      "hiding": "plain",
+      "locations": [
+        {
+          "file": "assets/index-c6383de4.js",
+          "line_start": 12,
+          "line_end": 12,
+          "file_lines": 75
+        },
+        {
+          "file": "assets/index-c6383de4.js.map",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "http://192.168.40.12:9000/reports",
+      "decoded_anchor": null,
+      "planted": "상수 REPORTS_API에 사설 주소 192.168.40.12의 보고서 서버",
+      "why": "평문 내부 주소를 찾는가(easy 줄 plain)"
+    },
+    {
+      "id": "E2-08",
+      "categories": [
+        "source_map"
+      ],
+      "difficulty": "easy",
+      "hiding": "none",
+      "locations": [
+        {
+          "file": "assets/index-c6383de4.js",
+          "line_start": 75,
+          "line_end": 75,
+          "file_lines": 75
+        },
+        {
+          "file": "assets/index-c6383de4.js.map",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        },
+        {
+          "file": "assets/vendor-9458a6fc.js",
+          "line_start": 36,
+          "line_end": 36,
+          "file_lines": 36
+        },
+        {
+          "file": "assets/vendor-9458a6fc.js.map",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "sourcesContent",
+      "decoded_anchor": null,
+      "planted": "결과물 JS 둘에 소스맵을 붙이고 맵의 sourcesContent에 원본(주석 포함)을 그대로 넣음",
+      "why": "소스맵으로 원본이 드러남을 찾는가(easy 줄 '소스맵에 원본 포함')"
+    },
+    {
+      "id": "E2-09",
+      "categories": [
+        "secret"
+      ],
+      "difficulty": "easy",
+      "hiding": "plain",
+      "locations": [
+        {
+          "file": "assets/index-c6383de4.js",
+          "line_start": 13,
+          "line_end": 13,
+          "file_lines": 75
+        },
+        {
+          "file": "assets/index-c6383de4.js.map",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "S3UuBwttIZZHQNFm",
+      "decoded_anchor": null,
+      "planted": "가짜(생성). 보고서 서버 Basic 인증 비밀번호를 상수 reportsPassword에 평문으로",
+      "why": "코드에 박힌 비밀번호를 찾는가"
+    }
+  ],
+  "decoys": [
+    {
+      "id": "E2-D1",
+      "locations": [
+        {
+          "file": "assets/index-c6383de4.js",
+          "line_start": 5,
+          "line_end": 5,
+          "file_lines": 75
+        },
+        {
+          "file": "assets/index-c6383de4.js.map",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "CHANGE_ME",
+      "why": "자리표시값. 배포 때 바꿔 넣을 자리라 비밀값이 아니다"
+    },
+    {
+      "id": "E2-D2",
+      "locations": [
+        {
+          "file": "assets/index-c6383de4.js",
+          "line_start": 7,
+          "line_end": 7,
+          "file_lines": 75
+        },
+        {
+          "file": "assets/index-c6383de4.js.map",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "debugOverlay",
+      "why": "꺼져 있는 디버그 플래그(false)이고 코드 어디에서도 읽지 않는다"
+    }
+  ]
+}
