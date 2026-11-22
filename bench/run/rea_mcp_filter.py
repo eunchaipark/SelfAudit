@@ -338,13 +338,16 @@ def resolve_source_paths(value: Json, input_root: str) -> list[Json]:
 
 def check_reference(value: Json, where: str) -> None:
     """F-R04 5④. `{"kind": "retained-evidence", "evidence_id": "ev_<sha256>"}`만."""
+    # REA가 이 칸을 `{"type": "object"}`로만 알려, 에이전트가 꼴을 알 길은 이 오류뿐이다
+    # (꼴만 싣고 받은 값은 싣지 않는다)
+    rule = f'{where}: 같은 세션 참조만 받음 {{"kind": "{REFERENCE_KIND}", "evidence_id": "ev_…"}}'
     if not isinstance(value, dict) or set(value) != {"kind", "evidence_id"}:
-        raise Rejected(INVALID_PARAMS, f"{where}: 같은 세션 참조만 받음")
+        raise Rejected(INVALID_PARAMS, rule)
     evidence_id = value["evidence_id"]
     if value["kind"] != REFERENCE_KIND or not isinstance(evidence_id, str):
-        raise Rejected(INVALID_PARAMS, f"{where}: 같은 세션 참조만 받음")
+        raise Rejected(INVALID_PARAMS, rule)
     if not EVIDENCE_ID.fullmatch(evidence_id):
-        raise Rejected(INVALID_PARAMS, f"{where}: 같은 세션 참조만 받음")
+        raise Rejected(INVALID_PARAMS, rule)
 
 
 def _check_reference_array(value: Json, where: str) -> None:
