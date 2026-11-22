@@ -7,7 +7,7 @@
   "검사": [
     {"이름": "숨은글자", "명령": "python -I ops/scripts/check_hidden.py", "폴더": ".", "제한초": 60},
     {"이름": "실험자료", "명령": "python -I ops/scripts/check_bench.py", "폴더": ".", "제한초": 120},
-    {"이름": "실험린트", "명령": "uv run --frozen --offline ruff check .", "폴더": "bench", "제한초": 300},
+    {"이름": "실험린트", "명령": "uv lock --check --offline && uv run --frozen --offline ruff check .", "폴더": "bench", "제한초": 300},
     {"이름": "실험형식", "명령": "uv run --frozen --offline ruff format --check .", "폴더": "bench", "제한초": 300},
     {"이름": "실험타입", "명령": "uv run --frozen --offline mypy .", "폴더": "bench", "제한초": 600},
     {"이름": "실험테스트", "명령": "uv run --frozen --offline pytest -q", "폴더": "bench", "제한초": 900},

@@ -96,6 +96,7 @@ def run_example() -> dict[str, Json]:
     """실험구조 2.4·2.10 꼴의 가상 실행 한 번."""
     return {
         "schema": "selfaudit-bench/run@1",
+        "run_kind": "target",
         "run_id": "easy-1-a-1-3f2a9c10",
         "batch_id": "20261122-0900-abcd",
         "target_id": "easy-1",
@@ -166,7 +167,7 @@ def targets_example() -> dict[str, Json]:
             {
                 "id": "juice-shop-17",
                 "kind": "practice",
-                "bundle": ".tools/juice-shop/frontend/dist",
+                "bundle": "bench/bundles/juice-shop-17",
                 "answers": "bench/answers/juice-shop-17.json",
             },
         ],

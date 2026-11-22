@@ -161,3 +161,19 @@ def test_common_지문_허용꼴밖_이름_멈춤(make_bundle: MakeBundle) -> No
         pytest.skip("Windows가 끝 공백을 지워 만들었다")
     with pytest.raises(ManifestError, match="허용 꼴"):
         bundle_manifest_sha256(bundle)
+
+
+def test_F_B04_읽을수없는_폴더_경로알림(
+    make_bundle: MakeBundle, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bundle = make_bundle({"assets/sub/a.js": b"x", "index.html": b"y"})
+    real_scandir = os.scandir
+
+    def deny(path: str) -> object:
+        if Path(path).name == "sub":
+            raise PermissionError(13, "가짜 거절", str(path))
+        return real_scandir(path)
+
+    monkeypatch.setattr(os, "scandir", deny)
+    with pytest.raises(ManifestError, match=r"번들 폴더를 읽을 수 없음: 'assets/sub'"):
+        bundle_manifest_sha256(bundle)

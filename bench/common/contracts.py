@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from collections.abc import Mapping
 from pathlib import Path, PureWindowsPath
 from typing import Final, Literal
 
-from common.paths import is_bundle_relpath
 from common.schema import (
     ContractError,
     Json,
@@ -52,6 +52,9 @@ _ERRORS_IN_MESSAGE: Final = 20
 _HIDDEN_KINDS: Final = frozenset({"split", "encoded", "obfuscated"})
 _REPO_KINDS: Final = frozenset({"planted", "practice"})
 _ANSWERS_DIR: Final = "bench/answers"
+_BUNDLES_DIR: Final = "bench/bundles"
+_DRIVE: Final = re.compile("[A-Za-z]:")
+REPO_ROOT: Final = CONTRACTS_DIR.parents[1]
 
 
 class ContractJsonError(ValueError):
@@ -205,33 +208,56 @@ def _check_decoded(item: Mapping[str, Json], where: str, errors: list[ContractEr
         errors.append(ContractError(f"{where}.decoded_anchor", "anchor와 같음"))
 
 
-def check_targets_semantics(targets: Mapping[str, Json]) -> list[ContractError]:
-    """대상 목록 뜻 규칙(2.10, F-B05): ID 고유, 저장소 대상은 상대 경로, 내 앱은 절대 경로."""
+def check_targets_semantics(
+    targets: Mapping[str, Json], repo_root: Path = REPO_ROOT
+) -> list[ContractError]:
+    """대상 목록 뜻 규칙(2.9·2.10, F-B05): ID 고유, 저장소 대상은 `bench/bundles/<id>`·
+    `bench/answers/<id>.json`, 내 앱은 드라이브 절대 경로이고 풀어 본 뒤에도 저장소 밖."""
     errors: list[ContractError] = []
     seen: set[str] = set()
     for i, entry in enumerate(_objects(targets.get("targets"))):
         where = f"$.targets[{i}]"
-        target_id, kind = entry.get("id"), entry.get("kind")
-        bundle, answers = entry.get("bundle"), entry.get("answers")
+        target_id = entry.get("id")
         if isinstance(target_id, str):
             if target_id in seen:
                 errors.append(ContractError(f"{where}.id", "id 겹침"))
             seen.add(target_id)
-        if kind in _REPO_KINDS:
-            if not (isinstance(bundle, str) and is_bundle_relpath(bundle)):
-                errors.append(ContractError(f"{where}.bundle", "저장소 기준 상대 경로(2.2 꼴)"))
-            if answers != f"{_ANSWERS_DIR}/{target_id}.json":
-                errors.append(ContractError(f"{where}.answers", "bench/answers/<id>.json"))
+        if entry.get("kind") in _REPO_KINDS:
+            _check_repo_target(entry, where, errors)
         else:
-            if not (isinstance(bundle, str) and _is_absolute(bundle)):
-                errors.append(ContractError(f"{where}.bundle", "mine은 저장소 밖 절대 경로"))
-            if answers is not None and not (isinstance(answers, str) and _is_absolute(answers)):
-                errors.append(ContractError(f"{where}.answers", "mine은 null 또는 절대 경로"))
+            _check_mine_target(entry, where, repo_root, errors)
     return errors
 
 
-def _is_absolute(path: str) -> bool:
-    return PureWindowsPath(path).is_absolute()
+def _check_repo_target(entry: Mapping[str, Json], where: str, errors: list[ContractError]) -> None:
+    target_id = entry.get("id")
+    if entry.get("bundle") != f"{_BUNDLES_DIR}/{target_id}":
+        errors.append(ContractError(f"{where}.bundle", "bench/bundles/<id>"))
+    if entry.get("answers") != f"{_ANSWERS_DIR}/{target_id}.json":
+        errors.append(ContractError(f"{where}.answers", "bench/answers/<id>.json"))
+
+
+def _check_mine_target(
+    entry: Mapping[str, Json], where: str, repo_root: Path, errors: list[ContractError]
+) -> None:
+    bundle, answers = entry.get("bundle"), entry.get("answers")
+    if not (isinstance(bundle, str) and _is_outside_drive_path(bundle, repo_root)):
+        errors.append(ContractError(f"{where}.bundle", "mine은 저장소 밖 드라이브 절대 경로"))
+    if answers is not None and not (
+        isinstance(answers, str) and _is_outside_drive_path(answers, repo_root)
+    ):
+        errors.append(
+            ContractError(f"{where}.answers", "mine은 null 또는 저장소 밖 드라이브 절대 경로")
+        )
+
+
+def _is_outside_drive_path(path: str, repo_root: Path) -> bool:
+    """`C:\\…` 꼴만(UNC `\\\\server`·`\\\\?\\`·`\\\\.\\` 거절), 그리고 풀어 본 뒤 저장소 밖."""
+    pure = PureWindowsPath(path)
+    if not (pure.is_absolute() and _DRIVE.fullmatch(pure.drive)):
+        return False
+    resolved = Path(path).resolve()
+    return not resolved.is_relative_to(repo_root.resolve())
 
 
 def _objects(value: Json) -> list[dict[str, Json]]:

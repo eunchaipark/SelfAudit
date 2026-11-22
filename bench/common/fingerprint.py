@@ -46,7 +46,11 @@ def _bundle_files(bundle_dir: Path) -> dict[str, Path]:
     if _is_link(bundle_dir) or not bundle_dir.is_dir():
         raise ManifestError(f"번들 폴더가 없거나 폴더가 아님: {bundle_dir.name!r}")
     files: dict[str, Path] = {}
-    for current, dirnames, filenames in os.walk(bundle_dir, onerror=_walk_failed):
+
+    def walk_failed(error: OSError) -> None:
+        _walk_failed(bundle_dir, error)
+
+    for current, dirnames, filenames in os.walk(bundle_dir, onerror=walk_failed):
         base = Path(current)
         for name in dirnames:
             if _is_link(base / name):
@@ -73,10 +77,22 @@ def _check_file(path: Path, rel: str) -> None:
         raise ManifestError(f"번들 안에 하드링크: {rel!r}")
 
 
-def _walk_failed(error: OSError) -> None:
+def _walk_failed(bundle_dir: Path, error: OSError) -> None:
     # os.walk는 읽지 못한 폴더를 조용히 건너뛴다. 건너뛰면 다른 번들이 같은 지문을 낸다
-    where = Path(error.filename).name if error.filename else "?"
-    raise ManifestError(f"번들 폴더를 읽을 수 없음: {where!r} ({type(error).__name__})") from error
+    raise ManifestError(
+        f"번들 폴더를 읽을 수 없음: {_error_rel(bundle_dir, error)!r} ({type(error).__name__})"
+    ) from error
+
+
+def _error_rel(bundle_dir: Path, error: OSError) -> str:
+    """오류가 난 폴더의 번들 안 경로. 번들 맨 위 자신이면 `.`, 알 수 없으면 `?`."""
+    if not error.filename:
+        return "?"
+    path = Path(str(error.filename))
+    try:
+        return path.relative_to(bundle_dir).as_posix()
+    except ValueError:
+        return "?"
 
 
 def _is_link(path: Path) -> bool:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 from pathlib import Path
 
@@ -32,8 +33,21 @@ from tests.common.examples import (
 MAX_LINE = 10_000_000  # 실험구조 2.9 줄 번호 상한
 
 
+DESIGN_DOC = Path(__file__).resolve().parents[3] / "docs" / "설계" / "실험구조.md"
+
+
+def design_2_2_example() -> Json:
+    """설계 문서 2.2의 첫 ```json 묶음(문서와 시험이 갈라지지 않게 글을 그대로 읽는다)."""
+    text = DESIGN_DOC.read_text(encoding="utf-8")
+    start = text.index("```json", text.index("### 2.2 정답지")) + len("```json")
+    loaded: Json = json.loads(text[start : text.index("```", start)])
+    return loaded
+
+
 def test_common_정답지_2_2예시_통과() -> None:
-    assert validate_contract("answers", answers_example()) == []
+    example = design_2_2_example()
+    assert validate_contract("answers", example) == []
+    assert example == answers_example()  # 시험이 쓰는 예시 값도 문서와 같다
 
 
 @pytest.mark.parametrize(
@@ -300,3 +314,14 @@ def test_common_계약읽기_어긋나면_오류목록(tmp_path: Path) -> None:
 
 def test_common_대상목록_예시_통과() -> None:
     assert validate_contract("targets", targets_example()) == []
+
+
+def test_common_실행종류_칸() -> None:
+    data = run_example()
+    for kind in ("target", "empty", "gate"):
+        data["run_kind"] = kind
+        assert validate_contract("run", data) == []
+    data["run_kind"] = "calibration"
+    assert validate_contract("run", data) == [ContractError("$.run_kind", "enum")]
+    del data["run_kind"]
+    assert validate_contract("run", data) == [ContractError("$", "required run_kind")]

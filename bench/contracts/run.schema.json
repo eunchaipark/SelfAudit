@@ -6,11 +6,12 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema", "run_id", "batch_id", "target_id", "target_kind", "bundle_manifest_sha256", "condition", "repeat_index",
+    "schema", "run_kind", "run_id", "batch_id", "target_id", "target_kind", "bundle_manifest_sha256", "condition", "repeat_index",
     "started_at", "ended_at", "versions", "settings", "outcome", "metrics", "network", "transcript"
   ],
   "properties": {
     "schema": { "const": "selfaudit-bench/run@1" },
+    "run_kind": { "enum": ["target", "empty", "gate"] },
     "run_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{3,79}$" },
     "batch_id": { "type": "string", "pattern": "^[0-9]{8}-[0-9]{4}-[a-z0-9]{4,12}$" },
     "target_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,39}$" },
