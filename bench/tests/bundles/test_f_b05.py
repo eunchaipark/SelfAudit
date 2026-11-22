@@ -100,26 +100,50 @@ def test_F_B05_번들경로는_bench_bundles_id만() -> None:
     assert [e.where for e in validate_contract("targets", value)] == ["$.targets[0].bundle"]
 
 
-def test_F_B05_종류와_정답지origin_다르면_멈춤(mini_bundle: Mini, tmp_path: Path) -> None:
-    root = tmp_path / "repo"
-    bundle = root / "bench" / "bundles" / "mini-1"
-    shutil.copytree(mini_bundle.bundle_dir, bundle)
-    answers_path = root / "bench" / "answers" / "mini-1.json"
+def _repo_with(mini: Mini, root: Path, target_id: str, kind: str, copy_bundle: bool = True) -> Path:
+    """`root` 아래에 저장소 꼴(bench/bundles·answers·targets.json)을 만든다.
+
+    돌려주는 것은 대상 목록 경로.
+    """
+    bundle = root / "bench" / "bundles" / target_id
+    if copy_bundle:
+        shutil.copytree(mini.bundle_dir, bundle)
+    answers_path = root / "bench" / "answers" / f"{target_id}.json"
     answers_path.parent.mkdir(parents=True)
-    answers_path.write_text(json.dumps(mini_bundle.answers), encoding="utf-8")
-    targets_path = root / "bench" / "targets.json"
+    answers = {**mini.answers, "bundle_id": target_id}
+    answers_path.write_text(json.dumps(answers), encoding="utf-8")
     entry = {
-        "id": "mini-1",
-        "bundle": "bench/bundles/mini-1",
-        "answers": "bench/answers/mini-1.json",
+        "id": target_id,
+        "kind": kind,
+        "bundle": f"bench/bundles/{target_id}",
+        "answers": f"bench/answers/{target_id}.json",
     }
-    for kind, expected in (("planted", []), ("practice", [("F-B05 4", "$.origin")])):
-        value = {"schema": "selfaudit-bench/targets@1", "targets": [{**entry, "kind": kind}]}
-        targets_path.write_text(json.dumps(value), encoding="utf-8")
-        target = repo_target("mini-1", targets_path, root)
-        assert target.bundle_dir == bundle
-        report = check_target(target)
-        assert [(p.rule, p.where) for p in report.problems] == expected
+    targets_path = root / "bench" / "targets.json"
+    value = {"schema": "selfaudit-bench/targets@1", "targets": [entry]}
+    targets_path.write_text(json.dumps(value), encoding="utf-8")
+    return targets_path
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected"), [("planted", []), ("practice", [("F-B05 4", "$.origin")])]
+)
+def test_F_B05_종류와_정답지origin_다르면_멈춤(
+    kind: str, expected: list[tuple[str, str]], mini_bundle: Mini, tmp_path: Path
+) -> None:
+    """명세 예시 `juice-shop-17`: practice인데 정답지 origin이 planted → 멈춤."""
+    root = tmp_path / "repo"
+    targets_path = _repo_with(mini_bundle, root, "juice-shop-17", kind)
+    target = repo_target("juice-shop-17", targets_path, root)
+    assert target.bundle_dir == root / "bench" / "bundles" / "juice-shop-17"
+    report = check_target(target)
+    assert [(p.rule, p.where) for p in report.problems] == expected
+
+
+def test_F_B05_번들폴더없음_멈춤(mini_bundle: Mini, tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    targets_path = _repo_with(mini_bundle, root, "easy-1", "planted", copy_bundle=False)
+    report = check_target(repo_target("easy-1", targets_path, root))
+    assert [(p.rule, p.where) for p in report.problems] == [("F-B05", "bundle")]
 
 
 def test_F_B05_목록에_없는_대상_멈춤() -> None:

@@ -37,7 +37,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"검사할 수 없음: {e}")
         return 1
     for problem in report.problems:
-        print(problem)
+        print(f"{report.bundle_id} {problem}")  # F-B07 출력: 번들 ID·정답 ID·규칙 번호
     for line in format_cover_table(report.cover_rows):
         print(line)
     print(f"{report.bundle_id}: 문제 {len(report.problems)}곳")

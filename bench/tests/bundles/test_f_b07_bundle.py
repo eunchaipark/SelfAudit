@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import copy
 from collections.abc import Callable
+from pathlib import Path
 
 from common.contracts import Json
 from common.fingerprint import bundle_manifest_sha256
 from sources.build_tools import fake
-from sources.build_tools.verify import _occurrences, check_bundle, format_cover_table
+from sources.build_tools.verify import Problem, _anchor_lines, check_bundle, format_cover_table
 from tests.bundles.conftest import Mini
 from tests.conftest import MakeBundle
 
@@ -44,6 +45,13 @@ def _rules(mini: Mini, change: Callable[[Answers], None] | None = None) -> list[
     if change is not None:
         change(answers)
     return [(p.rule, p.where) for p in check_bundle(mini.bundle_dir, answers).problems]
+
+
+def _problems(mini: Mini, change: Callable[[Answers], None]) -> tuple[Problem, ...]:
+    answers = copy.deepcopy(mini.answers)
+    answers["bundle_manifest_sha256"] = bundle_manifest_sha256(mini.bundle_dir)
+    change(answers)
+    return check_bundle(mini.bundle_dir, answers).problems
 
 
 def _edit_app(mini: Mini, old: str, new: str) -> None:
@@ -116,11 +124,50 @@ def test_F_B07_닻이_한줄에_두번_범위안이면_통과(mini_bundle: Mini)
     assert _rules(mini_bundle) == []
 
 
-def test_F_B07_겹쳐나와도_시작자리마다_셈() -> None:
-    """닻 `abab`가 `ababab`에 겹쳐 두 번, 다음 줄에 한 번 — 줄은 시작 글자가 든 줄."""
+def test_F_B07_나온곳은_줄마다_한번() -> None:
+    """닻 `abab`가 `ababab`에 겹쳐 두 번, 다음 줄에 한 번 — 줄은 시작 글자가 든 줄, 줄마다 한 번."""
     lf = bytes([0x0A])
     files = {"a.js": b"ababab" + lf + b"abab" + lf, "b.js": b"ab" + lf + b"ab"}
-    assert list(_occurrences(files, b"abab")) == [("a.js", 1), ("a.js", 1), ("a.js", 2)]
+    assert list(_anchor_lines(files, b"abab")) == [("a.js", 1), ("a.js", 2)]
+
+
+def test_F_B07_같은글자_큰줄도_한번만() -> None:
+    """반려 1 1: 같은 글자가 이어진 1MB 줄에서 나온 곳을 모두 모으지 않는다(줄 하나 → 하나)."""
+    lf = bytes([0x0A])
+    files = {"a.js": b"a" * 1_000_000 + lf + b"a" * 1_000_000}
+    assert list(_anchor_lines(files, b"aaaa")) == [("a.js", 1), ("a.js", 2)]
+
+
+def test_F_B07_위치밖은_5곳까지만_알림(mini_bundle: Mini) -> None:
+    lines = "".join(f'k{i} = "{KEY}";' + chr(0x0A) for i in range(12))
+    _edit_app(mini_bundle, "function login", lines + "function login")
+
+    def change(answers: Answers) -> None:
+        for entry in _items(answers) + _decoys(answers):
+            for loc in entry["locations"]:  # type: ignore[union-attr]
+                if isinstance(loc, dict) and loc["file"] == "assets/app.js":
+                    loc["file_lines"] = 32
+                    if _as_line(loc["line_start"]) >= 16:
+                        loc["line_start"] = _as_line(loc["line_start"]) + 12
+                        loc["line_end"] = _as_line(loc["line_end"]) + 12
+
+    answers = copy.deepcopy(mini_bundle.answers)
+    answers["bundle_manifest_sha256"] = bundle_manifest_sha256(mini_bundle.bundle_dir)
+    change(answers)
+    problems = check_bundle(mini_bundle.bundle_dir, answers).problems
+    assert [(p.rule, p.where) for p in problems] == [("6㉯", "M-01")]
+    assert problems[0].reason.count("assets/app.js:") == 5
+
+
+def test_F_B07_바이너리파일의_닻은_세지않음(mini_bundle: Mini) -> None:
+    """6: 닻은 번들의 글 파일에서만 찾는다(바이너리에서 우연히 맞는 실패를 막음)."""
+    (mini_bundle.bundle_dir / "assets" / "logo.png").write_bytes(b"\x89PNG" + KEY.encode())
+    assert _rules(mini_bundle) == []
+
+
+def _as_line(value: Json) -> int:
+    assert isinstance(value, int)
+    return value
 
 
 def test_F_B07_닻이_번들에없음_실패(mini_bundle: Mini) -> None:
@@ -141,7 +188,7 @@ def test_F_B07_닻_200자넘음_계약실패(mini_bundle: Mini) -> None:
     def change(answers: Answers) -> None:
         _item(answers, "M-04")["anchor"] = "a" * 201
 
-    assert _rules(mini_bundle, change) == [("2", "$.items[3].anchor")]
+    assert _rules(mini_bundle, change) == [("7", "$.items[3].anchor")]
 
 
 def test_F_B07_서비스꼴키_실패_값은_싣지않음(mini_bundle: Mini) -> None:
@@ -150,7 +197,10 @@ def test_F_B07_서비스꼴키_실패_값은_싣지않음(mini_bundle: Mini) -> 
     answers = copy.deepcopy(mini_bundle.answers)
     answers["bundle_manifest_sha256"] = bundle_manifest_sha256(mini_bundle.bundle_dir)
     problems = check_bundle(mini_bundle.bundle_dir, answers).problems
-    assert [(p.rule, p.where) for p in problems] == [("9", "assets/app.js:4")]
+    assert [(p.rule, p.where) for p in problems] == [("9", "mini-1/assets/app.js:4")]
+    assert (
+        str(problems[0]) == "규칙 9 AWS 접근 키 mini-1/assets/app.js:4"
+    )  # 명세 꼴: 꼴 이름과 줄만
     assert all(aws not in str(p) for p in problems)
 
 
@@ -175,7 +225,9 @@ def test_F_B07_풀어낸값_demo_실패(mini_bundle: Mini) -> None:
         _item(answers, "M-01")["decoded_anchor"] = "demox_" + "Q" * 32
         _item(answers, "M-04")["decoded_anchor"] = "/console/manage/all"
 
-    assert _rules(mini_bundle, change) == [("10", "M-01.decoded_anchor")]
+    problems = _problems(mini_bundle, change)
+    assert {(p.rule, p.where) for p in problems} == {("10", "M-01.decoded_anchor")}
+    assert any(p.reason.startswith("㉰") for p in problems)  # demo
 
 
 def test_F_B07_file_lines_다름_실패(mini_bundle: Mini) -> None:
@@ -247,3 +299,91 @@ def test_F_B07_오류글에_닻값이_없음(mini_bundle: Mini) -> None:
     text = "".join(map(str, check_bundle(mini_bundle.bundle_dir, answers).problems))
     assert KEY not in text
     assert "/console/manage-all" not in text
+
+
+def test_F_B07_규칙4값이면_범주상관없이_규칙10(mini_bundle: Mini) -> None:
+    """반려 1 9 (총괄 대리): client_authz 정답이라도 규칙 4 값(키 꼴)이면 F-B02 5를 건다."""
+    bad = "whsec_" + "Q" * 32
+    _edit_app(mini_bundle, '"role_override"', f'"{bad}"')
+
+    def change(answers: Answers) -> None:
+        _item(answers, "M-06")["anchor"] = bad
+
+    assert _rules(mini_bundle, change) == [("10", "M-06.anchor")]
+
+
+def test_F_B07_한번들_접두어겹침_실패(mini_bundle: Mini) -> None:
+    """F-B02 4ⓐ: 한 번들 안 정답마다 다른 접두어."""
+    twin = "korvel_" + "Q" * 32
+    _edit_app(mini_bundle, '"role_override"', f'"{twin}"')
+
+    def change(answers: Answers) -> None:
+        _item(answers, "M-06")["anchor"] = twin
+
+    assert _rules(mini_bundle, change) == [("F-B02 4ⓐ", "M-06")]
+
+
+def _easy1(make_bundle: MakeBundle, extra_line: bool = False) -> tuple[Path, Answers]:
+    """명세 예시 꼴: `easy-1`의 `assets/index-3f2a.js`(120줄).
+
+    12줄에 정답 E1-01, 20줄에 미끼 E1-D1.
+    """
+    key = fake.make_key("easy-1", "E1-01", "zelto_")
+    lines = [f"// {i}" for i in range(1, 121)]
+    lines[11] = f'const PAY_KEY = "{key}";'
+    lines[19] = 'const DOCS = "YOUR_API_KEY";'
+    if extra_line:
+        lines.append("// 121")
+    data = (chr(0x0A).join(lines) + chr(0x0A)).encode()
+    bundle = make_bundle({"assets/index-3f2a.js": data}, name="easy-1")
+    loc: dict[str, Json] = {"file": "assets/index-3f2a.js", "file_lines": 120}
+    answers: Answers = {
+        "schema": "selfaudit-bench/answers@1",
+        "bundle_id": "easy-1",
+        "origin": "planted",
+        "difficulty": "easy",
+        "bundle_manifest_sha256": bundle_manifest_sha256(bundle),
+        "complete": True,
+        "items": [
+            {
+                "id": "E1-01",
+                "categories": ["secret"],
+                "difficulty": "easy",
+                "hiding": "plain",
+                "locations": [{**loc, "line_start": 12, "line_end": 12}],
+                "anchor": key,
+                "decoded_anchor": None,
+                "planted": "가짜(생성)",
+                "why": "가상",
+            }
+        ],
+        "decoys": [
+            {
+                "id": "E1-D1",
+                "locations": [{**loc, "line_start": 20, "line_end": 20}],
+                "anchor": "YOUR_API_KEY",
+                "why": "자리표시값",
+            }
+        ],
+    }
+    return bundle, answers
+
+
+def test_F_B07_예시_E1_01_닻이_미끼20줄에도(make_bundle: MakeBundle) -> None:
+    bundle, answers = _easy1(make_bundle)
+    app = bundle / "assets" / "index-3f2a.js"
+    key = str(_item(answers, "E1-01")["anchor"])
+    app.write_bytes(
+        app.read_bytes().replace(b'"YOUR_API_KEY"', f'"YOUR_API_KEY", "{key}"'.encode())
+    )
+    answers["bundle_manifest_sha256"] = bundle_manifest_sha256(bundle)
+    rules = {(p.rule, p.where) for p in check_bundle(bundle, answers).problems}
+    assert ("6㉯", "E1-01") in rules
+    assert ("6㉯", "E1-D1") not in rules
+
+
+def test_F_B07_예시_file_lines_120_번들121(make_bundle: MakeBundle) -> None:
+    bundle, answers = _easy1(make_bundle, extra_line=True)
+    rules = {(p.rule, p.where) for p in check_bundle(bundle, answers).problems}
+    assert ("11", "E1-01") in rules
+    assert ("11", "E1-D1") in rules

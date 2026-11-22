@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Final
@@ -59,11 +59,15 @@ HIDING_BY_DIFFICULTY: Final[Mapping[str, frozenset[str]]] = {
 }
 HIDING_ANYWHERE: Final = "none"
 RECORDED_DIFFICULTIES: Final = frozenset({"normal", "hard"})
-SECRET: Final = "secret"  # noqa: S105 — 범주 이름이다(비밀값이 아님)
+# 규칙 6㉯: 위치 밖에서 나온 곳을 이만큼 찾으면 더 찾지 않는다(실패는 이미 정해졌고,
+# 알릴 곳은 몇 개면 된다 — 같은 글자가 이어진 큰 파일에서 나온 곳을 다 모으면
+# 메모리가 입력의 수십 배가 된다, 반려 1 1)
+MAX_OUTSIDE_PLACES: Final = 5
 _LF: Final = 0x0A
 _CR: Final = 0x0D
 _TAB: Final = chr(0x09)
-_SECOND_RULE: Final = "㉯"
+_ANCHOR_FIELDS: Final = (".anchor", ".decoded_anchor")
+_MAX_LENGTH: Final = "maxLength"
 
 
 @dataclass(frozen=True)
@@ -75,6 +79,8 @@ class Problem:
     reason: str
 
     def __str__(self) -> str:
+        if self.rule == "9":  # F-B07 예시 꼴: `AWS 접근 키 bench/bundles/…:줄`
+            return f"규칙 9 {self.reason} {self.where}"
         return f"규칙 {self.rule} {self.where}: {self.reason}"
 
 
@@ -138,6 +144,8 @@ def check_target(target: Target) -> BundleReport:
     """F-B07 번들 하나 + F-B05 4(종류 = 정답지 `origin`)."""
     if target.answers_path is None:
         return _failed(target.id, Problem("2", "$", "정답지가 없는 대상(mine)은 검사하지 않음"))
+    if not target.bundle_dir.is_dir():
+        return _failed(target.id, Problem("F-B05", "bundle", "번들 폴더 없음"))
     try:
         answers = read_json(target.answers_path)
     except ContractJsonError as e:
@@ -170,9 +178,8 @@ def check_bundle(bundle_dir: Path, answers: Json) -> BundleReport:
     name = bundle_dir.name
     errors = validate_contract("answers", answers)
     if errors or not isinstance(answers, dict):
-        return BundleReport(
-            name, None, tuple(Problem("2", e.where, e.rule) for e in errors), (), frozenset()
-        )
+        failed = tuple(Problem(_contract_rule(e.where, e.rule), e.where, e.rule) for e in errors)
+        return BundleReport(name, None, failed, (), frozenset())
     bundle_id = str(answers["bundle_id"])
     difficulty = str(answers["difficulty"])
     items = _objects(answers["items"])
@@ -186,13 +193,38 @@ def check_bundle(bundle_dir: Path, answers: Json) -> BundleReport:
         _check_hiding(items, difficulty, problems)
     files = _read_bundle(bundle_dir, problems)
     if files is not None:
+        texts = _text_files(files)
         _check_fingerprint(bundle_dir, answers, problems)
         _check_locations(entries, files, problems)
-        _check_anchors(entries, files, problems)
-        _check_service_shapes(files, problems)
-    _check_fake_values(items, problems)
+        _check_anchors(entries, texts, problems)
+        _check_service_shapes(texts, _shown_dir(bundle_dir), problems)
+    _check_fake_values(items, decoys, problems)
+    _check_unique_prefixes(items, problems)
     rows = _cover_rows(entries) if difficulty in RECORDED_DIFFICULTIES else ()
     return BundleReport(bundle_id, difficulty, tuple(problems), rows, categories)
+
+
+def _contract_rule(where: str, rule: str) -> str:
+    """계약 오류의 F-B07 규칙 번호: 닻 200자 넘음은 7, 그 밖은 2."""
+    if where.endswith(_ANCHOR_FIELDS) and rule.startswith(_MAX_LENGTH):
+        return "7"
+    return "2"
+
+
+def _text_files(files: Mapping[str, bytes]) -> dict[str, bytes]:
+    """번들의 글 파일: 검사 '실험자료'가 글로 읽는 것(바이너리 확장자 밖)과 같다(F-B07 6·9)."""
+    binary = fake.binary_suffixes()
+    return {
+        rel: data for rel, data in files.items() if PurePosixPath(rel).suffix.lower() not in binary
+    }
+
+
+def _shown_dir(bundle_dir: Path) -> str:
+    """찍을 번들 경로: 저장소 안이면 `bench/bundles/<id>` 꼴, 밖(시험의 임시 폴더)이면 폴더 이름."""
+    try:
+        return bundle_dir.resolve().relative_to(REPO_ROOT.resolve()).as_posix()
+    except ValueError:
+        return bundle_dir.name
 
 
 def _entry(raw: Mapping[str, Json]) -> _Entry:
@@ -274,9 +306,9 @@ def _check_locations(
 
 
 def _check_anchors(
-    entries: Iterable[_Entry], files: Mapping[str, bytes], out: list[Problem]
+    entries: Iterable[_Entry], texts: Mapping[str, bytes], out: list[Problem]
 ) -> None:
-    """규칙 6: 닻이 번들에 있고(㉮), 나오는 곳이 모두 그 정답(미끼) 위치 안(㉯).
+    """규칙 6: 닻이 글 파일에 있고(㉮), 나오는 곳이 모두 그 정답(미끼) 위치 안(㉯).
 
     줄바꿈이 든 닻은 실패.
     """
@@ -287,30 +319,39 @@ def _check_anchors(
         if _LF in needle or _CR in needle:
             out.append(Problem("6", entry.id, "닻에 줄바꿈"))
             continue
-        found = list(_occurrences(files, needle))
+        found = False
+        outside: list[tuple[str, int]] = []
+        for rel, line in _anchor_lines(texts, needle):
+            found = True
+            if not _inside(entry, rel, line):
+                outside.append((rel, line))
+                if len(outside) >= MAX_OUTSIDE_PLACES:
+                    break
         if not found:
             out.append(Problem("6㉮", entry.id, "닻이 번들에 없음"))
-            continue
-        outside = sorted({(rel, line) for rel, line in found if not _inside(entry, rel, line)})
-        if outside:
-            places = ", ".join(f"{rel}:{line}" for rel, line in outside[:5])
+        elif outside:
+            places = ", ".join(f"{rel}:{line}" for rel, line in outside)
             out.append(Problem("6㉯", entry.id, f"닻이 위치 밖에도 나옴({places})"))
 
 
-def _occurrences(files: Mapping[str, bytes], needle: bytes) -> Iterable[tuple[str, int]]:
-    """(경로, 시작 글자의 줄). 겹쳐 나와도 시작 자리마다 하나.
+def _anchor_lines(texts: Mapping[str, bytes], needle: bytes) -> Iterator[tuple[str, int]]:
+    """닻이 나오는 `(경로, 줄)`을 한 번씩, 흘려 보내며. 줄은 나오는 곳의 시작 글자가 든 줄.
 
-    줄은 앞 자리에서 이어 세어 선형이다.
+    한 줄에서 찾으면 그 줄 끝으로 건너뛴다(같은 줄에서 더 나와도 줄은 같다). 줄은 앞 자리에서
+    이어 세어, 파일마다 입력 길이에 선형이고 모은 것을 들고 있지 않는다.
     """
-    for rel in sorted(files):
-        data = files[rel]
+    for rel in sorted(texts):
+        data = texts[rel]
         line, counted = 1, 0
         start = data.find(needle)
         while start >= 0:
             line += data.count(_LF, counted, start)
             counted = start
             yield rel, line
-            start = data.find(needle, start + 1)
+            line_end = data.find(_LF, start)
+            if line_end < 0:
+                break
+            start = data.find(needle, line_end + 1)
 
 
 def _inside(entry: _Entry, rel: str, line: int) -> bool:
@@ -320,36 +361,50 @@ def _inside(entry: _Entry, rel: str, line: int) -> bool:
     )
 
 
-def _check_service_shapes(files: Mapping[str, bytes], out: list[Problem]) -> None:
-    """규칙 9: 검사 '실험자료'와 같은 꼴·같은 줄 나눔으로 번들 글 파일을 본다."""
-    binary = fake.binary_suffixes()
-    for rel in sorted(files):
-        if PurePosixPath(rel).suffix.lower() in binary:
-            continue
-        text = files[rel].decode("utf-8", errors="replace")
+def _check_service_shapes(texts: Mapping[str, bytes], shown: str, out: list[Problem]) -> None:
+    """규칙 9: 검사 '실험자료'와 같은 꼴·같은 줄 나눔으로 번들 글 파일을 본다.
+
+    꼴 이름과 줄만 찍는다.
+    """
+    for rel in sorted(texts):
+        text = texts[rel].decode("utf-8", errors="replace")
         for lineno, line in enumerate(text.splitlines(), start=1):
             for name in fake.service_shape_names(line):
-                out.append(Problem("9", f"{rel}:{lineno}", f"서비스 꼴 키({name})"))
+                out.append(Problem("9", f"{shown}/{rel}:{lineno}", name))
 
 
-def _check_fake_values(items: Iterable[Mapping[str, Json]], out: list[Problem]) -> None:
-    """규칙 10: `secret` 정답의 닻·풀어낸 값이 F-B02 규칙 5를 지킴.
+def _check_fake_values(
+    items: Iterable[Mapping[str, Json]], decoys: Iterable[Mapping[str, Json]], out: list[Problem]
+) -> None:
+    """규칙 10: 규칙 4로 만든 값(키·토큰·비밀번호)이 든 정답·미끼의 닻·풀어낸 값이 F-B02 5를 지킴.
 
-    ㉯(접두어)는 값 자체(풀어낸 값, 없으면 닻)에만 건다 —
-    나눈 조각·인코딩 글의 앞 글자는 접두어가 아니다.
+    범주와 상관없이 값의 꼴로 가른다(반려 1 9, 총괄 대리 — `client_authz` 토큰도 규칙 4 값이다).
+    ㉯는 `fake_value_problems`가 접두어 있는 값(키 꼴)에만 건다 —
+    비밀번호·조각·인코딩 글에는 걸지 않는다.
     """
-    for item in items:
-        if SECRET not in _strings(item.get("categories")):
+    for entry in [*items, *decoys]:
+        values = [(entry.get(k), k) for k in ("anchor", "decoded_anchor")]
+        if not any(isinstance(v, str) and fake.rule4_form(v) for v, _ in values):
             continue
-        anchor, decoded = item.get("anchor"), item.get("decoded_anchor")
-        whole = "decoded_anchor" if isinstance(decoded, str) else "anchor"
-        for value, label in ((anchor, "anchor"), (decoded, "decoded_anchor")):
+        for value, label in values:
             if not isinstance(value, str):
                 continue
             for problem in fake.fake_value_problems(value):
-                if problem.startswith(_SECOND_RULE) and label != whole:
-                    continue
-                out.append(Problem("10", f"{item.get('id')}.{label}", problem))
+                out.append(Problem("10", f"{entry.get('id')}.{label}", problem))
+
+
+def _check_unique_prefixes(items: Iterable[Mapping[str, Json]], out: list[Problem]) -> None:
+    """F-B02 4ⓐ: 한 번들 안 정답마다 다른 접두어(같은 접두어 하나가 검색 표식이 되지 않게)."""
+    seen: dict[str, str] = {}
+    for item in items:
+        entry_id = str(item.get("id"))
+        for key in ("anchor", "decoded_anchor"):
+            value = item.get(key)
+            prefix = fake.key_prefix(value) if isinstance(value, str) else None
+            if prefix is None:
+                continue
+            if seen.setdefault(prefix, entry_id) != entry_id:
+                out.append(Problem("F-B02 4ⓐ", entry_id, f"접두어가 {seen[prefix]}와 같음"))
 
 
 def _cover_rows(entries: Iterable[_Entry]) -> tuple[CoverRow, ...]:
