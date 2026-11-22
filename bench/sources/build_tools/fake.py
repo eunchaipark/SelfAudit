@@ -25,14 +25,19 @@ from common.contracts import Json
 __all__ = [
     "BASE62",
     "BASE64URL",
+    "FAKE_PREFIXES",
     "FakeValueError",
     "binary_suffixes",
     "check_prefix",
+    "check_unique_prefixes",
     "fake_value_problems",
+    "has_decoy_word",
+    "key_prefix",
     "make_key",
     "make_password",
     "make_token",
     "make_value",
+    "rule4_form",
     "seed_for",
     "service_shape_names",
     "split_piece",
@@ -50,7 +55,55 @@ TOKEN_SIGNATURE_CHARS: Final = 43  # ⓑ 서명 43자(HS256 서명 32바이트�
 TOKEN_MAX_CHARS: Final = 200  # ⓑ 200자 안(닻 상한, 설계 2.2)
 JWT_HEADER: Final[Mapping[str, str]] = {"alg": "HS256", "typ": "JWT"}
 PREFIX: Final = re.compile(r"[a-z]{4,6}_")  # ⓐ 지어낸 서비스 이름 소문자 4~6자 + `_`
-# 규칙 5 ㉯ 실제 서비스 접두어, ㉰ 미끼(자리표시값)의 신호 낱말 — 대소문자 무시
+# 규칙 4로 만든 값의 꼴(F-B07 10이 '규칙 4 값이 든 정답·미끼'를 가를 때 쓴다, 반려 1 9 총괄 대리).
+# 토큰 머리는 늘 같은 글(JWT_HEADER의 base64url)이다
+KEY_FORM: Final = re.compile(r"([a-z]{4,6}_)[0-9A-Za-z]{32}")
+# 몸 119자까지 = 200 − 머리 36 − 점 2 − 서명 43
+TOKEN_FORM: Final = re.compile(
+    r"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[A-Za-z0-9_-]{1,119}\.[A-Za-z0-9_-]{43}"
+)
+PASSWORD_FORM: Final = re.compile(r"[0-9A-Za-z]{16}")
+# ㉯ 접두어는 허용 목록이다(반려 1 5): 실제 서비스 접두어는 계속 늘어 차단 목록은 늘 빠지고
+# (`whsec_` 등), 우리가 지어내는 접두어는 번들 6개 × 키 3~4개 = 약 20개라 미리 적어 두는 값이 싸다.
+# 30개는 그 1.5배. 늘릴 때는 `test_F_B02_허용접두어_규칙5_지킴`이
+# 아래 REAL_PREFIXES·DECOY_WORDS로 본다
+FAKE_PREFIXES: Final = frozenset(
+    f"{name}_"
+    for name in (
+        "zelto",  # 명세 F-B02 예시
+        "korvel",  # 시험 번들 mini-1
+        "quvar",
+        "mirtak",
+        "bramu",
+        "tolvin",
+        "yarek",
+        "fenzo",
+        "lumac",
+        "drovik",
+        "wexla",
+        "nuvor",
+        "cablo",
+        "jirmo",
+        "vantor",
+        "oskel",
+        "trimba",
+        "zunap",
+        "felko",
+        "morvi",
+        "quilo",
+        "gralo",
+        "ivmok",
+        "tazen",
+        "kelvo",
+        "numra",
+        "ulbek",
+        "vroda",
+        "ezmir",
+        "plavek",
+    )
+)
+# 규칙 5 ㉯가 이름을 든 실제 서비스 접두어(허용 목록의 이름이 이것으로 시작하지 않는지 시험이 본다),
+# ㉰ 미끼(자리표시값)의 신호 낱말 — 대소문자 무시
 REAL_PREFIXES: Final = (
     "gh",
     "github",
@@ -70,14 +123,17 @@ REAL_PREFIXES: Final = (
     "sq0",
 )
 DECOY_WORDS: Final = ("fake", "test", "dummy", "example", "sample", "demo")
-# ㉰에 걸리면 시드 끝에 `#1`, `#2`…를 붙여 다시 만든다.
-# 한 번 걸릴 확률이 약 0.1%(32자 안에 낱말 6개,
-# 대소문자 섞임 — 추정)라 100번은 사실상 끝이 없는 되풀이를 막는 울타리다
-MAX_RESEED: Final = 100
-# 나눔 조각 하나는 닻이 될 수 있어야 한다(계약 anchor 4자 이상).
-# 8조각은 키 38자를 4자 넘게 나누는 끝
+# ㉰에 걸리면 시드 끝에 `#1`, `#2`…를 붙여 다시 만든다. 한 번 걸릴 확률(직접 계산, 합집합 상한):
+# 낱말마다 (들어갈 자리 수) × (2/글자 수)^(낱말 길이) — 글자마다 대소문자 둘이 맞는다.
+# 키 본문 32자(base62) 0.0095%, 비밀번호 16자 0.0043%, 토큰 서명 43자(base64url) 0.012%.
+# 10번 모두 걸릴 확률은 0.00012^10 ≈ 10^-39라, 10은 끝없는 되풀이를 막는 울타리일 뿐이다.
+# 확인: `test_F_B02_다시만들기_드묾`이 키 1만 개에서 다시 만든 수를 센다(기댓값 약 1)
+MAX_RESEED: Final = 10
+# 나눔 조각 하나는 닻이 될 수 있어야 한다(계약 anchor 4자 이상). 조각 수 상한 9 =
+# 가장 짧은 키(37자, ⓐ)를 조각마다 4자 이상으로 나눌 수 있는 끝(37 // 4). 더 짧은 값(비밀번호 16자는
+# 4조각까지)은 '4자 이상' 검사가 막는다
 SPLIT_MIN_PIECE_CHARS: Final = 4
-SPLIT_MAX_PARTS: Final = 8
+SPLIT_MAX_PARTS: Final = 9
 
 _CHECK_BENCH: Final = Path(__file__).resolve().parents[3] / "ops" / "scripts" / "check_bench.py"
 _OPENAI_NAME: Final = "OpenAI 키"
@@ -119,24 +175,49 @@ def binary_suffixes() -> frozenset[str]:
     return frozenset(suffixes)
 
 
-def fake_value_problems(value: str) -> list[str]:
-    """F-B02 규칙 5: 걸린 항목(㉮ 꼴 이름, ㉯, ㉰). 빈 목록이면 지킨다."""
-    problems = [f"㉮ 서비스 꼴({name})" for name in service_shape_names(value)]
+def rule4_form(value: str) -> str | None:
+    """값이 규칙 4로 만든 꼴(`key`·`token`·`password`)인지. 아니면 None."""
+    if KEY_FORM.fullmatch(value):
+        return "key"
+    if TOKEN_FORM.fullmatch(value):
+        return "token"
+    if PASSWORD_FORM.fullmatch(value):
+        return "password"
+    return None
+
+
+def key_prefix(value: str) -> str | None:
+    """키 꼴 값의 접두어(`zelto_`). 키 꼴이 아니면 None — ㉯는 접두어가 있는 값에만 건다."""
+    m = KEY_FORM.fullmatch(value)
+    return m.group(1) if m else None
+
+
+def has_decoy_word(value: str) -> bool:
+    """㉰: `fake`·`test`·`dummy`·`example`·`sample`·`demo`가 대소문자 무시로 들어 있다."""
     lowered = value.lower()
-    if lowered.startswith(REAL_PREFIXES):
-        problems.append("㉯ 실제 서비스 접두어로 시작")
-    if any(word in lowered for word in DECOY_WORDS):
+    return any(word in lowered for word in DECOY_WORDS)
+
+
+def fake_value_problems(value: str) -> list[str]:
+    """F-B02 규칙 5: 걸린 항목(㉮ 꼴 이름, ㉯, ㉰). 빈 목록이면 지킨다.
+
+    ㉯는 접두어가 있는 값(키 꼴)에만: 접두어가 허용 목록(`FAKE_PREFIXES`)에 있어야 한다.
+    """
+    problems = [f"㉮ 서비스 꼴({name})" for name in service_shape_names(value)]
+    prefix = key_prefix(value)
+    if prefix is not None and prefix not in FAKE_PREFIXES:
+        problems.append("㉯ 허용 목록에 없는 접두어")
+    if has_decoy_word(value):
         problems.append("㉰ 미끼 신호 낱말")
     return problems
 
 
 def check_prefix(prefix: str) -> None:
-    """ⓐ 접두어 꼴과 ㉯·㉰. 걸리면 접두어를 바꿔야 한다(시드를 바꿔도 고쳐지지 않는다)."""
+    """ⓐ 접두어 꼴과 ㉯(허용 목록). 걸리면 접두어를 바꿔야 한다(시드로는 고쳐지지 않는다)."""
     if not PREFIX.fullmatch(prefix):
         raise FakeValueError("접두어는 소문자 4~6자 + '_'")
-    problems = [p for p in fake_value_problems(prefix) if not p.startswith("㉮")]
-    if problems:
-        raise FakeValueError(f"접두어가 규칙 5에 걸림: {', '.join(problems)}")
+    if prefix not in FAKE_PREFIXES:
+        raise FakeValueError("㉯ 접두어가 허용 목록(FAKE_PREFIXES)에 없음")
 
 
 # --- 만들기 (규칙 4) ---------------------------------------------------------------------------
@@ -154,17 +235,16 @@ def _draw(seed: str, alphabet: str, count: int) -> str:
 
 
 def _reseeded(seed: str, fixed: str, make: Callable[[str], str]) -> str:
-    """규칙 5에 걸리면 시드 끝에 `#n`을 붙여 다시 만든다.
-
-    `fixed`(바뀌지 않는 앞부분)가 걸리면 시드로 고칠 수 없어 멈춘다.
+    """F-B02 예외: ㉰에 걸리면 시드 끝에 `#n`을 붙여 다시 만든다(㉰만 — ㉯는 접두어를 바꾸고,
+    ㉮는 F-B07이 실패로 낸다). `fixed`(바뀌지 않는 앞부분)가 ㉰에 걸리면 시드로 고칠 수 없어 멈춘다.
     """
-    if fake_value_problems(fixed):
-        raise FakeValueError("고정 부분이 규칙 5에 걸림")
+    if has_decoy_word(fixed):
+        raise FakeValueError("고정 부분(접두어·토큰 머리·몸)이 ㉰에 걸림")
     for attempt in range(MAX_RESEED):
         value = make(seed if attempt == 0 else f"{seed}#{attempt}")
-        if not fake_value_problems(value):
+        if not has_decoy_word(value):
             return value
-    raise FakeValueError(f"{MAX_RESEED}번 다시 만들어도 규칙 5에 걸림")
+    raise FakeValueError(f"{MAX_RESEED}번 다시 만들어도 ㉰에 걸림")
 
 
 def make_key(bundle_id: str, entry_id: str, prefix: str) -> str:
@@ -192,6 +272,21 @@ def make_token(bundle_id: str, entry_id: str, claims: Mapping[str, Json]) -> str
 def _b64url_json(value: Mapping[str, Json]) -> str:
     text = json.dumps(value, separators=(",", ":"))
     return base64.urlsafe_b64encode(text.encode("utf-8")).decode("ascii").rstrip("=")
+
+
+def check_unique_prefixes(values: Mapping[str, Json]) -> None:
+    """ⓐ 한 번들 안 정답마다 다른 접두어(같은 접두어 하나가 검색 표식이 되지 않게, F-B02 근거 4②).
+
+    `values`는 심기 계획의 `{정답 ID: {"form": "key", "prefix": …}}`. 겹치면 뒤 정답 ID를 알린다.
+    """
+    seen: dict[str, str] = {}
+    for entry_id, spec in values.items():
+        if not isinstance(spec, dict) or spec.get("form") != "key":
+            continue
+        prefix = str(spec.get("prefix"))
+        if prefix in seen:
+            raise FakeValueError(f"{entry_id}: 접두어가 {seen[prefix]}와 같음(정답마다 다르게)")
+        seen[prefix] = entry_id
 
 
 def make_value(bundle_id: str, entry_id: str, spec: Mapping[str, Json]) -> str:
