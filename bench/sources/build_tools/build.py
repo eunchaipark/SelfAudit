@@ -58,9 +58,13 @@ RECORD_SCHEMA: Final = "selfaudit-bench/build@1"
 # 대상 ID 꼴(계약 targets·answers와 같음). `build_tools`는 `_`가 있어 대상 ID가 될 수 없다
 BUNDLE_ID: Final = re.compile(r"[a-z0-9][a-z0-9-]{1,39}")
 ENTRY_ID: Final = re.compile(r"[A-Z0-9][A-Z0-9-]{1,29}")
-PLUGIN_NAME: Final = re.compile(r"[a-z][a-z0-9_]{0,30}")
+# 더하는 변환 모듈 이름: 파이썬 모듈 이름 꼴, 30자까지(정답 ID 상한 30자와 같은 울타리 — 실제 이름은
+# `encode`·`obfuscate`처럼 10자 안)
+PLUGIN_NAME: Final = re.compile(r"[a-z][a-z0-9_]{0,29}")
 MODES: Final = frozenset({"expanded", "minified"})
-# 자리를 채우는 글 파일. 그 밖은 바이트 그대로 옮긴다
+# 자리를 채우는 글 파일: Vite 같은 웹 빌드가 내는 글 결과물의 확장자(화면·스크립트·스타일·맵·
+# 목록·그림 글). 그 밖은 바이트 그대로 옮기되, 검사 '실험자료'가 글로 읽는 파일
+# (바이너리 확장자 밖)이면 CR이 없어야 한다(F-B01 4 — 결과물 글 파일의 줄바꿈은 LF)
 TEXT_SUFFIXES: Final = frozenset(
     {".html", ".js", ".mjs", ".css", ".json", ".map", ".txt", ".svg", ".webmanifest", ".xml"}
 )
@@ -78,10 +82,19 @@ COMMAND: Final = (
     "sources.build_tools",
     "build",
 )
-# `{{v:ID|f:a:b}}`·`{{asset:path}}`. 글자 칸이 서로 겹치지 않고 길이가 정해져 있어 되돌아가지 않는다
+# `{{v:ID|f:a:b}}`·`{{asset:path}}`.
+# 글자 칸이 서로 겹치지 않고 길이가 정해져 있어 되돌아가지 않는다.
+# 길이 울타리: 자리 이름 300자 = 번들 경로 상한(정답 ID 30자보다 길다),
+# 걸러내기 이름 30자 = 모듈 이름과 같게, 인자 40자 = 대상 ID 상한과 같게(실제 인자는 한두 자),
+# 걸러내기 4개·인자 4개 = 실제로 쓰는 것(`split:2:0` 하나, 인자 2개)의 2~4배
 PLACEHOLDER: Final = re.compile(
-    r"\{\{(v|asset):([A-Za-z0-9/._-]{1,300})((?:\|[a-z0-9_]{1,30}(?::[A-Za-z0-9_-]{1,40}){0,4}){0,4})\}\}"
+    r"\{\{(v|asset):([A-Za-z0-9/._-]{1,300})"
+    r"((?:\|[a-z0-9_]{1,30}(?::[A-Za-z0-9_-]{1,40}){0,4}){0,4})\}\}"
 )
+# 원본·결과물 파일 하나의 크기 상한: F-B03 근거 '결과물 파일 하나가 10MB 아래'
+# (줄 번호 상한의 근거)와 맞춘다. 압축·변환은 글을 여러 번 복사해 메모리가 입력의 여러 배라,
+# 큰 입력을 먼저 막는다
+MAX_FILE_BYTES: Final = 10 * 1000 * 1000
 _VALUE_OPEN: Final = "{{v:"  # 채운 뒤에도 남으면 꼴이 틀린 자리다(조용히 결과물에 남기지 않는다)
 _ASSET_OPEN: Final = "{{asset:"
 _LF: Final = chr(0x0A)
@@ -90,6 +103,7 @@ _BUILTIN_FILTERS: Final[Mapping[str, Callable[[str, Sequence[str]], str]]] = {
     "split": fake.split_piece,
 }
 _CORE_MODULES: Final = frozenset({"build", "fake", "minify", "sourcemap", "verify"})
+_BUILDING_SUFFIX: Final = ".building"  # 쓰는 동안의 임시 폴더 `bench/bundles/.<id>.building`
 _PACKAGE: Final = __name__.rpartition(".")[0]
 
 
@@ -158,15 +172,48 @@ def build(
     source_dir = sources_dir / bundle_id
     if not (source_dir / PLAN_NAME).is_file() or not (source_dir / SRC_NAME).is_dir():
         raise BuildError(f"원본 폴더 없음(plan.json·src/): {bundle_id}")
+    bundle_dir = bundles_dir / bundle_id
+    _check_places(sources_dir, source_dir, bundles_dir, bundle_dir)
     plan = _read_plan(source_dir / PLAN_NAME, bundle_id)
     files = _read_sources(source_dir / SRC_NAME)
     outputs, names, values = _Builder(plan, files).run()
-    bundle_dir = bundles_dir / bundle_id
     _write_bundle(bundle_dir, outputs)
     fingerprint = bundle_manifest_sha256(bundle_dir)
     record_path = source_dir / RECORD_NAME
     record_path.write_bytes(_record(bundle_id, fingerprint))
     return BuildResult(bundle_id, bundle_dir, record_path, fingerprint, names, values)
+
+
+def _check_places(sources_dir: Path, source_dir: Path, bundles_dir: Path, bundle_dir: Path) -> None:
+    """읽고 쓰고 지우는 곳이 바로가기가 아니고, 풀어 봐도 원본·결과물 모음 바로 아래다.
+
+    `bench/bundles` 자체나 `bench/sources/<id>`가 정션이면 저장소 밖을 지울 수 있다(반려 1 2).
+    """
+    places = (
+        sources_dir,
+        source_dir,
+        source_dir / SRC_NAME,
+        source_dir / PLAN_NAME,
+        source_dir / RECORD_NAME,
+        bundles_dir,
+        bundle_dir,
+        _building_dir(bundle_dir),
+    )
+    for path in places:
+        if _is_link(path):
+            raise BuildError(f"바로가기(링크·정션)는 받지 않음: {path.name}")
+    if source_dir.resolve().parent != sources_dir.resolve():
+        raise BuildError(f"원본 폴더가 원본 모음 밖을 가리킴: {source_dir.name}")
+    if bundle_dir.resolve().parent != bundles_dir.resolve():
+        raise BuildError(f"결과물 폴더가 결과물 모음 밖을 가리킴: {bundle_dir.name}")
+
+
+def _is_link(path: Path) -> bool:
+    return path.is_symlink() or path.is_junction()
+
+
+def _building_dir(bundle_dir: Path) -> Path:
+    return bundle_dir.with_name(f".{bundle_dir.name}{_BUILDING_SUFFIX}")
 
 
 # --- 계획 읽기 -------------------------------------------------------------------------------
@@ -219,6 +266,10 @@ def _values(raw: Mapping[str, Json], bundle_id: str) -> dict[str, Mapping[str, J
         if not ENTRY_ID.fullmatch(entry_id) or not isinstance(spec, dict):
             raise BuildError(f"{bundle_id}: values의 정답 ID 꼴 또는 칸이 틀림")
         out[entry_id] = spec
+    try:
+        fake.check_unique_prefixes(value)
+    except fake.FakeValueError as e:
+        raise BuildError(f"{bundle_id}: {e}") from None
     return out
 
 
@@ -270,12 +321,14 @@ def _read_sources(src_dir: Path) -> dict[str, bytes]:
     files: dict[str, bytes] = {}
     for path in sorted(src_dir.rglob("*")):
         rel = path.relative_to(src_dir).as_posix()
-        if path.is_symlink() or path.is_junction():
+        if _is_link(path):
             raise BuildError(f"원본에 바로가기: {rel}")
         if path.is_dir():
             continue
         if not path.is_file() or not is_bundle_relpath(rel):
             raise BuildError(f"원본 경로가 허용 꼴이 아니거나 일반 파일이 아님: {rel!r}")
+        if path.stat().st_size > MAX_FILE_BYTES:
+            raise BuildError(f"원본 파일이 {MAX_FILE_BYTES}바이트를 넘음: {rel}")
         files[rel] = path.read_bytes()
     if not files:
         raise BuildError("원본 src/에 파일이 없음")
@@ -401,6 +454,7 @@ class _Builder:
     def _emit(self, rel: str) -> None:
         text = self.texts.get(rel)
         if text is None:
+            self._check_copied(rel)
             self._put(rel, rel, self.files[rel])
             return
         source = self._fill_assets(rel, text)
@@ -447,15 +501,38 @@ class _Builder:
         map_rel = f"{out_rel}.map"
         if map_rel in self.files:
             raise BuildError(f"{self.plan.bundle_id}: 맵 경로가 원본 파일과 겹침: {map_rel}")
-        self.outputs[map_rel] = map_bytes
+        self._put_output(map_rel, map_bytes)
         return f"{code}//# sourceMappingURL={out_name}.map{_LF}"
 
+    def _check_copied(self, rel: str) -> None:
+        """그대로 옮기는 파일 가운데 글 파일(바이너리 확장자 밖, UTF-8)도 CR이 없어야 한다.
+
+        F-B01 4.
+        """
+        if PurePosixPath(rel).suffix.lower() in fake.binary_suffixes():
+            return
+        data = self.files[rel]
+        try:
+            data.decode("utf-8")
+        except UnicodeDecodeError:
+            return
+        if _CR.encode("ascii") in data:
+            raise BuildError(f"원본에 CR이 있음(줄바꿈은 LF만, F-B01 4): {rel}")
+
     def _put(self, rel: str, out_rel: str, data: bytes) -> None:
-        if not is_bundle_relpath(out_rel) or out_rel in self.outputs:
-            raise BuildError(
-                f"{self.plan.bundle_id}: 결과물 경로가 겹치거나 허용 꼴이 아님: {out_rel}"
-            )
+        self._put_output(out_rel, data)
         self.names[rel] = out_rel
+
+    def _put_output(self, out_rel: str, data: bytes) -> None:
+        """결과물 하나를 모은다.
+
+        디스크에는 모두 모은 뒤에 쓰므로 여기서 걸리면 아무것도 쓰지 않는다.
+        """
+        bid = self.plan.bundle_id
+        if not is_bundle_relpath(out_rel) or out_rel in self.outputs:
+            raise BuildError(f"{bid}: 결과물 경로가 겹치거나 허용 꼴이 아님: {out_rel[:80]}")
+        if len(data) > MAX_FILE_BYTES:
+            raise BuildError(f"{bid}: 결과물 파일이 {MAX_FILE_BYTES}바이트를 넘음: {out_rel}")
         self.outputs[out_rel] = data
 
 
@@ -481,16 +558,25 @@ def _with_final_newline(text: str) -> str:
 
 
 def _write_bundle(bundle_dir: Path, outputs: Mapping[str, bytes]) -> None:
-    """F-B01 1: 결과물 폴더를 비우고 새로 만든다(지난 빌드 찌꺼기를 남기지 않는다)."""
-    if bundle_dir.is_symlink() or bundle_dir.is_junction():
-        raise BuildError(f"결과물 폴더가 바로가기: {bundle_dir.name}")
+    """F-B01 1: 결과물 폴더를 비우고 새로 만든다(지난 빌드 찌꺼기를 남기지 않는다).
+
+    옆의 임시 폴더에 다 쓴 뒤 바꿔 넣는다 — 쓰다가 멈춰도 반쯤 쓴 결과물이 번들 자리에 남지 않는다.
+    """
+    building = _building_dir(bundle_dir)
+    if building.exists():
+        shutil.rmtree(building)
+    building.mkdir(parents=True)
+    try:
+        for out_rel in sorted(outputs):
+            path = resolve_in_bundle(building, out_rel)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(outputs[out_rel])
+    except BaseException:
+        shutil.rmtree(building, ignore_errors=True)
+        raise
     if bundle_dir.exists():
         shutil.rmtree(bundle_dir)
-    bundle_dir.mkdir(parents=True)
-    for out_rel in sorted(outputs):
-        path = resolve_in_bundle(bundle_dir, out_rel)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(outputs[out_rel])
+    building.rename(bundle_dir)
 
 
 def _record(bundle_id: str, fingerprint: str) -> bytes:

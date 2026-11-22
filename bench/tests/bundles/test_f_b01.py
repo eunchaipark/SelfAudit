@@ -17,6 +17,7 @@ import pytest
 from common.contracts import Json
 from common.fingerprint import bundle_manifest_sha256
 from common.lines import count_lines
+from common.paths import resolve_in_bundle
 from sources.build_tools import build as build_module
 from sources.build_tools import fake
 from sources.build_tools.build import BuildError, StepContext, build
@@ -237,3 +238,92 @@ def test_F_B01_압축_자동세미콜론_자리_멈춤() -> None:
 def test_F_B01_압축_글과_정규식은_그대로() -> None:
     src = LF.join(["const s = 'a  // b';", "const r = /a\\/ b/g;", "const t = `x  y`;", ""])
     assert minify_js(src).code == "const s='a  // b';const r=/a\\/ b/g;const t=`x  y`;"
+
+
+def _junction(link: Path, target: Path) -> None:
+    import _winapi
+
+    _winapi.CreateJunction(str(target), str(link))
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="정션은 Windows만")
+def test_F_B01_결과물모음이_정션이면_멈춤(write_source: WriteSource, dirs: Dirs) -> None:
+    """반려 1 2: `bench/bundles`가 정션이면 저장소 밖을 지울 수 있다 → 멈추고 밖은 그대로."""
+    write_source("easy-1", _plan("easy-1"), FILES)
+    outside = dirs.sources.parent / "outside"
+    (outside / "easy-1").mkdir(parents=True)
+    keep = outside / "easy-1" / "keep.txt"
+    keep.write_bytes(b"keep")
+    link = dirs.sources.parent / "linked-bundles"
+    _junction(link, outside)
+    with pytest.raises(BuildError, match="바로가기"):
+        build("easy-1", dirs.sources, link)
+    assert keep.read_bytes() == b"keep"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="정션은 Windows만")
+def test_F_B01_원본폴더가_정션이면_멈춤(write_source: WriteSource, dirs: Dirs) -> None:
+    real = write_source("real-1", _plan("easy-1"), FILES)
+    _junction(dirs.sources / "easy-1", real)
+    with pytest.raises(BuildError, match="바로가기"):
+        build("easy-1", dirs.sources, dirs.bundles)
+
+
+def test_F_B01_맵경로_300자넘으면_BuildError(write_source: WriteSource, dirs: Dirs) -> None:
+    """반려 1 3: 맵도 결과물 경로 검사(허용 꼴 300자)를 거친다 — 쓰기 전에 걸린다."""
+    root = write_source("easy-1", _plan("easy-1", hash_names=[], sourcemaps=[]), FILES)
+    plan = build_module._read_plan(root / "plan.json", "easy-1")
+    long_js = "assets/" + "x" * 287 + ".js"  # 297자, 맵은 301자
+    files = {"assets/app.js": b"var a = 1;", long_js: b"var b = 2;"}
+    with_map = build_module._Plan(**{**vars(plan), "sourcemaps": frozenset({long_js})})
+    with pytest.raises(BuildError, match="허용 꼴"):
+        build_module._Builder(with_map, files).run()
+
+
+def test_F_B01_쓰다가_멈추면_지난결과물_그대로(
+    write_source: WriteSource, dirs: Dirs, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """임시 폴더에 다 쓴 뒤 바꿔 넣는다 — 쓰다가 멈춰도 반쯤 쓴 결과물이 번들 자리에 남지 않는다."""
+    write_source("easy-1", _plan("easy-1"), FILES)
+    first = build("easy-1", dirs.sources, dirs.bundles)
+    before = _bundle_bytes(first.bundle_dir)
+    real = resolve_in_bundle
+
+    def failing(bundle_dir: Path, rel: str) -> Path:
+        if rel == "index.html":
+            raise OSError("디스크 가득 참(시험)")
+        return real(bundle_dir, rel)
+
+    monkeypatch.setattr(build_module, "resolve_in_bundle", failing)
+    with pytest.raises(OSError):
+        build("easy-1", dirs.sources, dirs.bundles)
+    assert _bundle_bytes(first.bundle_dir) == before
+    assert [p.name for p in dirs.bundles.iterdir()] == ["easy-1"]  # 임시 폴더가 남지 않음
+
+
+def test_F_B01_원본파일_크기상한(write_source: WriteSource, dirs: Dirs) -> None:
+    big = b"a" * (build_module.MAX_FILE_BYTES + 1)
+    write_source("easy-1", _plan("easy-1"), {**FILES, "assets/big.txt": big})
+    with pytest.raises(BuildError, match="바이트를 넘음"):
+        build("easy-1", dirs.sources, dirs.bundles)
+
+
+def test_F_B01_목록밖_글파일도_CR_멈춤(write_source: WriteSource, dirs: Dirs) -> None:
+    """F-B01 4: 자리를 채우지 않는 확장자라도 글 파일이면 줄바꿈은 LF만.
+
+    .ico 같은 바이너리는 그대로 옮긴다.
+    """
+    write_source("easy-1", _plan("easy-1"), {**FILES, "notes.cfg": "a" + CR + LF})
+    with pytest.raises(BuildError, match="CR"):
+        build("easy-1", dirs.sources, dirs.bundles)
+
+
+def test_F_B01_계획의_접두어겹침_멈춤(write_source: WriteSource, dirs: Dirs) -> None:
+    """F-B02 4ⓐ: 한 번들 안 정답마다 다른 접두어."""
+    values: dict[str, Json] = {
+        "X1-01": {"form": "key", "prefix": "zelto_"},
+        "X1-02": {"form": "key", "prefix": "zelto_"},
+    }
+    write_source("easy-1", _plan("easy-1", values=values), FILES)
+    with pytest.raises(BuildError, match="X1-02"):
+        build("easy-1", dirs.sources, dirs.bundles)

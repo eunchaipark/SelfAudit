@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import io
 import string
 from dataclasses import dataclass
 from typing import Final
@@ -54,7 +55,7 @@ class Minified:
     segments: tuple[tuple[int, int], ...]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class _Token:
     text: str
     kind: str  # word·str·regex·keep(남기는 주석)·punct
@@ -65,29 +66,7 @@ class _Token:
 
 def minify_js(source: str) -> Minified:
     """F-B01 압축 모드: JS 원본 → 한 줄."""
-    return _join(_tokens(source))
-
-
-def _join(tokens: list[_Token]) -> Minified:
-    out: list[str] = []
-    segments: list[tuple[int, int]] = []
-    col = 0
-    last_line = -1
-    prev: _Token | None = None
-    for tok in tokens:
-        if prev is not None:
-            if tok.newline_before and _asi_risk(prev, tok):
-                raise MinifyError(f"원본 {tok.line + 1}줄: 앞 줄 끝에 ';'가 없음(자동 세미콜론)")
-            if tok.space_before and _needs_space(prev.text, tok.text):
-                out.append(" ")
-                col += 1
-        if tok.line != last_line:
-            segments.append((col, tok.line))
-            last_line = tok.line
-        out.append(tok.text)
-        col += len(tok.text)
-        prev = tok
-    return Minified("".join(out), tuple(segments))
+    return _Scanner(source).run()
 
 
 def _needs_space(left: str, right: str) -> bool:
@@ -105,35 +84,52 @@ def _asi_risk(prev: _Token, tok: _Token) -> bool:
 
 
 class _Scanner:
+    """원본을 한 번 훑으며 토큰을 바로 결과에 잇는다.
+
+    토큰 목록을 쌓지 않아 메모리가 결과 크기 정도다(반려 1 4).
+    """
+
     def __init__(self, source: str) -> None:
         if chr(0x0D) in source:
             raise MinifyError("원본에 CR이 있음(줄바꿈은 LF만)")
         self.src = source
         self.pos = 0
         self.line = 0
-        self.tokens: list[_Token] = []
         self.newline = False
         self.space = False
+        self.out = io.StringIO()
+        self.col = 0
+        self.segments: list[tuple[int, int]] = []
+        self.prev: _Token | None = None
+        self.significant: _Token | None = None  # 남기는 주석이 아닌 마지막 토큰(정규식 가르기)
 
     def emit(self, text: str, kind: str, line: int) -> None:
-        self.tokens.append(_Token(text, kind, line, self.newline, self.space))
+        tok = _Token(text, kind, line, self.newline, self.space)
         self.newline = self.space = False
-
-    def last_significant(self) -> _Token | None:
-        for tok in reversed(self.tokens):
-            if tok.kind != "keep":
-                return tok
-        return None
+        prev = self.prev
+        if prev is not None:
+            if tok.newline_before and _asi_risk(prev, tok):
+                raise MinifyError(f"원본 {tok.line + 1}줄: 앞 줄 끝에 ';'가 없음(자동 세미콜론)")
+            if tok.space_before and _needs_space(prev.text, tok.text):
+                self.out.write(" ")
+                self.col += 1
+        if not self.segments or self.segments[-1][1] != tok.line:
+            self.segments.append((self.col, tok.line))
+        self.out.write(tok.text)
+        self.col += len(tok.text)
+        self.prev = tok
+        if kind != "keep":
+            self.significant = tok
 
     def regex_allowed(self) -> bool:
-        prev = self.last_significant()
+        prev = self.significant
         if prev is None:
             return True
         if prev.kind == "punct":
             return prev.text in _REGEX_AFTER_PUNCT
         return prev.kind == "word" and prev.text in _REGEX_AFTER_WORDS
 
-    def run(self) -> list[_Token]:
+    def run(self) -> Minified:
         while self.pos < len(self.src):
             ch = self.src[self.pos]
             if ch in _SPACE:
@@ -151,7 +147,7 @@ class _Scanner:
             else:
                 self.emit(ch, "punct", self.line)
                 self.pos += 1
-        return self.tokens
+        return Minified(self.out.getvalue(), tuple(self.segments))
 
     def skip_space(self, ch: str) -> None:
         self.space = True
@@ -224,7 +220,3 @@ class _Scanner:
         while self.pos < len(self.src) and self.src[self.pos] in _WORD:
             self.pos += 1
         self.emit(self.src[start : self.pos], "word", self.line)
-
-
-def _tokens(source: str) -> list[_Token]:
-    return _Scanner(source).run()
