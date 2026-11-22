@@ -1,0 +1,29 @@
+{
+  "schema": "selfaudit-bench/build@1",
+  "bundle_id": "easy-1",
+  "command": [
+    "uv",
+    "run",
+    "--frozen",
+    "--offline",
+    "python",
+    "-m",
+    "sources.build_tools",
+    "build",
+    "easy-1"
+  ],
+  "tools": {
+    "python": "3.13.7",
+    "node": null,
+    "build_scripts_sha256": {
+      "__init__.py": "1157553b746adeb67fe1d14b0fe8e2a4621469f5cc19dcc7a24b00217182dce1",
+      "__main__.py": "da0a6dfd318f7dea275125a56f282f1125ae9a7e2ce2ff85a54c1f5791e09f03",
+      "build.py": "1ac195678dcb836e5cc3311a3e6b46d3292f6ef77345653ec564fd6309ef3de8",
+      "fake.py": "ef1efc6853e53f51a207e8b254e3ef08fca2e72ba4d719a02c4ecc7efb1a3f20",
+      "minify.py": "2a0b13c6d65dcc05338aea67052862b111d2b9b54e765d3c65faaeb5fcefcc27",
+      "sourcemap.py": "a33d5a8fcb174f47f984adf537b6e167e9c55994c18db0cbef15306183a94ebf",
+      "verify.py": "400e18081b001e9687bd8dcdc9bc47bf6554610d07e7db0a301ef1c64e1ced6b"
+    }
+  },
+  "bundle_manifest_sha256": "77bed53a7dd7ee710d65e547848fe80b7f48b98d184eebc604579a811232f39a"
+}
