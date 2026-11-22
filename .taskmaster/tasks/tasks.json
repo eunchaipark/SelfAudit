@@ -1340,7 +1340,7 @@
         "description": "bench uv 프로젝트, 계약 검증·번들 지문·경로 정규화 함수, conftest, 검사 4개, 규칙 paths에 bench/**",
         "details": "영역: 공통\n목적: 같은 원자료면 늘 같은 숫자가 나오게 정답지·결과·실행 원자료를 한 가지 검증·지문으로 읽는다 (요구사항 R5 '다 됐다의 기준', R3 '기계가 읽는 꼴')\n읽을 문서: 설계 실험구조 1절, 2.2 '경로 꼴'·'bundle_manifest_sha256'·'길이 상한', 2.4, 2.5 조건 2(경로 정규화), 5절 '공통 뼈대', 지도 '공통 파일'\n고칠 파일: bench/pyproject.toml, bench/uv.lock, bench/common/**, bench/tests/conftest.py, bench/tests/common/**, bench/README.md, ops/checks.json, .claude/rules/코드-서버.md, .claude/rules/보안코딩.md, .claude/rules/테스트.md\n계약: bench/contracts/answers·findings·run.schema.json (이미 있음, 읽기만), bench.common 계약 검증·지문·경로 정규화 함수 (이 태스크가 이름을 정하고 지도에 적는다)\n명세 기준: 262a137\n\n경로 정규화(`\\`→`/`, 앞의 `./` 지움, 대상 폴더 절대 경로를 지움)는 F-R06(원자료 저장)과 F-G02(맞춤 판정)가 같이 쓰므로 common에 둔다. 근거: 설계 5절 '세 레인이 각자 만들면 서로 다른 답이 나온다'.\n`코드-공통.md`에도 bench/**를 넣을지는 설계가 본다(설계 5절은 코드-서버·보안코딩·테스트만 적었다).\n크기: 예시 약 7 · 파일 약 10 · 하위 작업 5",
         "testStrategy": "test_common_지문_경로순_탭_줄바꿈_sha256 / test_common_지문_한글자_바뀌면_다름 / test_common_정답지_2_2예시_통과 / test_common_경로꼴_역슬래시·앞슬래시·점점_거절 / test_common_닻_3자·201자_거절 / test_common_결과경로_대상절대경로_지움 / test_common_소켓_열면_실패(pytest-socket). `check.py --only` 새 검사 4개(이름 후보: 실험린트·실험형식·실험타입·실험테스트)가 통과해야 한다. 화면 없음",
-        "status": "in-progress",
+        "status": "done",
         "dependencies": [],
         "priority": "high",
         "subtasks": [
@@ -1982,7 +1982,7 @@
         "id": "30",
         "title": "실행기: 실행 계획·실행 폴더·원자료 저장 (F-R01, F-R02, F-R06)",
         "description": "시드로 섞은 차례, 저장소 밖 실행 폴더·대상 복사·위쪽 CLAUDE.md 확인·settings.json 거절 규칙·허용 목록 환경, run.json·findings·transcript 저장, mine은 저장소 밖에만",
-        "details": "영역: 실행기\n목적: 명령 하나로 다시 돌릴 수 있고 실행마다 원자료가 남게 하며, 내 앱 원자료는 저장소에 들어가지 않게 한다 (요구사항 R4, 6절)\n읽을 문서: 기능명세 F-R01·F-R02·F-R06, 설계 실험구조 2.4, 3.1, 3.2(문지기 빼고), 3.6, 3.8, 4절\n고칠 파일: bench/run/__init__.py, bench/run/plan.py, bench/run/workdir.py, bench/run/env.py, bench/run/store.py, bench/run/mcp-A.json, bench/tests/run/test_f_r01.py, bench/tests/run/test_f_r02.py, bench/tests/run/test_f_r06.py\n계약: run.schema.json, 실행 ID 꼴(2.4), bench.common 지문·경로 정규화(T20)\n\n크기: 예시 약 18 · 파일 약 9 · 하위 작업 6",
+        "details": "영역: 실행기\n목적: 명령 하나로 다시 돌릴 수 있고 실행마다 원자료가 남게 하며, 내 앱 원자료는 저장소에 들어가지 않게 한다 (요구사항 R4, 6절)\n읽을 문서: 기능명세 F-R01·F-R02·F-R06, 설계 실험구조 2.4, 3.1, 3.2(문지기 빼고), 3.6, 3.8, 4절\n고칠 파일: bench/run/__init__.py, bench/run/plan.py, bench/run/workdir.py, bench/run/env.py, bench/run/store.py, bench/run/mcp-A.json, bench/tests/run/test_f_r01.py, bench/tests/run/test_f_r02.py, bench/tests/run/test_f_r06.py\n계약: run.schema.json, 실행 ID 꼴(2.4), bench.common 지문·경로 정규화(T20)\n\n크기: 예시 약 18 · 파일 약 9 · 하위 작업 6\nT20 넘김: 빈·문지기 실행 원자료의 target_id·저장 위치(지금 계약은 target_id 필수, check_bench는 targets.json에 있어야 통과) — 이 태스크 전에 설계가 계약·검사를 맞춘다. run_kind(target·empty·gate) 칸이 생겼다.",
         "testStrategy": "test_F_R01_같은시드_같은차례 / test_F_R01_다른시드_다른차례 / test_F_R01_없는대상ID_거절 / test_F_R01_계획sha256_기록 / test_F_R02_실행폴더_저장소밖 / test_F_R02_복사본지문_다르면_멈춤 / test_F_R02_위쪽에_CLAUDE_md있으면_멈춤 / test_F_R02_실행뒤_target지움 / test_F_R02_settings_거절7곳·훅없음 / test_F_R02_환경_허용목록만·PATH_System32 / test_F_R06_run_json_계약통과 / test_F_R06_findings경로_상대로 / test_F_R06_대화기록_절대경로_RUN으로가림 / test_F_R06_대화기록_2MB넘으면_밖에·sha256 / test_F_R06_2MB는_그대로 / test_F_R06_mine_저장소밖 / test_F_R06_mine에_저장소경로_거절 / test_F_R06_실행ID_80자넘으면_거절. 화면 없음",
         "status": "pending",
         "dependencies": [
@@ -2338,7 +2338,7 @@
         "id": "36",
         "title": "번들·정답지: Juice Shop 정답지 (F-B06)",
         "description": "공식 배포본을 버전·sha256으로 고정하고(실행하지 않음), 화면 번들에 흔적이 있는 과제만 정답지 꼴로(complete false, 별→난이도 바꾸기)",
-        "details": "영역: 번들·정답지\n목적: 우리가 만들지 않은 바깥 정답지로 '내가 만든 번들이 REA에 유리하다'는 의심을 줄인다 (요구사항 R3, 5.1 대상 ②)\n읽을 문서: 기능명세 F-B06, 설계 실험구조 2.2 'complete'·'origin', 2.5 'Juice Shop', 2.7 'Juice Shop 정답지'\n고칠 파일: bench/sources/juice-shop/**, bench/answers/juice-shop.json, bench/targets.json, bench/tests/bundles/test_f_b06.py, 공통 요청: ops/scripts/setup_juiceshop.py(받기 스크립트, setup_rea.py 꼴)\n계약: answers.schema.json (origin practice, complete false)\n\n선행(사람·설계): 첫 실험 뒤(요구사항 4절 차례 '넓히기(Juice Shop, N 늘리기)'), 받기 스크립트(설계), 사용자 확인 7절(Juice Shop 난이도)\n크기: 예시 약 7 · 파일 약 4(정답지 하나가 큼) · 하위 작업 5",
+        "details": "영역: 번들·정답지\n목적: 우리가 만들지 않은 바깥 정답지로 '내가 만든 번들이 REA에 유리하다'는 의심을 줄인다 (요구사항 R3, 5.1 대상 ②)\n읽을 문서: 기능명세 F-B06, 설계 실험구조 2.2 'complete'·'origin', 2.5 'Juice Shop', 2.7 'Juice Shop 정답지'\n고칠 파일: bench/sources/juice-shop/**, bench/answers/juice-shop.json, bench/targets.json, bench/tests/bundles/test_f_b06.py, 공통 요청: ops/scripts/setup_juiceshop.py(받기 스크립트, setup_rea.py 꼴)\n계약: answers.schema.json (origin practice, complete false)\n\n선행(사람·설계): 첫 실험 뒤(요구사항 4절 차례 '넓히기(Juice Shop, N 늘리기)'), 받기 스크립트(설계), 사용자 확인 7절(Juice Shop 난이도)\n크기: 예시 약 7 · 파일 약 4(정답지 하나가 큼) · 하위 작업 5\nT20 넘김: Juice Shop 화면 번들도 bench/bundles/<id>에 둔다. 크기가 크면 git에 넣을지 이 태스크가 근거와 함께 정한다.",
         "testStrategy": "test_F_B06_sha256다르면_멈춤 / test_F_B06_complete_false·origin_practice / test_F_B06_별2_easy / test_F_B06_별3_normal / test_F_B06_별4_normal / test_F_B06_별5_hard / test_F_B06_정답마다_위치·닻·출처. 화면 없음",
         "status": "pending",
         "dependencies": [
