@@ -1,2 +1,2 @@
-- [번들 레인 함정](bench-build-traps.md) — ruff가 _build를 건너뜀, check_bench가 시험 글도 훑음, 한글 줄 길이, worktree 명령
-- [가짜 값 규칙 해석](bench-fake-values.md) — F-B07 10은 secret만, ㉯는 값 자체만, 다시 만들기 범위 (문서 확인 대기)
+- [번들 레인 함정](bench-build-traps.md) — ruff 기본 제외 이름, check_bench가 시험 글도 훑음, 한글 줄 길이, worktree 명령, 큰 입력 측정 꼴
+- [가짜 값 규칙](bench-fake-values.md) — 접두어 허용 목록, ㉰만 다시 만들기, F-B07 10은 규칙 4 꼴 값이 든 정답·미끼 (총괄 대리)
