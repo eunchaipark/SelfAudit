@@ -1397,7 +1397,7 @@
         "description": "원본→결과물 빌드(펼침·압축·해시 이름), 가짜 값 만들기·나눔 도구, 지문 쓰기, targets.json, 번들 하나 구성 검사 틀",
         "details": "영역: 번들·정답지\n목적: A·B가 늘 같은 대상을 받고, 번들이 바뀌면 채점이 멈추게 한다 (요구사항 5.1 '같게 하는 것: 대상', R3)\n읽을 문서: 기능명세 F-B01·F-B02·F-B04·F-B05·F-B07 (문서가 쓸 절), 설계 실험구조 1절, 2.2 'anchor'·'bundle_manifest_sha256'·'가짜 값의 꼴', 2.7, 4절 ⑶\n고칠 파일: bench/sources/_build/**, bench/targets.json, bench/tests/bundles/conftest.py, bench/tests/bundles/fixtures/**, bench/tests/bundles/test_f_b01.py, bench/tests/bundles/test_f_b02_tools.py, bench/tests/bundles/test_f_b04.py, bench/tests/bundles/test_f_b05.py, bench/tests/bundles/test_f_b07_bundle.py\n계약: answers.schema.json, bench.common 지문 함수(T20), check_bench.py가 읽는 targets.json 꼴(설계 4절 ⑶)\n명세 기준: d19b509\n\n제안: 변환 단계(압축·인코딩·난독화)는 원본 폴더마다 둔 빌드 설정이 고르게 한다. 그러면 T23·T24가 `build.py`를 고치지 않고 자기 파일만 더한다(쌍 A의 두 쪽이 같은 파일을 건드리지 않게). `_build/` 자리는 설계 1절 폴더 표에 없어서 후보로 둔 것이다(미결 5).\n크기: 예시 약 12 · 파일 약 11 · 하위 작업 6",
         "testStrategy": "test_F_B01_같은원본_두번빌드_바이트같음 / test_F_B01_빌드기록_도구버전 / test_F_B01_압축모드_한줄_해시이름 / test_F_B02_가짜값_서비스꼴아님 / test_F_B02_가짜값_시드같으면_같음 / test_F_B02_나눔_합치면_원값 / test_F_B04_한바이트_바뀌면_지문다름_멈춤 / test_F_B05_종류_planted_practice만 / test_F_B05_mine_거절 / test_F_B07_닻이_미끼위치에도있으면_실패 / test_F_B07_정답7개·미끼4개_실패 / test_F_B07_손으로만든_작은번들_통과. `check.py --only 실험자료` 통과. 화면 없음",
-        "status": "in-progress",
+        "status": "review",
         "dependencies": [
           "20"
         ],
