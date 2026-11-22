@@ -1,7 +1,7 @@
 """`python -m sources._build build <대상 ID>` (F-B01) · `check <대상 ID>` (F-B07 번들 하나).
 
-`bench/` 폴더에서 `uv run --frozen --offline python -m sources._build …`로 부른다. 찍는 글에 값은 없다
-(대상 ID·정답 ID·경로·규칙 번호만).
+`bench/` 폴더에서 `uv run --frozen --offline python -m sources._build …`로 부른다.
+찍는 글에 값은 없다(대상 ID·정답 ID·경로·규칙 번호만).
 """
 
 from __future__ import annotations
@@ -27,7 +27,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         except BuildError as e:
             print(f"빌드 실패: {e}")
             return 1
-        print(f"{result.bundle_id}: 파일 {len(result.files)}개, 지문 {result.bundle_manifest_sha256}")
+        print(
+            f"{result.bundle_id}: 파일 {len(result.files)}개, 지문 {result.bundle_manifest_sha256}"
+        )
         return 0
     try:
         report = check_target(repo_target(args.bundle_id))

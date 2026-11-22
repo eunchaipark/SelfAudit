@@ -2,7 +2,8 @@
 
 여섯 번들을 모아 보는 것(규칙 1, 규칙 4의 '난이도마다 8개', bench 전체 서비스 꼴)은 T25
 `test_f_b07_suite.py`가 이 결과(`BundleReport.categories` 등)로 센다.
-찍는 글에는 값(닻·풀어낸 값·파일 글)이 없다 — 정답 ID·경로·줄·규칙 번호만(F-B07 출력, 보안코딩 '실험').
+찍는 글에는 값(닻·풀어낸 값·파일 글)이 없다 — 정답 ID·경로·줄·규칙 번호만
+(F-B07 출력, 보안코딩 '실험').
 """
 
 from __future__ import annotations
@@ -58,7 +59,7 @@ HIDING_BY_DIFFICULTY: Final[Mapping[str, frozenset[str]]] = {
 }
 HIDING_ANYWHERE: Final = "none"
 RECORDED_DIFFICULTIES: Final = frozenset({"normal", "hard"})
-SECRET: Final = "secret"
+SECRET: Final = "secret"  # noqa: S105 — 범주 이름이다(비밀값이 아님)
 _LF: Final = 0x0A
 _CR: Final = 0x0D
 _TAB: Final = chr(0x09)
@@ -228,7 +229,9 @@ def _check_hiding(items: Sequence[Mapping[str, Json]], difficulty: str, out: lis
         hiding = str(item.get("hiding"))
         used.add(hiding)
         if hiding not in allowed and hiding != HIDING_ANYWHERE:
-            out.append(Problem("5", str(item.get("id")), f"{hiding}는 {difficulty} 줄의 방법이 아님"))
+            out.append(
+                Problem("5", str(item.get("id")), f"{hiding}는 {difficulty} 줄의 방법이 아님")
+            )
     for missing in sorted(allowed - used):
         out.append(Problem("5", "$.items", f"{difficulty} 줄의 {missing}가 한 번도 없음"))
 
@@ -270,8 +273,13 @@ def _check_locations(
                 )
 
 
-def _check_anchors(entries: Iterable[_Entry], files: Mapping[str, bytes], out: list[Problem]) -> None:
-    """규칙 6: 닻이 번들에 있고(㉮), 나오는 곳이 모두 그 정답(미끼) 위치 안(㉯). 줄바꿈이 든 닻은 실패."""
+def _check_anchors(
+    entries: Iterable[_Entry], files: Mapping[str, bytes], out: list[Problem]
+) -> None:
+    """규칙 6: 닻이 번들에 있고(㉮), 나오는 곳이 모두 그 정답(미끼) 위치 안(㉯).
+
+    줄바꿈이 든 닻은 실패.
+    """
     for entry in entries:
         if entry.anchor is None:
             continue
@@ -290,7 +298,10 @@ def _check_anchors(entries: Iterable[_Entry], files: Mapping[str, bytes], out: l
 
 
 def _occurrences(files: Mapping[str, bytes], needle: bytes) -> Iterable[tuple[str, int]]:
-    """(경로, 시작 글자의 줄). 겹쳐 나와도 시작 자리마다 하나. 줄은 앞 자리에서 이어 세어 선형이다."""
+    """(경로, 시작 글자의 줄). 겹쳐 나와도 시작 자리마다 하나.
+
+    줄은 앞 자리에서 이어 세어 선형이다.
+    """
     for rel in sorted(files):
         data = files[rel]
         line, counted = 1, 0
@@ -324,7 +335,8 @@ def _check_service_shapes(files: Mapping[str, bytes], out: list[Problem]) -> Non
 def _check_fake_values(items: Iterable[Mapping[str, Json]], out: list[Problem]) -> None:
     """규칙 10: `secret` 정답의 닻·풀어낸 값이 F-B02 규칙 5를 지킴.
 
-    ㉯(접두어)는 값 자체(풀어낸 값, 없으면 닻)에만 건다 — 나눈 조각·인코딩 글의 앞 글자는 접두어가 아니다.
+    ㉯(접두어)는 값 자체(풀어낸 값, 없으면 닻)에만 건다 —
+    나눈 조각·인코딩 글의 앞 글자는 접두어가 아니다.
     """
     for item in items:
         if SECRET not in _strings(item.get("categories")):
@@ -358,7 +370,10 @@ def format_cover_table(rows: Sequence[CoverRow]) -> list[str]:
     """F-B07 13 확인 기록 표(마크다운)."""
     if not rows:
         return []
-    head = ["| 정답·미끼 | 파일 | 줄 | file_lines | 줄 허용 범위가 파일을 덮음 |", "|---|---|---|---|---|"]
+    head = [
+        "| 정답·미끼 | 파일 | 줄 | file_lines | 줄 허용 범위가 파일을 덮음 |",
+        "|---|---|---|---|---|",
+    ]
     return head + [
         f"| {r.entry_id} | {r.file} | {r.line_start}~{r.line_end} | {r.file_lines} | "
         f"{'덮음' if r.covers else '덮지 않음'} |"

@@ -1,6 +1,7 @@
 """F-B01 소스맵(버전 3) 쓰기: `mappings`의 base64 VLQ와 맵 JSON.
 
-맞춤은 줄 단위로 거칠다(원본 줄마다 첫 글자 하나). 실험은 맵의 `sourcesContent`(원본 노출)와 맵 파일이
+맞춤은 줄 단위로 거칠다(원본 줄마다 첫 글자 하나).
+실험은 맵의 `sourcesContent`(원본 노출)와 맵 파일이
 있다는 것(범주 `source_map`)을 보고, 열 단위 정확도는 채점에 쓰이지 않는다.
 """
 
@@ -43,7 +44,10 @@ def line_mappings(line_count: int) -> str:
 
 
 def segment_mappings(segments: Sequence[tuple[int, int]]) -> str:
-    """압축 결과물(한 줄): `(결과물 열, 원본 줄 0부터)`마다 한 조각. 열·줄은 앞 조각과의 차이로 적는다."""
+    """압축 결과물(한 줄): `(결과물 열, 원본 줄 0부터)`마다 한 조각.
+
+    열·줄은 앞 조각과의 차이로 적는다.
+    """
     parts = []
     last_col = last_line = 0
     for col, line in segments:

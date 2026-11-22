@@ -1,6 +1,7 @@
 """F-B02 가짜 값 만들기(규칙 4)·가짜 값 규칙(규칙 5)·나눔(`split`, 규칙 2).
 
-값은 `random.Random("<대상 ID>/<정답 ID>")`로 차례로 고른다. 같은 ID면 늘 같은 값이 나와 다시 빌드해도
+값은 `random.Random("<대상 ID>/<정답 ID>")`로 차례로 고른다.
+같은 ID면 늘 같은 값이 나와 다시 빌드해도
 지문(F-B04)이 같다(F-B02 근거 5). 암호용 난수가 아니다 — 이 값은 공개 저장소에 올라가는 가짜 값이다.
 오류 글에는 값을 싣지 않는다(정답 ID·규칙만).
 """
@@ -38,7 +39,8 @@ __all__ = [
     "split_value",
 ]
 
-# F-B02 규칙 4: 본문·비밀번호는 base62(`0-9A-Za-z`), 서명은 base64url 글자. 차례는 글자표 차례 그대로
+# F-B02 규칙 4: 본문·비밀번호는 base62(`0-9A-Za-z`), 서명은 base64url 글자.
+# 차례는 글자표 차례 그대로
 # (예시 값 `zelto_b0C4…`·`Q0HQvzBs…`·`CIGvPrG9…`가 이 차례로 나온다)
 BASE62: Final = string.digits + string.ascii_uppercase + string.ascii_lowercase
 BASE64URL: Final = string.ascii_uppercase + string.ascii_lowercase + string.digits + "-_"
@@ -68,10 +70,12 @@ REAL_PREFIXES: Final = (
     "sq0",
 )
 DECOY_WORDS: Final = ("fake", "test", "dummy", "example", "sample", "demo")
-# ㉰에 걸리면 시드 끝에 `#1`, `#2`…를 붙여 다시 만든다. 한 번 걸릴 확률이 약 0.1%(32자 안에 낱말 6개,
+# ㉰에 걸리면 시드 끝에 `#1`, `#2`…를 붙여 다시 만든다.
+# 한 번 걸릴 확률이 약 0.1%(32자 안에 낱말 6개,
 # 대소문자 섞임 — 추정)라 100번은 사실상 끝이 없는 되풀이를 막는 울타리다
 MAX_RESEED: Final = 100
-# 나눔 조각 하나는 닻이 될 수 있어야 한다(계약 anchor 4자 이상). 8조각은 키 38자를 4자 넘게 나누는 끝
+# 나눔 조각 하나는 닻이 될 수 있어야 한다(계약 anchor 4자 이상).
+# 8조각은 키 38자를 4자 넘게 나누는 끝
 SPLIT_MIN_PIECE_CHARS: Final = 4
 SPLIT_MAX_PARTS: Final = 8
 
@@ -88,7 +92,10 @@ class FakeValueError(ValueError):
 
 @functools.cache
 def _check_bench() -> ModuleType:
-    """서비스 꼴 목록은 검사 '실험자료'(`check_bench.py`)의 것을 그대로 쓴다(F-B07 9 '같은 꼴 목록')."""
+    """서비스 꼴 목록은 검사 '실험자료'(`check_bench.py`)의 것을 그대로 쓴다.
+
+    F-B07 9 '같은 꼴 목록'.
+    """
     spec = importlib.util.spec_from_file_location("selfaudit_check_bench", _CHECK_BENCH)
     if spec is None or spec.loader is None:
         raise FakeValueError("검사 check_bench.py를 읽을 수 없음")
@@ -147,7 +154,10 @@ def _draw(seed: str, alphabet: str, count: int) -> str:
 
 
 def _reseeded(seed: str, fixed: str, make: Callable[[str], str]) -> str:
-    """`fixed`(바뀌지 않는 앞부분)가 깨끗할 때만, 규칙 5에 걸리면 시드 끝에 `#n`을 붙여 다시 만든다."""
+    """규칙 5에 걸리면 시드 끝에 `#n`을 붙여 다시 만든다.
+
+    `fixed`(바뀌지 않는 앞부분)가 걸리면 시드로 고칠 수 없어 멈춘다.
+    """
     if fake_value_problems(fixed):
         raise FakeValueError("고정 부분이 규칙 5에 걸림")
     for attempt in range(MAX_RESEED):
@@ -207,7 +217,9 @@ def make_value(bundle_id: str, entry_id: str, spec: Mapping[str, Json]) -> str:
 
 
 def split_value(value: str, parts: int) -> list[str]:
-    """F-B02 규칙 2 `split`: 값을 앞에서부터 거의 같은 길이의 `parts`조각으로(앞 조각이 한 자 길 수 있음).
+    """F-B02 규칙 2 `split`: 값을 앞에서부터 거의 같은 길이의 `parts`조각으로.
+
+    앞 조각이 한 자 길 수 있다.
 
     이어 붙이면 원값이다. 조각마다 닻이 될 수 있게 4자 이상이어야 한다.
     """

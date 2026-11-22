@@ -2,16 +2,18 @@
 
 원본 폴더:
 - `plan.json` — 심기 계획과 빌드 설정(F-B02 입력). 꼴은 `_read_plan`.
-- `src/**` — 결과물이 될 파일. 글 파일 안의 자리 `{{v:<정답 ID>}}`(가짜 값, 걸러내기를 `|이름:인자`로
-  이을 수 있음, 예 `{{v:N1-03|split:2:0}}`)과 `{{asset:<src 안 경로>}}`(그 파일의 결과물 경로)를 채운다.
+- `src/**` — 결과물이 될 파일. 글 파일 안의 자리를 채운다:
+  `{{v:<정답 ID>}}` 가짜 값(걸러내기를 `|이름:인자`로 이음, 예 `{{v:N1-03|split:2:0}}`),
+  `{{asset:<src 안 경로>}}` 그 파일의 결과물 경로.
 - `build.json` — 빌드 기록(F-B01 2). 빌드가 쓴다. 번들 폴더 밖이다.
 
 한 파일의 차례: 가짜 값 채우기 → 경로 채우기 → 더한 변환(`steps`) → 압축(JS, `mode: minified`)
 → 해시 이름(`hash_names`) → 소스맵(`sourcemaps`, 맵의 `sourcesContent`는 변환·압축 전 글).
 
-**더하는 변환**(T23 `encode.py`, T24 `obfuscate.py`): 이 폴더에 모듈을 더하고 `plan.json` `plugins`에
-이름을 적는다. 모듈은 `FILTERS: Mapping[str, Filter]`(가짜 값 걸러내기, 예 base64)와
-`STEPS: Mapping[str, Step]`(파일 하나 변환, 예 난독화) 가운데 하나 이상을 둔다. 이 파일은 고치지 않는다.
+**더하는 변환**(T23 `encode.py`, T24 `obfuscate.py`): 이 폴더에 모듈을 더하고
+`plan.json` `plugins`에 이름을 적는다. 모듈은 `FILTERS: Mapping[str, Filter]`
+(가짜 값 걸러내기, 예 base64)와 `STEPS: Mapping[str, Step]`(파일 하나 변환, 예 난독화)
+가운데 하나 이상을 둔다. 이 파일은 고치지 않는다.
 """
 
 from __future__ import annotations
@@ -71,6 +73,8 @@ COMMAND: Final = ("uv", "run", "--frozen", "--offline", "python", "-m", "sources
 PLACEHOLDER: Final = re.compile(
     r"\{\{(v|asset):([A-Za-z0-9/._-]{1,300})((?:\|[a-z0-9_]{1,30}(?::[A-Za-z0-9_-]{1,40}){0,4}){0,4})\}\}"
 )
+_VALUE_OPEN: Final = "{{v:"  # 채운 뒤에도 남으면 꼴이 틀린 자리다(조용히 결과물에 남기지 않는다)
+_ASSET_OPEN: Final = "{{asset:"
 _LF: Final = chr(0x0A)
 _CR: Final = chr(0x0D)
 _BUILTIN_FILTERS: Final[Mapping[str, Callable[[str, Sequence[str]], str]]] = {
@@ -86,7 +90,10 @@ class BuildError(ValueError):
 
 @dataclass(frozen=True)
 class StepContext:
-    """더한 변환(`STEPS`)이 받는 것. 같은 입력이면 같은 출력이어야 한다(F-B01 3) — 난수는 `seed`로."""
+    """더한 변환(`STEPS`)이 받는 것.
+
+    같은 입력이면 같은 출력이어야 한다(F-B01 3) — 난수는 `seed`로.
+    """
 
     bundle_id: str
     file: str  # src 안 경로
@@ -222,7 +229,9 @@ def _steps(raw: Mapping[str, Json], bundle_id: str) -> tuple[_StepUse, ...]:
     return tuple(out)
 
 
-def _load_plugins(names: Sequence[str], bundle_id: str) -> tuple[dict[str, Filter], dict[str, Step]]:
+def _load_plugins(
+    names: Sequence[str], bundle_id: str
+) -> tuple[dict[str, Filter], dict[str, Step]]:
     filters: dict[str, Filter] = dict(_BUILTIN_FILTERS)
     steps: dict[str, Step] = {}
     for name in names:
@@ -333,7 +342,9 @@ class _Builder:
         refs = {m.group(2) for m in PLACEHOLDER.finditer(text) if m.group(1) == "asset"}
         missing = refs - set(self.files)
         if missing:
-            raise BuildError(f"{self.plan.bundle_id}: {rel}의 경로 자리가 src에 없음: {sorted(missing)}")
+            raise BuildError(
+                f"{self.plan.bundle_id}: {rel}의 경로 자리가 src에 없음: {sorted(missing)}"
+            )
         return refs
 
     def _fill_values(self, rel: str, text: str) -> str:
@@ -342,7 +353,10 @@ class _Builder:
                 return m.group(0)
             return self._value_with_filters(rel, m.group(2), m.group(3))
 
-        return PLACEHOLDER.sub(replace, text)
+        filled = PLACEHOLDER.sub(replace, text)
+        if _VALUE_OPEN in filled:
+            raise BuildError(f"{self.plan.bundle_id}: {rel}에 꼴이 틀린 가짜 값 자리")
+        return filled
 
     def _value_with_filters(self, rel: str, entry_id: str, chain: str) -> str:
         bid = self.plan.bundle_id
@@ -368,9 +382,12 @@ class _Builder:
 
     def _fill_assets(self, rel: str, text: str) -> str:
         def replace(m: re.Match[str]) -> str:
-            return self.names[m.group(2)]
+            return self.names[m.group(2)] if m.group(1) == "asset" else m.group(0)
 
-        return PLACEHOLDER.sub(replace, text)
+        filled = PLACEHOLDER.sub(replace, text)
+        if _ASSET_OPEN in filled:
+            raise BuildError(f"{self.plan.bundle_id}: {rel}에 꼴이 틀린 경로 자리")
+        return filled
 
     def _emit(self, rel: str) -> None:
         text = self.texts.get(rel)
@@ -426,7 +443,9 @@ class _Builder:
 
     def _put(self, rel: str, out_rel: str, data: bytes) -> None:
         if not is_bundle_relpath(out_rel) or out_rel in self.outputs:
-            raise BuildError(f"{self.plan.bundle_id}: 결과물 경로가 겹치거나 허용 꼴이 아님: {out_rel}")
+            raise BuildError(
+                f"{self.plan.bundle_id}: 결과물 경로가 겹치거나 허용 꼴이 아님: {out_rel}"
+            )
         self.names[rel] = out_rel
         self.outputs[out_rel] = data
 

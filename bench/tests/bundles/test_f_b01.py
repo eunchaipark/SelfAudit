@@ -176,6 +176,20 @@ def test_F_B01_계획에_없는_자리_멈춤(write_source: WriteSource, dirs: D
         build("easy-1", dirs.sources, dirs.bundles)
 
 
+@pytest.mark.parametrize("bad", ["{{v:X1-01|split:a b}}", "{{asset:assets/app.js }}", "{{v:}}"])
+def test_F_B01_꼴틀린_자리_멈춤(bad: str, write_source: WriteSource, dirs: Dirs) -> None:
+    write_source("easy-1", _plan("easy-1"), {**FILES, "extra.txt": bad})
+    with pytest.raises(BuildError, match="꼴이 틀린"):
+        build("easy-1", dirs.sources, dirs.bundles)
+
+
+def test_F_B01_경로자리_서로가리키면_멈춤(write_source: WriteSource, dirs: Dirs) -> None:
+    files: dict[str, str | bytes] = {"a.js": "{{asset:b.js}};", "b.js": "{{asset:a.js}};"}
+    write_source("easy-1", make_plan("easy-1"), files)
+    with pytest.raises(BuildError, match="서로 가리킴"):
+        build("easy-1", dirs.sources, dirs.bundles)
+
+
 def test_F_B01_없는_plugin_거절(write_source: WriteSource, dirs: Dirs) -> None:
     for name in ("nothere", "build", "../x"):
         shutil.rmtree(dirs.sources / "easy-1", ignore_errors=True)
