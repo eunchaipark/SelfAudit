@@ -37,8 +37,8 @@ SKIP_DIRS = {".venv", "__pycache__", "node_modules", ".pytest_cache", ".mypy_cac
 RUN_FILES = {"run.json", "findings.json", "transcript.jsonl", "netguard.jsonl", "netstat.json"}
 ALLOWED_KINDS = {"planted", "practice"}
 DATE_DIR = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-RUN_ID = re.compile(r"^[a-z0-9][a-z0-9-]{3,80}$")
-TARGET_ID = re.compile(r"^[a-z0-9][a-z0-9-]{1,40}$")
+RUN_ID = re.compile(r"^[a-z0-9][a-z0-9-]{3,79}$")  # bench/contracts/run.schema.json과 같게 (실행 ID 80자)
+TARGET_ID = re.compile(r"^[a-z0-9][a-z0-9-]{1,39}$")  # 대상 ID 40자 (실험구조 2.2)
 # 글 파일로 읽을 크기 상한. 시험 번들·원자료 파일은 이보다 작다(transcript는 2MB 넘으면 저장소 밖, 실험구조 3.8)
 MAX_TEXT_BYTES = 20 * 1024 * 1024
 GIT_TIMEOUT_S = 60

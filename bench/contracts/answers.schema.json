@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "selfaudit-bench/answers@1",
   "title": "정답지 (bench/answers/<번들 ID>.json)",
-  "description": "docs/설계/실험구조.md 2.2절. 값마다 근거는 그 절에 있다.",
+  "description": "docs/설계/실험구조.md 2.2절·2.10절. 값마다 근거는 그 절에 있다. 뜻 규칙(줄 범위, ID 고유, 종류·난이도·complete, 풀어낸 값)은 bench/common/contracts.py check_answers_semantics.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "bundle_id", "origin", "difficulty", "bundle_manifest_sha256", "complete", "items", "decoys"],
@@ -20,56 +20,65 @@
       ]
     },
     "difficulty": { "enum": ["easy", "normal", "hard"] },
-    "relpath": { "type": "string", "minLength": 1, "maxLength": 300, "pattern": "^(?!\\.?/)(?!.*\\\\)(?!(.*/)?\\.\\.?(/|$)).+$" },
+    "bundle_difficulty": { "enum": ["easy", "normal", "hard", "mixed"] },
+    "line": { "type": "integer", "minimum": 1, "maximum": 10000000 },
+    "relpath": { "type": "string", "minLength": 1, "maxLength": 300, "format": "bundle-relpath" },
     "location": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["file", "line_start", "line_end"],
+      "required": ["file", "line_start", "line_end", "file_lines"],
       "properties": {
         "file": { "$ref": "#/$defs/relpath" },
-        "line_start": { "type": "integer", "minimum": 1 },
-        "line_end": { "type": "integer", "minimum": 1 }
+        "line_start": { "$ref": "#/$defs/line" },
+        "line_end": { "$ref": "#/$defs/line" },
+        "file_lines": { "$ref": "#/$defs/line" }
       }
     },
-    "anchor": { "type": ["string", "null"], "minLength": 4, "maxLength": 200 }
+    "locations": { "type": "array", "minItems": 1, "maxItems": 20, "items": { "$ref": "#/$defs/location" } },
+    "anchor": { "type": ["string", "null"], "minLength": 4, "maxLength": 200 },
+    "entry_id": { "type": "string", "pattern": "^[A-Z0-9][A-Z0-9-]{1,29}$" },
+    "note": { "type": "string", "minLength": 1, "maxLength": 500 }
   },
   "properties": {
     "schema": { "const": "selfaudit-bench/answers@1" },
-    "bundle_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,40}$" },
+    "bundle_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,39}$" },
     "origin": { "enum": ["planted", "practice"] },
-    "difficulty": { "$ref": "#/$defs/difficulty" },
+    "difficulty": { "$ref": "#/$defs/bundle_difficulty" },
     "bundle_manifest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "complete": { "type": "boolean" },
     "items": {
       "type": "array",
       "minItems": 1,
+      "maxItems": 200,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "categories", "difficulty", "hiding", "locations", "anchor", "planted", "why"],
+        "required": ["id", "categories", "difficulty", "hiding", "locations", "anchor", "decoded_anchor", "planted", "why"],
         "properties": {
-          "id": { "type": "string", "pattern": "^[A-Z0-9][A-Z0-9-]{1,30}$" },
-          "categories": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/category" } },
+          "id": { "$ref": "#/$defs/entry_id" },
+          "categories": { "type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/category" } },
           "difficulty": { "$ref": "#/$defs/difficulty" },
           "hiding": { "enum": ["plain", "split", "encoded", "obfuscated", "sourcemap_only", "comment", "config", "none"] },
-          "locations": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/location" } },
+          "locations": { "$ref": "#/$defs/locations" },
           "anchor": { "$ref": "#/$defs/anchor" },
-          "planted": { "type": "string", "minLength": 1, "maxLength": 500 },
-          "why": { "type": "string", "minLength": 1, "maxLength": 500 }
+          "decoded_anchor": { "$ref": "#/$defs/anchor" },
+          "planted": { "$ref": "#/$defs/note" },
+          "why": { "$ref": "#/$defs/note" }
         }
       }
     },
     "decoys": {
       "type": "array",
+      "maxItems": 50,
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": ["id", "locations", "anchor", "why"],
         "properties": {
-          "id": { "type": "string", "pattern": "^[A-Z0-9][A-Z0-9-]{1,30}$" },
-          "locations": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/location" } },
+          "id": { "$ref": "#/$defs/entry_id" },
+          "locations": { "$ref": "#/$defs/locations" },
           "anchor": { "$ref": "#/$defs/anchor" },
-          "why": { "type": "string", "minLength": 1, "maxLength": 500 }
+          "why": { "$ref": "#/$defs/note" }
         }
       }
     }

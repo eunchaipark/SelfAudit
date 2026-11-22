@@ -2,18 +2,19 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "selfaudit-bench/run@1",
   "title": "실행 한 번의 원자료 머리 (bench/results/<날짜>/<실행 ID>/run.json)",
-  "description": "docs/설계/실험구조.md 2.4절·3절. 같은 폴더에 findings.json(에이전트 결과), transcript.jsonl, netguard.jsonl, netstat.json이 있다.",
+  "description": "docs/설계/실험구조.md 2.4절·2.10절·3절. 같은 폴더에 findings.json(에이전트 결과), transcript.jsonl, netguard.jsonl, netstat.json이 있다.",
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema", "run_id", "batch_id", "target_id", "target_kind", "bundle_manifest_sha256", "condition", "repeat_index",
-    "started_at", "ended_at", "versions", "settings", "outcome", "metrics", "network"
+    "schema", "run_kind", "run_id", "batch_id", "target_id", "target_kind", "bundle_manifest_sha256", "condition", "repeat_index",
+    "started_at", "ended_at", "versions", "settings", "outcome", "metrics", "network", "transcript"
   ],
   "properties": {
     "schema": { "const": "selfaudit-bench/run@1" },
-    "run_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{3,80}$" },
+    "run_kind": { "enum": ["target", "empty", "gate"] },
+    "run_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{3,79}$" },
     "batch_id": { "type": "string", "pattern": "^[0-9]{8}-[0-9]{4}-[a-z0-9]{4,12}$" },
-    "target_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,40}$" },
+    "target_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,39}$" },
     "target_kind": { "enum": ["planted", "practice", "mine"] },
     "bundle_manifest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "condition": { "enum": ["A", "B", "C"] },
@@ -23,7 +24,7 @@
     "versions": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["claude_code", "model", "rea", "node", "prompt_sha256", "findings_schema_sha256", "mcp_config_sha256"],
+      "required": ["claude_code", "model", "rea", "node", "prompt_sha256", "findings_schema_sha256", "mcp_config_sha256", "plan_sha256"],
       "properties": {
         "claude_code": { "type": "string" },
         "model": { "type": "string" },
@@ -31,13 +32,14 @@
         "node": { "type": ["string", "null"] },
         "prompt_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
         "findings_schema_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-        "mcp_config_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        "mcp_config_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "plan_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
       }
     },
     "settings": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["effort", "timeout_s", "max_budget_usd", "tools", "allowed_tools", "rea_tools", "order_seed", "firewall_rule"],
+      "required": ["effort", "timeout_s", "max_budget_usd", "tools", "allowed_tools", "rea_tools", "order_seed", "firewall_rule", "deny_rule_forms"],
       "properties": {
         "effort": { "type": "string" },
         "timeout_s": { "type": "integer", "minimum": 1 },
@@ -46,7 +48,8 @@
         "allowed_tools": { "type": "array", "items": { "type": "string" } },
         "rea_tools": { "type": "array", "items": { "type": "string" } },
         "order_seed": { "type": "integer" },
-        "firewall_rule": { "enum": ["on", "off", "absent", "unknown"] }
+        "firewall_rule": { "enum": ["on", "off", "absent", "unknown"] },
+        "deny_rule_forms": { "type": "array", "maxItems": 2, "uniqueItems": true, "items": { "enum": ["//C:/", "//c/"] } }
       }
     },
     "outcome": {
@@ -94,6 +97,16 @@
         "netstat_endpoints": { "type": "integer", "minimum": 0 },
         "guarded_processes": { "type": "integer", "minimum": 0 },
         "rea_processes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "transcript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stored", "bytes", "sha256"],
+      "properties": {
+        "stored": { "enum": ["results", "archive"] },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
       }
     }
   }
