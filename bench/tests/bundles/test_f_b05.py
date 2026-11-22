@@ -15,7 +15,7 @@ from types import ModuleType
 import pytest
 
 from common.contracts import Json, read_contract, validate_contract
-from sources._build.verify import REPO_ROOT, TARGETS_PATH, check_target, repo_target
+from sources.build_tools.verify import REPO_ROOT, TARGETS_PATH, check_target, repo_target
 from tests.bundles.conftest import Mini
 
 PLANTED = ["easy-1", "easy-2", "normal-1", "normal-2", "hard-1", "hard-2"]  # 설계 2.7 표

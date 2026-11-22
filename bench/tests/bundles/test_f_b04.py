@@ -8,8 +8,8 @@ from __future__ import annotations
 import json
 
 from common.fingerprint import bundle_manifest_sha256
-from sources._build.build import build
-from sources._build.verify import check_bundle
+from sources.build_tools.build import build
+from sources.build_tools.verify import check_bundle
 from tests.bundles.conftest import Dirs, Mini, WriteSource, make_plan
 from tests.conftest import MakeBundle
 

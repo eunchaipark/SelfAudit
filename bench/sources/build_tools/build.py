@@ -32,8 +32,8 @@ from typing import Final
 from common.contracts import ContractJsonError, Json, read_json
 from common.fingerprint import bundle_manifest_sha256
 from common.paths import is_bundle_relpath, resolve_in_bundle
-from sources._build import fake, sourcemap
-from sources._build.minify import MinifyError, minify_js
+from sources.build_tools import fake, sourcemap
+from sources.build_tools.minify import MinifyError, minify_js
 
 __all__ = [
     "BUILD_DIR",
@@ -55,7 +55,7 @@ RECORD_NAME: Final = "build.json"
 SRC_NAME: Final = "src"
 PLAN_SCHEMA: Final = "selfaudit-bench/plan@1"
 RECORD_SCHEMA: Final = "selfaudit-bench/build@1"
-# 대상 ID 꼴(계약 targets·answers와 같음). `_build`는 `_`로 시작해 대상 ID가 될 수 없다
+# 대상 ID 꼴(계약 targets·answers와 같음). `build_tools`는 `_`가 있어 대상 ID가 될 수 없다
 BUNDLE_ID: Final = re.compile(r"[a-z0-9][a-z0-9-]{1,39}")
 ENTRY_ID: Final = re.compile(r"[A-Z0-9][A-Z0-9-]{1,29}")
 PLUGIN_NAME: Final = re.compile(r"[a-z][a-z0-9_]{0,30}")
@@ -68,7 +68,16 @@ JS_SUFFIXES: Final = frozenset({".js", ".mjs"})
 # 해시 이름 길이: Vite 기본(8자)과 같게. 번들 안 파일 수십 개에서 겹칠 일이 없다
 HASH_CHARS: Final = 8
 # 빌드 기록에 적는 명령. 실제 argv는 절대 경로가 들 수 있어 적지 않는다(F-B01 3)
-COMMAND: Final = ("uv", "run", "--frozen", "--offline", "python", "-m", "sources._build", "build")
+COMMAND: Final = (
+    "uv",
+    "run",
+    "--frozen",
+    "--offline",
+    "python",
+    "-m",
+    "sources.build_tools",
+    "build",
+)
 # `{{v:ID|f:a:b}}`·`{{asset:path}}`. 글자 칸이 서로 겹치지 않고 길이가 정해져 있어 되돌아가지 않는다
 PLACEHOLDER: Final = re.compile(
     r"\{\{(v|asset):([A-Za-z0-9/._-]{1,300})((?:\|[a-z0-9_]{1,30}(?::[A-Za-z0-9_-]{1,40}){0,4}){0,4})\}\}"
@@ -240,7 +249,7 @@ def _load_plugins(
             or name in _CORE_MODULES
             or not (BUILD_DIR / f"{name}.py").is_file()
         ):
-            raise BuildError(f"{bundle_id}: plugins의 {name!r}는 _build 폴더의 변환 모듈이 아님")
+            raise BuildError(f"{bundle_id}: plugins의 {name!r}는 build_tools의 변환 모듈이 아님")
         module = importlib.import_module(f"{_PACKAGE}.{name}")
         more_filters: Mapping[str, Filter] = getattr(module, "FILTERS", {})
         more_steps: Mapping[str, Step] = getattr(module, "STEPS", {})

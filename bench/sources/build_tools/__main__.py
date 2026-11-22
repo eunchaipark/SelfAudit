@@ -1,6 +1,6 @@
-"""`python -m sources._build build <대상 ID>` (F-B01) · `check <대상 ID>` (F-B07 번들 하나).
+"""`python -m sources.build_tools build <대상 ID>` (F-B01) · `check <대상 ID>` (F-B07 번들 하나).
 
-`bench/` 폴더에서 `uv run --frozen --offline python -m sources._build …`로 부른다.
+`bench/` 폴더에서 `uv run --frozen --offline python -m sources.build_tools …`로 부른다.
 찍는 글에 값은 없다(대상 ID·정답 ID·경로·규칙 번호만).
 """
 
@@ -11,13 +11,13 @@ import sys
 from collections.abc import Sequence
 
 from common.contracts import ContractJsonError, ContractViolationError
-from sources._build.build import BuildError, build
-from sources._build.verify import check_target, format_cover_table, repo_target
+from sources.build_tools.build import BuildError, build
+from sources.build_tools.verify import check_target, format_cover_table, repo_target
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
-    parser = argparse.ArgumentParser(prog="python -m sources._build")
+    parser = argparse.ArgumentParser(prog="python -m sources.build_tools")
     parser.add_argument("command", choices=("build", "check"))
     parser.add_argument("bundle_id")
     args = parser.parse_args(argv)

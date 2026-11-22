@@ -12,8 +12,8 @@ from collections.abc import Callable
 
 from common.contracts import Json
 from common.fingerprint import bundle_manifest_sha256
-from sources._build import fake
-from sources._build.verify import _occurrences, check_bundle, format_cover_table
+from sources.build_tools import fake
+from sources.build_tools.verify import _occurrences, check_bundle, format_cover_table
 from tests.bundles.conftest import Mini
 from tests.conftest import MakeBundle
 

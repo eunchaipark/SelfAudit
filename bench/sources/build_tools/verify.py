@@ -23,8 +23,8 @@ from common.contracts import (
 from common.fingerprint import ManifestError, bundle_manifest_sha256, manifest_lines
 from common.lines import count_lines, window_covers_file
 from common.paths import resolve_in_bundle
-from sources._build import fake
-from sources._build.build import BUILD_DIR
+from sources.build_tools import fake
+from sources.build_tools.build import BUILD_DIR
 
 __all__ = [
     "COVER_TOLERANCE",

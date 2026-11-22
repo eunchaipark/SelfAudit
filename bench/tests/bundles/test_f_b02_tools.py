@@ -12,7 +12,7 @@ import re
 import pytest
 
 from common.contracts import Json
-from sources._build import fake
+from sources.build_tools import fake
 
 KEY = "zelto_b0C4frYzt4BKOBGR0EOcliebprppDYO8"
 TOKEN = (

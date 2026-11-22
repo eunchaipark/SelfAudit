@@ -17,10 +17,10 @@ import pytest
 from common.contracts import Json
 from common.fingerprint import bundle_manifest_sha256
 from common.lines import count_lines
-from sources._build import build as build_module
-from sources._build import fake
-from sources._build.build import BuildError, StepContext, build
-from sources._build.minify import MinifyError, minify_js
+from sources.build_tools import build as build_module
+from sources.build_tools import fake
+from sources.build_tools.build import BuildError, StepContext, build
+from sources.build_tools.minify import MinifyError, minify_js
 from tests.bundles.conftest import Dirs, WriteSource, make_plan
 
 LF = chr(0x0A)
@@ -164,7 +164,7 @@ def test_F_B01_원본폴더없음_대상ID_알림(dirs: Dirs) -> None:
         build("easy-9", dirs.sources, dirs.bundles)
 
 
-@pytest.mark.parametrize("bundle_id", ["_build", "Easy-1", "a", "../x"])
+@pytest.mark.parametrize("bundle_id", ["build_tools", "_x", "Easy-1", "a", "../x"])
 def test_F_B01_대상ID꼴_아니면_거절(bundle_id: str, dirs: Dirs) -> None:
     with pytest.raises(BuildError, match="대상 ID"):
         build(bundle_id, dirs.sources, dirs.bundles)
@@ -201,7 +201,7 @@ def test_F_B01_없는_plugin_거절(write_source: WriteSource, dirs: Dirs) -> No
 def test_F_B01_더한변환_plugins로_부름(
     write_source: WriteSource, dirs: Dirs, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """T23·T24 꼴: _build에 모듈을 더하고 plan.json에 이름만 적으면 build.py 고침 없이 부른다."""
+    """T23·T24 꼴: build_tools에 모듈을 더하고 plan.json에 이름만 적으면 부른다."""
     seen: list[str] = []
 
     def shout(value: str, args: Sequence[str]) -> str:
@@ -211,14 +211,14 @@ def test_F_B01_더한변환_plugins로_부름(
         seen.append(ctx.seed)
         return text.replace("total", "sum2")
 
-    probe = types.ModuleType("sources._build.probe")
+    probe = types.ModuleType("sources.build_tools.probe")
     probe.FILTERS = {"shout": shout}  # type: ignore[attr-defined]
     probe.STEPS = {"mark": mark}  # type: ignore[attr-defined]
     plugin_dir = tmp_path / "plugin_dir"
     plugin_dir.mkdir()
     (plugin_dir / "probe.py").write_text("", encoding="utf-8")
     monkeypatch.setattr(build_module, "BUILD_DIR", plugin_dir)
-    monkeypatch.setitem(sys.modules, "sources._build.probe", probe)
+    monkeypatch.setitem(sys.modules, "sources.build_tools.probe", probe)
     files = {**FILES, "assets/app.js": APP_JS.replace("{{v:X1-01}}", "{{v:X1-01|shout}}")}
     steps: list[Json] = [{"step": "mark", "files": ["assets/app.js"]}]
     write_source("easy-1", _plan("easy-1", plugins=["probe"], steps=steps), files)
