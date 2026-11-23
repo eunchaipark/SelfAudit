@@ -1,7 +1,7 @@
 // Pagebird 책방 화면 (주문·결제·책 목록)
 window.__APP_CONFIG__ = {
   apiBase: "/api",
-  coverCdn: "https://cdn.pagebird.example/covers/",
+  coverCdn: "https://res.cloudinary.com/pagebird/image/upload/covers/",
   analyticsId: "PBA-2048-WEB",
   supportChatKey: "YOUR_API_KEY",
   sessionToken: "{{v:E1-02}}",

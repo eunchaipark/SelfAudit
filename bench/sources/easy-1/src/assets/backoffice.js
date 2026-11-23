@@ -4,7 +4,7 @@ function isStaff() {
 }
 
 async function loadOrders() {
-  const res = await fetch("/api/orders?all=1");
+  const res = await fetch("/api/orders");
   return res.json();
 }
 

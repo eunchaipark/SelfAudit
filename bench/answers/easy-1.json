@@ -3,7 +3,7 @@
   "bundle_id": "easy-1",
   "origin": "planted",
   "difficulty": "easy",
-  "bundle_manifest_sha256": "77bed53a7dd7ee710d65e547848fe80b7f48b98d184eebc604579a811232f39a",
+  "bundle_manifest_sha256": "524649841621a313de4cef2dcbd1f0ce9c8c10d5ea928da35d7f200e90231f2b",
   "complete": true,
   "items": [
     {
@@ -15,13 +15,19 @@
       "hiding": "plain",
       "locations": [
         {
-          "file": "assets/index-3d238cd2.js",
+          "file": "assets/index-0aa4566d.js",
           "line_start": 12,
           "line_end": 12,
           "file_lines": 73
         },
         {
-          "file": "assets/index-3d238cd2.js.map",
+          "file": "assets/index-0aa4566d.js",
+          "line_start": 53,
+          "line_end": 53,
+          "file_lines": 73
+        },
+        {
+          "file": "assets/index-0aa4566d.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -29,7 +35,7 @@
       ],
       "anchor": "zelto_b0C4frYzt4BKOBGR0EOcliebprppDYO8",
       "decoded_anchor": null,
-      "planted": "가짜(생성). index.js 상수 PAYMENTS_KEY에 결제 키를 평문으로(결제 요청 body에 실어 보냄). 소스맵 sourcesContent에도 같은 글",
+      "planted": "가짜(생성). index.js 상수 PAYMENTS_KEY에 결제 키를 평문으로, checkout()이 결제 요청 body에 실어 보냄. 소스맵 sourcesContent에도 같은 글",
       "why": "평문 비밀값을 찾는가 — 쉬움의 바닥값(F-B02 easy 줄 plain)"
     },
     {
@@ -41,21 +47,27 @@
       "hiding": "config",
       "locations": [
         {
-          "file": "assets/index-3d238cd2.js",
+          "file": "assets/index-0aa4566d.js",
           "line_start": 7,
           "line_end": 7,
           "file_lines": 73
         },
         {
-          "file": "assets/index-3d238cd2.js.map",
+          "file": "assets/index-0aa4566d.js",
+          "line_start": 23,
+          "line_end": 23,
+          "file_lines": 73
+        },
+        {
+          "file": "assets/index-0aa4566d.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
         }
       ],
-      "anchor": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1LTQ4MjEzIiwicm9sZSI6InN0YWZmIiwiaWF0IjoxNzYzNjAwMDAwfQ.CIGvPrG9Eh50XRQy_a-fJJhyPFfaSLRAkpSPO61n8TJ",
+      "anchor": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1LTQ4MjEzIiwicm9sZSI6InN0YWZmIiwiaWF0IjoxNzYzNjAwMDAwfQ.CIGvPrG9Eh50XRQy_a-fJJhyPFfaSLRAkpSPO61n8TI",
       "decoded_anchor": null,
-      "planted": "가짜(생성). 설정 객체 window.__APP_CONFIG__의 sessionToken에 직원 역할 JWT 꼴 토큰을 박아 둠(모든 API 요청의 Bearer)",
+      "planted": "가짜(생성). 설정 객체 window.__APP_CONFIG__의 sessionToken에 직원 역할 JWT 꼴 토큰을 박아 둠, api()가 모든 요청의 Bearer로 보냄",
       "why": "설정 객체 자리의 토큰을 찾는가(easy 줄 config)"
     },
     {
@@ -68,13 +80,13 @@
       "hiding": "comment",
       "locations": [
         {
-          "file": "assets/index-3d238cd2.js",
+          "file": "assets/index-0aa4566d.js",
           "line_start": 13,
           "line_end": 13,
           "file_lines": 73
         },
         {
-          "file": "assets/index-3d238cd2.js.map",
+          "file": "assets/index-0aa4566d.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -95,13 +107,13 @@
       "hiding": "plain",
       "locations": [
         {
-          "file": "assets/index-3d238cd2.js",
+          "file": "assets/index-0aa4566d.js",
           "line_start": 19,
           "line_end": 19,
           "file_lines": 73
         },
         {
-          "file": "assets/index-3d238cd2.js.map",
+          "file": "assets/index-0aa4566d.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -121,13 +133,19 @@
       "hiding": "plain",
       "locations": [
         {
-          "file": "assets/backoffice-0a4a8c36.js",
+          "file": "assets/backoffice-afe16a7d.js",
           "line_start": 3,
           "line_end": 3,
           "file_lines": 20
         },
         {
-          "file": "assets/backoffice-0a4a8c36.js.map",
+          "file": "assets/backoffice-afe16a7d.js",
+          "line_start": 7,
+          "line_end": 7,
+          "file_lines": 20
+        },
+        {
+          "file": "assets/backoffice-afe16a7d.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -135,7 +153,7 @@
       ],
       "anchor": "pb_staff",
       "decoded_anchor": null,
-      "planted": "backoffice.js isStaff()가 localStorage의 pb_staff 값만으로 직원 화면을 연다(전체 주문 /api/orders?all=1)",
+      "planted": "backoffice.js isStaff()가 localStorage의 pb_staff 값만으로 직원 화면을 열고, 그 뒤 loadOrders()가 주문 목록 /api/orders를 받아 옴",
       "why": "화면 쪽에서만 하는 권한 판단을 찾는가(나뉜 파일 backoffice.js에 있음)"
     },
     {
@@ -147,19 +165,25 @@
       "hiding": "config",
       "locations": [
         {
-          "file": "assets/index-3d238cd2.js",
+          "file": "assets/index-0aa4566d.js",
           "line_start": 8,
           "line_end": 8,
           "file_lines": 73
         },
         {
-          "file": "assets/index-3d238cd2.js",
+          "file": "assets/index-0aa4566d.js",
           "line_start": 62,
           "line_end": 62,
           "file_lines": 73
         },
         {
-          "file": "assets/index-3d238cd2.js.map",
+          "file": "assets/index-0aa4566d.js",
+          "line_start": 63,
+          "line_end": 63,
+          "file_lines": 73
+        },
+        {
+          "file": "assets/index-0aa4566d.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -179,13 +203,19 @@
       "hiding": "plain",
       "locations": [
         {
-          "file": "assets/index-3d238cd2.js",
+          "file": "assets/index-0aa4566d.js",
           "line_start": 58,
           "line_end": 58,
           "file_lines": 73
         },
         {
-          "file": "assets/index-3d238cd2.js.map",
+          "file": "assets/index-0aa4566d.js",
+          "line_start": 59,
+          "line_end": 59,
+          "file_lines": 73
+        },
+        {
+          "file": "assets/index-0aa4566d.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -193,7 +223,7 @@
       ],
       "anchor": "Q0HQvzBsuZJRMH46",
       "decoded_anchor": null,
-      "planted": "가짜(생성). stagingLogin()에 스테이징 QA 계정 비밀번호를 평문으로",
+      "planted": "가짜(생성). stagingLogin()에 스테이징 QA 계정(qa)의 비밀번호를 평문으로",
       "why": "코드에 박힌 비밀번호(키 꼴이 아닌 비밀값)를 찾는가"
     },
     {
@@ -205,25 +235,25 @@
       "hiding": "none",
       "locations": [
         {
-          "file": "assets/index-3d238cd2.js",
+          "file": "assets/index-0aa4566d.js",
           "line_start": 73,
           "line_end": 73,
           "file_lines": 73
         },
         {
-          "file": "assets/index-3d238cd2.js.map",
+          "file": "assets/index-0aa4566d.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
         },
         {
-          "file": "assets/backoffice-0a4a8c36.js",
+          "file": "assets/backoffice-afe16a7d.js",
           "line_start": 20,
           "line_end": 20,
           "file_lines": 20
         },
         {
-          "file": "assets/backoffice-0a4a8c36.js.map",
+          "file": "assets/backoffice-afe16a7d.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -243,13 +273,13 @@
       "hiding": "comment",
       "locations": [
         {
-          "file": "assets/index-3d238cd2.js",
+          "file": "assets/index-0aa4566d.js",
           "line_start": 14,
           "line_end": 14,
           "file_lines": 73
         },
         {
-          "file": "assets/index-3d238cd2.js.map",
+          "file": "assets/index-0aa4566d.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -259,6 +289,32 @@
       "decoded_anchor": null,
       "planted": "가짜(생성). index.js 주석에 바꾸기 전 지도 키를 남겨 둠",
       "why": "주석에 남은 옛 비밀값을 찾는가(easy 줄 comment, 쓰이지 않는 값도 노출)"
+    },
+    {
+      "id": "E1-10",
+      "categories": [
+        "hidden_route"
+      ],
+      "difficulty": "easy",
+      "hiding": "plain",
+      "locations": [
+        {
+          "file": "assets/index-0aa4566d.js",
+          "line_start": 59,
+          "line_end": 59,
+          "file_lines": 73
+        },
+        {
+          "file": "assets/index-0aa4566d.js.map",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "/staging/login",
+      "decoded_anchor": null,
+      "planted": "운영 번들의 stagingLogin()이 스테이징 전용 로그인 API /staging/login을 부름(화면 메뉴에는 없음)",
+      "why": "운영 결과물에 남은 스테이징 전용 라우트를 찾는가(T22 반려 1 4: complete를 지키려고 정답으로 넣음)"
     }
   ],
   "decoys": [
@@ -266,13 +322,13 @@
       "id": "E1-D1",
       "locations": [
         {
-          "file": "assets/index-3d238cd2.js",
+          "file": "assets/index-0aa4566d.js",
           "line_start": 6,
           "line_end": 6,
           "file_lines": 73
         },
         {
-          "file": "assets/index-3d238cd2.js.map",
+          "file": "assets/index-0aa4566d.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -285,13 +341,13 @@
       "id": "E1-D2",
       "locations": [
         {
-          "file": "assets/index-3d238cd2.js",
+          "file": "assets/index-0aa4566d.js",
           "line_start": 5,
           "line_end": 5,
           "file_lines": 73
         },
         {
-          "file": "assets/index-3d238cd2.js.map",
+          "file": "assets/index-0aa4566d.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -304,20 +360,20 @@
       "id": "E1-D3",
       "locations": [
         {
-          "file": "assets/index-3d238cd2.js",
+          "file": "assets/index-0aa4566d.js",
           "line_start": 4,
           "line_end": 4,
           "file_lines": 73
         },
         {
-          "file": "assets/index-3d238cd2.js.map",
+          "file": "assets/index-0aa4566d.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
         }
       ],
-      "anchor": "https://cdn.pagebird.example/covers/",
-      "why": "공개 CDN의 책 표지 주소. 바깥에 열린 주소라 내부 주소가 아니다"
+      "anchor": "https://res.cloudinary.com/pagebird/image/upload/covers/",
+      "why": "공개 이미지 CDN의 책 표지 주소. 누구나 받는 바깥 주소라 내부 주소도 비밀도 아니다"
     }
   ]
 }

@@ -21,6 +21,12 @@
           "file_lines": 75
         },
         {
+          "file": "assets/index-c6383de4.js",
+          "line_start": 52,
+          "line_end": 52,
+          "file_lines": 75
+        },
+        {
           "file": "assets/index-c6383de4.js.map",
           "line_start": 1,
           "line_end": 1,
@@ -29,7 +35,7 @@
       ],
       "anchor": "mirtak_RuoMBs5HPiWGyJG1fwGd1ajvEnK7Xs4V",
       "decoded_anchor": null,
-      "planted": "가짜(생성). 설정 객체 window.__APP_CONFIG__의 smsGatewayKey에 문자 발송 키(요청 머리 X-Sms-Key로 보냄)",
+      "planted": "가짜(생성). 설정 객체 window.__APP_CONFIG__의 smsGatewayKey에 문자 발송 키, sendReminder()가 요청 머리 X-Sms-Key로 보냄",
       "why": "설정 객체 자리의 키를 찾는가(easy 줄 config)"
     },
     {
@@ -47,6 +53,12 @@
           "file_lines": 75
         },
         {
+          "file": "assets/index-c6383de4.js",
+          "line_start": 59,
+          "line_end": 59,
+          "file_lines": 75
+        },
+        {
           "file": "assets/index-c6383de4.js.map",
           "line_start": 1,
           "line_end": 1,
@@ -55,7 +67,7 @@
       ],
       "anchor": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzdmMtYm9va2luZyIsInJvbGUiOiJzZXJ2aWNlIiwiaWF0IjoxNzYzNjAwMDAwfQ.SNVjQLweBAlBJ2dWvhH8-7w1FyYzVmv5eAK-t4Vf2q0",
       "decoded_anchor": null,
-      "planted": "가짜(생성). 상수 SERVICE_TOKEN에 서비스 계정 JWT 꼴 토큰을 평문으로(회원 내보내기 요청의 Bearer)",
+      "planted": "가짜(생성). 상수 SERVICE_TOKEN에 서비스 계정 JWT 꼴 토큰을 평문으로, exportMembers()가 Bearer로 보냄",
       "why": "평문 토큰을 찾는가(easy 줄 plain)"
     },
     {
@@ -164,6 +176,12 @@
           "file_lines": 75
         },
         {
+          "file": "assets/index-c6383de4.js",
+          "line_start": 71,
+          "line_end": 71,
+          "file_lines": 75
+        },
+        {
           "file": "assets/index-c6383de4.js.map",
           "line_start": 1,
           "line_end": 1,
@@ -190,6 +208,12 @@
           "file_lines": 75
         },
         {
+          "file": "assets/index-c6383de4.js",
+          "line_start": 64,
+          "line_end": 64,
+          "file_lines": 75
+        },
+        {
           "file": "assets/index-c6383de4.js.map",
           "line_start": 1,
           "line_end": 1,
@@ -198,7 +222,7 @@
       ],
       "anchor": "http://192.168.40.12:9000/reports",
       "decoded_anchor": null,
-      "planted": "상수 REPORTS_API에 사설 주소 192.168.40.12의 보고서 서버",
+      "planted": "상수 REPORTS_API에 사설 주소 192.168.40.12의 보고서 서버, monthlyReport()가 /monthly를 붙여 부름",
       "why": "평문 내부 주소를 찾는가(easy 줄 plain)"
     },
     {
@@ -254,6 +278,12 @@
           "file_lines": 75
         },
         {
+          "file": "assets/index-c6383de4.js",
+          "line_start": 65,
+          "line_end": 65,
+          "file_lines": 75
+        },
+        {
           "file": "assets/index-c6383de4.js.map",
           "line_start": 1,
           "line_end": 1,
@@ -262,7 +292,7 @@
       ],
       "anchor": "S3UuBwttIZZHQNFm",
       "decoded_anchor": null,
-      "planted": "가짜(생성). 보고서 서버 Basic 인증 비밀번호를 상수 reportsPassword에 평문으로",
+      "planted": "가짜(생성). 보고서 서버 Basic 인증(계정 reports)의 비밀번호를 상수 reportsPassword에 평문으로",
       "why": "코드에 박힌 비밀번호를 찾는가"
     }
   ],
