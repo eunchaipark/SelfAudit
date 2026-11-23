@@ -2,3 +2,4 @@
 - [\u 표기는 python으로](feedback_unicode_escape.md) — Edit·heredoc이 `\u202E`를 실제 글자로 바꾼다, chr()로 쓰고 숨은글자 검사
 - [REA 실험 환경·구조](project_rea_env.md) — 휴대용 Node·REA 6.10.1, 감시는 기록 장치, 조건 B는 거르개로 도구 4개, 실험 전용 Claude 설정 폴더
 - [worktree에서 git은 맨 위에서](feedback_worktree_git_cwd.md) — 하위 폴더로 cd한 뒤 git을 부르면 거절, uv와 git은 호출을 나눈다
+- [scratchpad 이름 겹침](feedback_scratchpad_shared.md) — 레인과 같은 scratchpad라 이름이 겹치면 덮인다, design- 앞붙임
