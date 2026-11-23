@@ -3,7 +3,7 @@
   "bundle_id": "normal-1",
   "origin": "planted",
   "difficulty": "normal",
-  "bundle_manifest_sha256": "8758514d3fd521b20c57819afacd3723a6c77957c8c61d5f77e1e4e807f70808",
+  "bundle_manifest_sha256": "6f090f1eeb6588e554397439968ea66ec4c5f0c360466f4a324f0eb98c11df30",
   "complete": true,
   "items": [
     {
@@ -15,7 +15,7 @@
       "hiding": "encoded",
       "locations": [
         {
-          "file": "assets/index-e714c8ba.js",
+          "file": "assets/index-67622e0b.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -35,7 +35,7 @@
       "hiding": "split",
       "locations": [
         {
-          "file": "assets/index-e714c8ba.js",
+          "file": "assets/index-67622e0b.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -55,13 +55,13 @@
       "hiding": "encoded",
       "locations": [
         {
-          "file": "assets/courier-001b4324.js",
+          "file": "assets/courier-e2d3a31b.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 2
         },
         {
-          "file": "assets/courier-001b4324.js.map",
+          "file": "assets/courier-e2d3a31b.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -81,7 +81,7 @@
       "hiding": "config",
       "locations": [
         {
-          "file": "assets/index-e714c8ba.js",
+          "file": "assets/index-67622e0b.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -102,7 +102,7 @@
       "hiding": "encoded",
       "locations": [
         {
-          "file": "assets/index-e714c8ba.js",
+          "file": "assets/index-67622e0b.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -123,7 +123,7 @@
       "hiding": "split",
       "locations": [
         {
-          "file": "assets/index-e714c8ba.js",
+          "file": "assets/index-67622e0b.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -143,19 +143,19 @@
       "hiding": "config",
       "locations": [
         {
-          "file": "assets/index-e714c8ba.js",
+          "file": "assets/index-67622e0b.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
         },
         {
-          "file": "assets/courier-001b4324.js",
+          "file": "assets/courier-e2d3a31b.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 2
         },
         {
-          "file": "assets/courier-001b4324.js.map",
+          "file": "assets/courier-e2d3a31b.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -175,7 +175,7 @@
       "hiding": "config",
       "locations": [
         {
-          "file": "assets/index-e714c8ba.js",
+          "file": "assets/index-67622e0b.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -195,13 +195,13 @@
       "hiding": "none",
       "locations": [
         {
-          "file": "assets/courier-001b4324.js",
+          "file": "assets/courier-e2d3a31b.js",
           "line_start": 2,
           "line_end": 2,
           "file_lines": 2
         },
         {
-          "file": "assets/courier-001b4324.js.map",
+          "file": "assets/courier-e2d3a31b.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -218,20 +218,26 @@
       "id": "N1-D1",
       "locations": [
         {
-          "file": "assets/index-e714c8ba.js",
+          "file": "assets/courier-e2d3a31b.js",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 2
+        },
+        {
+          "file": "assets/courier-e2d3a31b.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
         }
       ],
-      "anchor": "5c4201cb06125931df8b5ffc2660f7f56cf0300f",
-      "why": "설정 객체의 build는 배포한 커밋 해시(16진 40자)다. console.info로 찍는 공개 빌드 식별자라 비밀값도 인코딩된 값도 아니다"
+      "anchor": "47616e676e616d206465706f74203033202830393a30302d32313a303029",
+      "why": "비밀번호(N1-03)와 같은 fromHex()로 푸는 16진 글이지만, 풀면 기사 화면 제목에 늘 보이는 거점 이름과 영업 시간(Gangnam depot 03 (09:00-21:00))이라 비밀값이 아니다"
     },
     {
       "id": "N1-D2",
       "locations": [
         {
-          "file": "assets/index-e714c8ba.js",
+          "file": "assets/index-67622e0b.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -244,14 +250,14 @@
       "id": "N1-D3",
       "locations": [
         {
-          "file": "assets/index-e714c8ba.js",
+          "file": "assets/index-67622e0b.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
         }
       ],
       "anchor": "d2q7m4x9k1w8ze.cloudfront.net",
-      "why": "로고 그림을 받는 공개 CDN 주소다. 누구나 받는 바깥 주소라 내부 주소도 비밀도 아니다"
+      "why": "주문 사진을 받는 공개 CDN 주소다(사진 보기 버튼을 누를 때만 씀). 누구나 받는 바깥 주소라 내부 주소도 비밀도 아니다"
     }
   ]
 }

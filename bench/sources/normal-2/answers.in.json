@@ -128,19 +128,19 @@
     },
     {
       "id": "N2-D2",
-      "anchor": "281df04170dd",
+      "anchor": "4c6f626279206b696f736b3a20746170206120726f6f6d20746f20626f6f6b",
       "at": [
-        {"file": "index.html", "marker": "\"release\":"}
+        {"file": "assets/index.js", "marker": "const KIOSK_BANNER=fromHex("}
       ],
-      "why": "실행 설정의 release는 배포한 커밋의 짧은 해시(16진 12자)다. 사용 통계에 싣는 공개 빌드 식별자라 비밀값도 인코딩된 값도 아니다"
+      "why": "키오스크 비밀번호(N2-04)와 같은 fromHex()로 푸는 16진 글이지만, 풀면 키오스크 화면에 띄우는 안내 문구(Lobby kiosk: tap a room to book)라 비밀값이 아니다"
     },
     {
       "id": "N2-D3",
       "anchor": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcv",
       "at": [
-        {"file": "assets/index.js", "marker": "const ICON=\"data:image/svg+xml;base64,"}
+        {"file": "assets/index.js", "marker": "const ICON_SVG=atob("}
       ],
-      "why": "로고 그림(SVG)을 base64로 넣은 data 주소의 앞부분이다. 풀면 색칠한 네모 그림이라 비밀값이 아니다"
+      "why": "키·주소·역할 이름(N2-02·N2-05·N2-09)과 같은 atob()로 푸는 base64 글의 앞부분이지만, 풀면 로고로 쓰는 색칠한 네모 그림(SVG)이라 비밀값이 아니다"
     }
   ]
 }

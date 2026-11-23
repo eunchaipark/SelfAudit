@@ -49,7 +49,9 @@ RESERVED_SUFFIXES = (".test", ".example", ".invalid", ".localhost")
 PUBLIC_HOSTS = frozenset({"d2q7m4x9k1w8ze.cloudfront.net", "res.cloudinary.com"})
 IPV4 = re.compile(r"(?<![0-9.])(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?![0-9.])")
 URL_HOST = re.compile(r"(?:https?|wss?)://([A-Za-z0-9.-]+)")
-CONFIG_START = re.compile(r"window\.__APP_CONFIG__ ?= ?\{")
+# 코드가 실행 중에 푸는 자리(압축 꼴, 빈칸 없음). 닻이 바로 뒤에 온다
+DECODE_CALLS = ('atob("', 'fromHex("')
+CONFIG_START =re.compile(r"window\.__APP_CONFIG__ ?= ?\{")
 
 
 # --- 읽기 ------------------------------------------------------------------------------------
@@ -359,6 +361,22 @@ def test_F_B02_normal_미끼도_인코딩꼴(bundle_id: str) -> None:
     decoys = _entries(_answers(bundle_id), "decoys")
     shaped = [d for d in decoys if _looks_encoded(str(d["anchor"]))]
     assert shaped
+
+
+@pytest.mark.parametrize("bundle_id", NORMAL)
+def test_F_B02_normal_푸는함수마다_미끼(bundle_id: str) -> None:
+    """반려 1 2: 코드가 실행 중에 푸는 글(`atob("…")`·`fromHex("…")`)은 함수마다 정답과 미끼가 다 있다.
+
+    '푸는 글은 다 신고'로는 정밀도를 지킬 수 없게 — 풀어 본 뒤 내용으로 가르는지를 잰다.
+    """
+    text = "".join(_texts(bundle_id).values())
+    answers = _answers(bundle_id)
+    for call in DECODE_CALLS:
+        if call not in text:
+            continue
+        for group in ("items", "decoys"):
+            anchors = [str(e["anchor"]) for e in _entries(answers, group)]
+            assert any(call + a in text for a in anchors), (call, group)
 
 
 def _looks_encoded(anchor: str) -> bool:

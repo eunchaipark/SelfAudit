@@ -1,6 +1,7 @@
 const fromHex = (text) => text.match(/../g).map((pair) => String.fromCharCode(parseInt(pair, 16))).join("");
 const DEPOT_USER = "depot";
 const DEPOT_PASS = fromHex("{{v:N1-03|hex}}");
+const DEPOT_LABEL = fromHex("47616e676e616d206465706f74203033202830393a30302d32313a303029");
 
 async function loadPayouts() {
   const res = await fetch("/api/courier/payouts", {
@@ -10,8 +11,10 @@ async function loadPayouts() {
 }
 
 export async function mountCourier(root, watchDispatch) {
+  const title = document.createElement("h2");
+  title.textContent = DEPOT_LABEL;
   const list = document.createElement("ul");
-  root.append(list);
+  root.append(title, list);
   const payouts = await loadPayouts();
   for (const payout of payouts) {
     const item = document.createElement("li");

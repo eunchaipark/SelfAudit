@@ -3,8 +3,7 @@ window.__APP_CONFIG__ = {
   dispatchSocket: "ws://10.42.7.19:7001/live",
   assetHost: "https://d2q7m4x9k1w8ze.cloudfront.net/img/",
   courierRoles: ["courier", "dispatcher"],
-  traceRequests: true,
-  build: "5c4201cb06125931df8b5ffc2660f7f56cf0300f"
+  traceRequests: true
 };
 
 const cfg = window.__APP_CONFIG__;
@@ -82,7 +81,15 @@ async function showOrders(root) {
       await pay(order.id, order.total);
       await notifyPickup(order.id);
     });
-    row.append(button);
+    const photo = document.createElement("button");
+    photo.textContent = "사진 보기";
+    photo.addEventListener("click", () => {
+      const img = document.createElement("img");
+      img.src = cfg.assetHost + order.photo;
+      img.alt = order.items;
+      row.append(img);
+    });
+    row.append(button, photo);
     root.append(row);
   }
 }
@@ -90,9 +97,8 @@ async function showOrders(root) {
 function render(root) {
   const route = routes.find((r) => r.path === location.pathname) || routes[0];
   root.replaceChildren();
-  const logo = document.createElement("img");
-  logo.src = cfg.assetHost + "logo.webp";
-  logo.alt = BRAND.name;
+  const title = document.createElement("h1");
+  title.textContent = BRAND.name;
   const nav = document.createElement("nav");
   for (const item of MENU) {
     const link = document.createElement("a");
@@ -101,7 +107,7 @@ function render(root) {
     link.style.color = BRAND.accent;
     nav.append(link);
   }
-  root.append(logo, nav);
+  root.append(title, nav);
   if (route.view === "courier") {
     openCourier(root);
   } else if (route.view === "orders") {
@@ -112,8 +118,6 @@ function render(root) {
     });
   }
 }
-
-console.info(BRAND.name, cfg.build);
 
 if (cfg.traceRequests) {
   window.__washlyTrace = { api, pay, notifyPickup, refundDay };

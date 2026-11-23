@@ -2,9 +2,10 @@ const cfg = window.__APP_CONFIG__;
 const PAY_TAIL = "{{v:N2-01|split:2:1}}";
 const CAL_KEY = atob("{{v:N2-02|base64}}");
 const USAGE_SINK = atob("aHR0cDovLzE3Mi4yMC44LjMxOjkxMDAvcHVzaA==");
-const ICON = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiByeD0iMyIgZmlsbD0iIzNiNWJkYiIvPjwvc3ZnPg==";
+const ICON_SVG = atob("PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiByeD0iMyIgZmlsbD0iIzNiNWJkYiIvPjwvc3ZnPg==");
 const fromHex = (text) => text.match(/../g).map((pair) => String.fromCharCode(parseInt(pair, 16))).join("");
 const KIOSK = { user: "lobby", pass: fromHex("{{v:N2-04|hex}}") };
+const KIOSK_BANNER = fromHex("4c6f626279206b696f736b3a20746170206120726f6f6d20746f20626f6f6b");
 
 const routes = [
   { path: "/", view: "rooms" },
@@ -27,7 +28,7 @@ async function api(path, options = {}) {
 }
 
 function reportUsage(event) {
-  navigator.sendBeacon(USAGE_SINK, JSON.stringify({ tenant: cfg.tenant, release: cfg.release, event }));
+  navigator.sendBeacon(USAGE_SINK, JSON.stringify({ tenant: cfg.tenant, event }));
 }
 
 async function bookRoom(room, hours) {
@@ -69,9 +70,14 @@ async function showRooms(root) {
     const card = document.createElement("section");
     card.className = "room";
     card.textContent = room.name + " " + (busy[room.id] ? "사용 중" : "비어 있음");
-    const photo = document.createElement("img");
-    photo.src = cfg.roomPhotos + room.id + ".jpg";
-    card.prepend(photo);
+    const photo = document.createElement("button");
+    photo.textContent = "사진 보기";
+    photo.addEventListener("click", () => {
+      const img = document.createElement("img");
+      img.src = cfg.roomPhotos + room.id + ".jpg";
+      card.prepend(img);
+    });
+    card.append(photo);
     const book = document.createElement("button");
     book.textContent = "예약";
     book.addEventListener("click", () => bookRoom(room, 1));
@@ -88,7 +94,7 @@ async function showRooms(root) {
 
 function render() {
   const route = routes.find((r) => r.path === location.pathname) || routes[0];
-  $("#logo").attr("src", ICON);
+  $("#logo").attr("src", "data:image/svg+xml;utf8," + encodeURIComponent(ICON_SVG));
   $("#sync").on("click", syncCalendar);
   const root = document.getElementById("rooms");
   if (route.view === "tenantAdmin") {
@@ -96,6 +102,7 @@ function render() {
       root.textContent = JSON.stringify(tenants);
     });
   } else if (new URLSearchParams(location.search).has("kiosk")) {
+    root.before(KIOSK_BANNER);
     startKiosk().then(() => showRooms(root));
   } else {
     showRooms(root);

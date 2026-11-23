@@ -3,7 +3,7 @@
   "bundle_id": "normal-2",
   "origin": "planted",
   "difficulty": "normal",
-  "bundle_manifest_sha256": "94fc357a7e1dbf1d10c8eff633bec25614b681641f66303ef334250ab046a70e",
+  "bundle_manifest_sha256": "d74c8dc457339afcd074da1f39c36af540a1b437ba2cc9e4daeb41d2dfa370f2",
   "complete": true,
   "items": [
     {
@@ -21,7 +21,7 @@
           "file_lines": 1
         },
         {
-          "file": "assets/index-b4234ac0.js",
+          "file": "assets/index-38968026.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -41,7 +41,7 @@
       "hiding": "encoded",
       "locations": [
         {
-          "file": "assets/index-b4234ac0.js",
+          "file": "assets/index-38968026.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -67,7 +67,7 @@
           "file_lines": 1
         },
         {
-          "file": "assets/index-b4234ac0.js",
+          "file": "assets/index-38968026.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -87,7 +87,7 @@
       "hiding": "encoded",
       "locations": [
         {
-          "file": "assets/index-b4234ac0.js",
+          "file": "assets/index-38968026.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -107,7 +107,7 @@
       "hiding": "encoded",
       "locations": [
         {
-          "file": "assets/index-b4234ac0.js",
+          "file": "assets/index-38968026.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -134,7 +134,7 @@
           "file_lines": 1
         },
         {
-          "file": "assets/index-b4234ac0.js",
+          "file": "assets/index-38968026.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -160,7 +160,7 @@
           "file_lines": 1
         },
         {
-          "file": "assets/index-b4234ac0.js",
+          "file": "assets/index-38968026.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -200,7 +200,7 @@
       "hiding": "encoded",
       "locations": [
         {
-          "file": "assets/index-b4234ac0.js",
+          "file": "assets/index-38968026.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -230,27 +230,27 @@
       "id": "N2-D2",
       "locations": [
         {
-          "file": "index.html",
+          "file": "assets/index-38968026.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
         }
       ],
-      "anchor": "281df04170dd",
-      "why": "실행 설정의 release는 배포한 커밋의 짧은 해시(16진 12자)다. 사용 통계에 싣는 공개 빌드 식별자라 비밀값도 인코딩된 값도 아니다"
+      "anchor": "4c6f626279206b696f736b3a20746170206120726f6f6d20746f20626f6f6b",
+      "why": "키오스크 비밀번호(N2-04)와 같은 fromHex()로 푸는 16진 글이지만, 풀면 키오스크 화면에 띄우는 안내 문구(Lobby kiosk: tap a room to book)라 비밀값이 아니다"
     },
     {
       "id": "N2-D3",
       "locations": [
         {
-          "file": "assets/index-b4234ac0.js",
+          "file": "assets/index-38968026.js",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
         }
       ],
       "anchor": "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcv",
-      "why": "로고 그림(SVG)을 base64로 넣은 data 주소의 앞부분이다. 풀면 색칠한 네모 그림이라 비밀값이 아니다"
+      "why": "키·주소·역할 이름(N2-02·N2-05·N2-09)과 같은 atob()로 푸는 base64 글의 앞부분이지만, 풀면 로고로 쓰는 색칠한 네모 그림(SVG)이라 비밀값이 아니다"
     }
   ]
 }
