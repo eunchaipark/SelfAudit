@@ -1601,7 +1601,7 @@
         "description": "압축 + 문자열 배열·돌리기·글자 코드 난독화, sourcemap_only·split",
         "details": "영역: 번들·정답지\n목적: 'REA는 숨기거나 난독화한 문제에서 차이를 낼 것'이라는 가설을 시험할 대상을 둔다 (요구사항 R3, 5.1 대상 ①)\n읽을 문서: 기능명세 F-B02·F-B03·F-B07, 설계 실험구조 2.2, 2.7 표 hard 줄·'난독화를 직접 만드는 근거'\n고칠 파일: bench/sources/build_tools/obfuscate.py, bench/sources/hard-1/**, bench/sources/hard-2/**, bench/bundles/hard-1/**, bench/bundles/hard-2/**, bench/answers/hard-1.json, bench/answers/hard-2.json, bench/tests/bundles/test_f_b02_hard.py\n계약: answers.schema.json\n\n작업 쌍: A 한 세션 쪽 (solo-bench, 병합 전 검토 없음 — 사용자 확인 8절 12)\n크기: 예시 약 10 · 파일 약 20 · 하위 작업 6\nT21 넘김: 키 접두어는 build_tools 허용 목록에서만, 한 번들 안에서 겹치지 않게. 16자 영숫자 닻에는 fake·test·demo 낱말을 넣지 않는다(규칙 10). 변환 도구는 build_tools/encode.py·obfuscate.py를 더하고 plan.json에 이름만.",
         "testStrategy": "test_F_B02_hard_문자열배열_원값이_결과물에없음 / test_F_B02_hard_돌리기 / test_F_B02_hard_글자코드 / test_F_B02_hard_sourcemap_only_값은_map에만 / test_F_B02_hard_split / test_F_B01_난독화_같은시드_같은바이트 / test_F_B01_난독화결과_문법검사_통과 / test_F_B07_hard1_구성통과 / test_F_B07_hard2_구성통과 / test_F_B07_어려움_범주8개. 화면 없음",
-        "status": "in-progress",
+        "status": "done",
         "dependencies": [
           "21"
         ],
@@ -1667,7 +1667,7 @@
         "id": "25",
         "title": "번들·정답지: 심은 번들 전체 구성 검사 (F-B07 전체)",
         "description": "번들 6개, 난이도마다 2개, 난이도마다 범주 8개, bench 전체에 서비스 꼴 키 없음",
-        "details": "영역: 번들·정답지\n목적: 번들 하나의 우연이 결과를 좌우하지 않게, 난이도마다 번들 2개와 범주 전부를 갖췄는지 기계가 확인한다 (요구사항 R3)\n읽을 문서: 기능명세 F-B07, 설계 실험구조 2.7 'F-B07 검사', 4절 ⑶\n고칠 파일: bench/tests/bundles/test_f_b07_suite.py\n계약: answers.schema.json\n\n크기: 예시 약 5 · 파일 1 · 하위 작업 3. 근거: 여섯 번들이 다 있어야 돌 수 있는 검사라 앞 태스크에 넣으면 그 태스크가 끝날 수 없다\nT22 검증 넘김: verify `_check_fake_values`가 토큰 서명 끝 글자(F-B02 4ⓑ, 표준 꼴 `AEIMQUYcgkosw048`)도 보게 하고 명세 예시 '끝 글자 J → 실패(F-B07 10)' 시험. F-B02 6 '예약 이름은 한 번들 안에서 정답·미끼 한쪽에만 쓰지 않음'을 번들 전체 공통 검사로(지금은 easy 시험에만).\nT23 검증 넘김(설계 먼저): 압축기 이름 줄이기(normal·hard에서 이름이 단서), 사실상 맞힐 수 없는 위치(그 파일에 닻이 없고 줄 허용이 파일을 덮음), 숨긴 방법마다 그 방법을 거치는 미끼 검사, 줄로 못 가르는 위치의 긴 값은 고유 조각을 닻으로, 16진 미끼·정답 길이 단서.",
+        "details": "영역: 번들·정답지\n목적: 번들 하나의 우연이 결과를 좌우하지 않게, 난이도마다 번들 2개와 범주 전부를 갖췄는지 기계가 확인한다 (요구사항 R3)\n읽을 문서: 기능명세 F-B07, 설계 실험구조 2.7 'F-B07 검사', 4절 ⑶\n고칠 파일: bench/tests/bundles/test_f_b07_suite.py\n계약: answers.schema.json\n\n크기: 예시 약 5 · 파일 1 · 하위 작업 3. 근거: 여섯 번들이 다 있어야 돌 수 있는 검사라 앞 태스크에 넣으면 그 태스크가 끝날 수 없다\nT22 검증 넘김: verify `_check_fake_values`가 토큰 서명 끝 글자(F-B02 4ⓑ, 표준 꼴 `AEIMQUYcgkosw048`)도 보게 하고 명세 예시 '끝 글자 J → 실패(F-B07 10)' 시험. F-B02 6 '예약 이름은 한 번들 안에서 정답·미끼 한쪽에만 쓰지 않음'을 번들 전체 공통 검사로(지금은 easy 시험에만).\nT23 검증 넘김(설계 먼저): 압축기 이름 줄이기(normal·hard에서 이름이 단서), 사실상 맞힐 수 없는 위치(그 파일에 닻이 없고 줄 허용이 파일을 덮음), 숨긴 방법마다 그 방법을 거치는 미끼 검사, 줄로 못 가르는 위치의 긴 값은 고유 조각을 닻으로, 16진 미끼·정답 길이 단서.\nT24 넘김(설계): 미끼에도 decoded_anchor 칸을 둘지, obfuscate.py가 minify.py 밑줄 상수를 가져다 쓰는 것을 공개 이름으로 바꿀지.",
         "testStrategy": "test_F_B07_심은번들_6개 / test_F_B07_난이도마다_2개 / test_F_B07_난이도마다_범주8개 / test_F_B07_정답지마다_지문이_번들과같음 / test_F_B07_bench전체_서비스꼴키없음. 화면 없음",
         "status": "pending",
         "dependencies": [
