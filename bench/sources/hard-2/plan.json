@@ -1,0 +1,15 @@
+{
+  "schema": "selfaudit-bench/plan@1",
+  "bundle_id": "hard-2",
+  "mode": "minified",
+  "hash_names": ["assets/index.js", "assets/app.js", "assets/vendor.js", "assets/style.css"],
+  "sourcemaps": ["assets/index.js"],
+  "sourcemap_content": true,
+  "values": {
+    "H2-01": {"form": "key", "prefix": "nuvor_"},
+    "H2-02": {"form": "token", "claims": {"sub": "svc-stock", "role": "service", "iat": 1763600000}},
+    "H2-03": {"form": "key", "prefix": "oskel_"}
+  },
+  "plugins": ["obfuscate"],
+  "steps": [{"step": "obfuscate", "files": ["assets/app.js"]}]
+}
