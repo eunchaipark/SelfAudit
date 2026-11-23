@@ -102,7 +102,7 @@ _CR: Final = chr(0x0D)
 _BUILTIN_FILTERS: Final[Mapping[str, Callable[[str, Sequence[str]], str]]] = {
     "split": fake.split_piece,
 }
-_CORE_MODULES: Final = frozenset({"build", "fake", "minify", "sourcemap", "verify"})
+_CORE_MODULES: Final = frozenset({"build", "fake", "locate", "minify", "sourcemap", "verify"})
 _BUILDING_SUFFIX: Final = ".building"  # 쓰는 동안의 임시 폴더 `bench/bundles/.<id>.building`
 _OLD_SUFFIX: Final = ".old"  # 바꿔 넣는 동안 옛 결과물을 잠깐 두는 곳 `bench/bundles/.<id>.old`
 _PACKAGE: Final = __name__.rpartition(".")[0]
