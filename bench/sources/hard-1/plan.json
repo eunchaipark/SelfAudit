@@ -1,0 +1,16 @@
+{
+  "schema": "selfaudit-bench/plan@1",
+  "bundle_id": "hard-1",
+  "mode": "minified",
+  "hash_names": ["assets/index.js", "assets/receipt.js", "assets/style.css"],
+  "sourcemaps": ["assets/receipt.js"],
+  "sourcemap_content": true,
+  "values": {
+    "H1-01": {"form": "key", "prefix": "drovik_"},
+    "H1-02": {"form": "password"},
+    "H1-08": {"form": "token", "claims": {"sub": "svc-receipt", "scope": "ocr-upload", "iat": 1763600000}},
+    "H1-D1": {"form": "password"}
+  },
+  "plugins": ["obfuscate"],
+  "steps": [{"step": "obfuscate", "files": ["assets/index.js"]}]
+}

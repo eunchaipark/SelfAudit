@@ -1,0 +1,2 @@
+const MAX_BYTES=5*1024*1024;export function mountReceipts(root,api){const input=document.createElement("input");input.type="file";input.accept="image/png,image/jpeg";const status=document.createElement("p");input.addEventListener("change",async()=>{const file=input.files[0];if(!file||file.size>MAX_BYTES){status.textContent="5MB 아래 사진만 올릴 수 있습니다";return;}const body=new FormData();body.append("receipt",file);const result=await api("/receipts",{method:"POST",body});status.textContent="올림: "+result.id;});root.append(input,status);}
+//# sourceMappingURL=receipt-74afe870.js.map

@@ -1,0 +1,1 @@
+- [어려움 번들·난독화](bench-hard-obfuscation.md) — obfuscate.py 꼴·원본 제약, 맵은 난독화 밖 파일에만, 닻 charcode, 미끼 decoded 한계
