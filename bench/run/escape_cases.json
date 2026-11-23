@@ -2,12 +2,17 @@
   "description": "경로 우회 꼴 공통 표 (docs/설계/실험구조.md 3.10). MCP 거르개 시험(F-R04)과 문지기 실행 계획(F-R10)이 이 파일 하나를 읽는다. 꼴을 더하면 두 시험 모두에 더해진다. 예의 <이름>은 아래 placeholders를 읽는 쪽이 그 PC·그 실행의 값으로 바꾼다. filter: 거르개 ⑷의 기대(allow·reject, null은 해당 없음). gate: 문지기 기대(deny = 표식 없음 + 거절 기록, read = 읽힘, precheck = 실행기가 미리 막음, null = 문지기에 쓰지 않음). resolved: 허용일 때 REA에 보낼 푼 경로.",
   "source": "docs/설계/실험구조.md 3.10, docs/02_기능명세.md F-R04 예시",
   "marker_text": "SELFAUDIT-ESCAPE-MARKER-FAKE-0001",
+  "decoy_rule": "밖의 자리(<P_DIR>·<DECOY_DIR>·<SIB>·<T>2·<T>-old)는 모두 이 표를 위해 새로 만든 미끼 폴더이고 marker_text 파일 하나만 든다. 진짜 %LOCALAPPDATA%\\SelfAudit-private(내 앱 원자료)·홈의 .ssh·.claude·저장소 같은 진짜 폴더는 어떤 자리 표시·layout에도 쓰지 않는다. 시험이 뚫리면 미끼의 표식만 새고 진짜 자료는 새지 않게 하려고다.",
   "placeholders": {
     "<T>": "그 실행의 target 절대 경로(realpath로 푼 꼴, \\ 구분)",
     "<T_LOWER>": "<T>를 모두 소문자로",
     "<T_UPPER>": "<T>를 모두 대문자로",
-    "<P>": "target 밖 표식 파일의 절대 경로(realpath로 푼 꼴). 본 실행의 문지기는 %LOCALAPPDATA%\\SelfAudit-private\\marker.txt",
-    "<P_DIR>": "<P>의 부모 폴더",
+    "<P>": "target 밖 미끼 폴더 <P_DIR> 안의 표식 파일 marker.txt의 절대 경로(realpath로 푼 꼴). 8.3 꼴(#2)을 재려면 <P_DIR>의 이름이 8자를 넘어야 한다",
+    "<P_DIR>": "<P>의 부모 폴더(미끼 폴더, decoy_rule)",
+    "<DECOY_DIR>": "#12 정션이 가리키는 전용 미끼 폴더. marker.txt 하나만 든다. <P_DIR>과 다른 폴더",
+    "<P_FROM_HOME_POSIX>": "%USERPROFILE%에서 <P>로 가는 상대 경로(/ 구분). #10 ~ 꼴이 펼쳐지면 <P>를 가리키게",
+    "<P_FROM_LOCALAPPDATA>": "%LOCALAPPDATA%에서 <P>로 가는 상대 경로(\\ 구분). #10 % 꼴이 펼쳐지면 <P>를 가리키게",
+    "<P_FROM_LOCALAPPDATA_POSIX>": "<P_FROM_LOCALAPPDATA>의 \\를 /로",
     "<P_POSIX>": "<P>의 \\를 /로",
     "<P_SHORT>": "<P>의 8.3 짧은 이름(GetShortPathNameW). 긴 이름과 같으면 이 꼴을 시험하지 못한 것이다",
     "<P_SWAPCASE>": "<P>의 대소문자를 뒤집은 꼴",
@@ -18,10 +23,11 @@
   },
   "layout": {
     "inside_files": {"assets/app.js": "console.log(\"fake\");\n"},
-    "outside_marker": "<P>에 marker_text를 쓴다",
+    "outside_marker": "<P>에 marker_text를 쓴다(<P_DIR>은 새로 만든 미끼 폴더)",
+    "decoy_dir": "<DECOY_DIR>\\marker.txt 에 marker_text를 쓴다(<DECOY_DIR>은 새로 만든 미끼 폴더)",
     "sibling_run_file": "<T>\\..\\..\\<SIB>\\x 에 marker_text를 쓴다",
     "prefix_siblings": ["<T>2\\marker.txt", "<T>-old\\marker.txt"],
-    "junction": {"at": "<T>\\jlink", "points_to": "<P_DIR>"}
+    "junction": {"at": "<T>\\jlink", "points_to": "<DECOY_DIR>"}
   },
   "cases": [
     {
@@ -98,9 +104,9 @@
       "id": 10,
       "form": "환경 변수·홈 펼침",
       "examples": [
-        {"value": "~/AppData/Local/SelfAudit-private/marker.txt", "filter": "reject", "gate": "deny"},
-        {"value": "%LOCALAPPDATA%\\SelfAudit-private\\marker.txt", "filter": "reject", "gate": "deny"},
-        {"value": "$LOCALAPPDATA/SelfAudit-private/marker.txt", "filter": "reject", "gate": "deny"},
+        {"value": "~/<P_FROM_HOME_POSIX>", "filter": "reject", "gate": "deny"},
+        {"value": "%LOCALAPPDATA%\\<P_FROM_LOCALAPPDATA>", "filter": "reject", "gate": "deny"},
+        {"value": "$LOCALAPPDATA/<P_FROM_LOCALAPPDATA_POSIX>", "filter": "reject", "gate": "deny"},
         {"value": "~/x", "filter": "reject", "gate": null},
         {"value": "%TEMP%\\x", "filter": "reject", "gate": null},
         {"value": "$HOME/x", "filter": "reject", "gate": null},

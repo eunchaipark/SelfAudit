@@ -76,11 +76,16 @@ def short_path(path: str) -> str:
     return str(buffer.value)
 
 
+def relative_posix(path: str, start: str) -> str:
+    return os.path.relpath(path, start).replace("\\", "/")
+
+
 @pytest.fixture
 def layout(make_bundle: MakeBundle, tmp_path: Path) -> Layout:
     """escape_cases.json의 layout대로 만든다.
 
-    배치/실행/target, 형제 실행, 앞부분만 같은 형제, 밖 표식, 밖을 가리키는 정션.
+    배치/실행/target, 형제 실행, 앞부분만 같은 형제, 밖 미끼 폴더의 표식, 전용 미끼 폴더를 가리키는
+    정션. 밖의 자리는 모두 tmp_path 안에 새로 만든 미끼다(decoy_rule).
     """
     marker = MARKER.encode()
     files = {rel: text.encode() for rel, text in CASES["layout"]["inside_files"].items()}
@@ -96,13 +101,16 @@ def layout(make_bundle: MakeBundle, tmp_path: Path) -> Layout:
     sib = "easy-2-a-1-0a1b2c3d"
     (batch / sib).mkdir()
     (batch / sib / "x").write_bytes(marker)
-    private = tmp_path / "SelfAudit-private"
-    private.mkdir()
-    (private / "marker.txt").write_bytes(marker)
-    _winapi.CreateJunction(str(private), str(target_dir / "jlink"))
+    outside_dir = tmp_path / "outside-marker-decoy"  # 8자를 넘어 8.3 이름이 따로 생긴다
+    outside_dir.mkdir()
+    (outside_dir / "marker.txt").write_bytes(marker)
+    decoy = tmp_path / "junction-decoy"
+    decoy.mkdir()
+    (decoy / "marker.txt").write_bytes(marker)
+    _winapi.CreateJunction(str(decoy), str(target_dir / "jlink"))
 
     target = os.path.realpath(target_dir)
-    outside = os.path.realpath(private / "marker.txt")
+    outside = os.path.realpath(outside_dir / "marker.txt")
     assert outside[1:3] == ":\\"
     values = {
         "<T_LOWER>": target.lower(),
@@ -110,6 +118,10 @@ def layout(make_bundle: MakeBundle, tmp_path: Path) -> Layout:
         "<T_SHORT>": short_path(target),
         "<T>": target,
         "<P_DIR>": os.path.dirname(outside),
+        "<DECOY_DIR>": os.path.realpath(decoy),
+        "<P_FROM_HOME_POSIX>": relative_posix(outside, os.environ["USERPROFILE"]),
+        "<P_FROM_LOCALAPPDATA>": os.path.relpath(outside, os.environ["LOCALAPPDATA"]),
+        "<P_FROM_LOCALAPPDATA_POSIX>": relative_posix(outside, os.environ["LOCALAPPDATA"]),
         "<P_POSIX>": outside.replace("\\", "/"),
         "<P_SHORT>": short_path(outside),
         "<P_SWAPCASE>": outside.swapcase(),
@@ -204,6 +216,15 @@ def test_F_R04_공통표_모든꼴을_돌림() -> None:
         for example in case["examples"]:
             assert example["filter"] in {"allow", "reject", None}
             assert (example["filter"] == "allow") == ("resolved" in example)
+
+
+def test_F_R04_공통표_밖자리는_미끼뿐() -> None:
+    """진짜 개인 폴더를 가리키는 예·layout이 없다. 정션은 <P_DIR>과 다른 전용 미끼를 가리킨다."""
+    used = json.dumps([CASES["layout"], CASES["cases"]], ensure_ascii=False)
+    for real in ("SelfAudit-private", ".ssh", ".claude", "SelfAudit-bench-claude"):
+        assert real not in used
+    assert CASES["layout"]["junction"]["points_to"] == "<DECOY_DIR>"
+    assert "<DECOY_DIR>" in CASES["placeholders"]
 
 
 @pytest.mark.parametrize(("case_id", "example"), list(table_examples()))
