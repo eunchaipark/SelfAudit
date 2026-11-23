@@ -2052,7 +2052,7 @@
         "description": "REA 도구 4개만 보이고 부르기, 인자 이름 허용 목록, 경로 칸은 realpath로 그 실행의 target 안만, trace의 application은 같은 세션 참조만, REA를 좁은 환경과 ㉠으로 띄우기",
         "details": "영역: 실행기\n목적: 조건 B가 REA 정적 분석 도구 4개만 그 실행의 대상 안에서 쓰게 해서, A·B가 REA 하나만 다르게 한다 (요구사항 5.1 '바꾸는 것', D-041)\n읽을 문서: 기능명세 F-R04, 설계 REA환경 6절(도구 표·인자·'F-R04 시험 꼴'), 4절 ㉠, 결정기록 D-041\n고칠 파일: bench/run/rea_mcp_filter.py, bench/run/mcp-B.json, bench/tests/run/test_f_r04.py, bench/tests/run/fake_rea/**\n계약: MCP stdio JSON-RPC tools/list·tools/call, REA 6.10.1 도구 4개의 인자(REA환경 6절 표), ops/scripts/rea_netguard.cjs(읽기만)\n명세 기준: 46b368f\n\n크기: 예시 약 27 · 파일 약 4 · 하위 작업 6. 쌍에 넣지 않은 근거: 예시가 다른 태스크의 1.5배가 넘어 맞출 짝이 없다. 또 작업 폴더 밖 읽기를 막는 경계라 병합 전 검토를 빼지 않는다(설계 반려 2 높음)",
         "testStrategy": "test_F_R04_tools_list_4개만 / test_F_R04_허용밖_호출_REA로안감_오류 / test_F_R04_인자목록밖_evidence_output_거절 / 허용 6가지(target 안 상대·절대·`\\\\?\\`·8.3·target 자신·`안/../안`) / 거절 14가지(`..`로 밖, 밖 절대, 저장소 절대, 안쪽 정션이 밖을 가리킴, `\\\\?\\` 밖, `\\\\?\\UNC`, UNC, `\\\\.\\C:\\` 밖, 8.3 밖, ADS, `/` 꼴 밖, 없는 파일, `C:x`, 형제 target2) / test_F_R04_source_paths_점점_거절 / test_F_R04_trace_inline_Evidence_거절 / test_F_R04_trace_같은세션참조_허용 / test_F_R04_REA환경_빈홈·TEMP·㉠. 시험은 fake_rea로 한다. 화면 없음",
-        "status": "review",
+        "status": "in-progress",
         "dependencies": [
           "20"
         ],
