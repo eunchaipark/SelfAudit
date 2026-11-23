@@ -207,7 +207,7 @@
           "file_lines": 1
         }
       ],
-      "anchor": "sourcesContent",
+      "anchor": "courier-e2d3a31b.js.map",
       "decoded_anchor": null,
       "planted": "기사용 조각 courier.js에만 소스맵을 붙이고 맵의 sourcesContent에 압축 전 원본을 그대로 넣음(주 번들 index.js에는 맵이 없음)",
       "why": "여러 조각 가운데 하나에만 남은 소스맵 노출을 찾는가"

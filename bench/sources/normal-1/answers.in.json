@@ -107,7 +107,7 @@
       "id": "N1-09",
       "categories": ["source_map"],
       "hiding": "none",
-      "anchor": "sourcesContent",
+      "anchor": "courier-e2d3a31b.js.map",
       "decoded_anchor": null,
       "at": [
         {"file": "assets/courier.js", "marker": "sourceMappingURL="},

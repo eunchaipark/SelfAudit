@@ -186,10 +186,10 @@
           "file_lines": 1
         }
       ],
-      "anchor": "jQuery v3.4.1",
+      "anchor": "3.4.1",
       "decoded_anchor": null,
       "planted": "vendor.js 배너와 jQuery.fn.jquery에 jQuery 3.4.1(HTML 다루기 XSS CVE-2020-11022·CVE-2020-11023은 3.5.0에서 고침). 코드는 진짜 jQuery가 아니라 작은 흉내 함수 셋",
-      "why": "압축된 라이브러리의 버전 배너로 알려진 취약점이 있는 옛 라이브러리를 알아보는가"
+      "why": "압축된 라이브러리의 버전으로 알려진 취약점이 있는 옛 라이브러리를 알아보는가. 판정 기준은 배너·jQuery.fn.jquery의 버전 3.4.1이다(흉내 코드라 취약한 함수 자체는 없음)"
     },
     {
       "id": "N2-09",

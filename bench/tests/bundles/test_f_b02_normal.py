@@ -275,6 +275,16 @@ def test_F_B03_normal_닻_번들에서_한곳만(bundle_id: str) -> None:
             assert other_id == entry_id or anchor not in other, (entry_id, other_id)
 
 
+def test_F_B03_normal1_소스맵_닻은_맵이름() -> None:
+    """반려 1 1: 줄로 못 가르는 위치라 닻으로만 맞는다. `sourcesContent` 낱말은 맵 JSON을
+    날것으로 읽는 쪽에만 evidence에 들어가므로, 번들에 한 번만 나오는 맵 파일 이름을 닻으로 쓴다."""
+    (item,) = [i for i in _items("normal-1") if i["categories"] == ["source_map"]]
+    anchor = str(item["anchor"])
+    texts = _texts("normal-1")
+    assert anchor.endswith(".js.map") and f"assets/{anchor}" in texts
+    assert sum(_occurrences(t, anchor) for t in texts.values()) == 1
+
+
 @pytest.mark.parametrize("bundle_id", NORMAL)
 def test_F_B03_normal_숨긴정답만_풀어낸값(bundle_id: str) -> None:
     """F-B03 6: 숨긴 정답(split·encoded)에는 풀어낸 값, 그 밖(config·none)은 null."""
