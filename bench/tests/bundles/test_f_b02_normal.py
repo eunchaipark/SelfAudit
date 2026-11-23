@@ -144,18 +144,40 @@ def test_F_B02_인코딩_걸러내기_이름과_인자() -> None:
 def test_F_B02_normal_split_두조각_따로있음(bundle_id: str) -> None:
     """`split` 정답: 닻은 번들에 있는 조각 하나, 풀어낸 값은 통째로는 번들에 없다.
 
-    풀어낸 값에서 닻을 뺀 앞·뒤 조각도 번들에 따로 있다(둘이 이어 붙은 글로는 없다).
+    - 심기 계획으로 만든 값(키 등)은 `fake.split_value` 조각이 모두 번들에 있고, 닻은 그 가운데
+      하나이며, 이웃 조각이 이어 붙은 글로는 나오지 않는다.
+    - 손으로 나눈 값(경로 N1-06 `"/internal"` + `"/refunds/bulk"`)은 길이가 같지 않아
+      `split_value` 꼴이 아니다. 닻을 뺀 앞·뒤 조각이 번들에 따로 있는지만 본다(반려 1 5).
     """
     items = _items(bundle_id, "split")
     assert items
     texts = list(_texts(bundle_id).values())
+    generated = _generated(bundle_id)
     for item in items:
         anchor, decoded = str(item["anchor"]), str(item["decoded_anchor"])
-        before, found, after = decoded.partition(anchor)
-        assert found and anchor != decoded, item["id"]
+        assert anchor in decoded and anchor != decoded, item["id"]
         assert not any(decoded in t for t in texts), item["id"]
-        rest = [piece for piece in (before, after) if piece]
-        assert all(any(piece in t for t in texts) for piece in rest), item["id"]
+        if decoded in generated:
+            pieces = _pieces_in_bundle(decoded, texts)
+            assert pieces is not None and anchor in pieces, item["id"]
+        else:
+            before, _, after = decoded.partition(anchor)
+            pieces = [piece for piece in (before, anchor, after) if piece]
+            assert all(any(piece in t for t in texts) for piece in pieces), item["id"]
+        for left, right in zip(pieces, pieces[1:], strict=False):
+            assert not any(left + right in t for t in texts), item["id"]
+
+
+def _pieces_in_bundle(value: str, texts: list[str]) -> list[str] | None:
+    """`fake.split_value`로 나눈 조각이 모두 번들에 있는 가장 작은 조각 수의 조각들."""
+    for parts in range(2, fake.SPLIT_MAX_PARTS + 1):
+        try:
+            pieces = fake.split_value(value, parts)
+        except fake.FakeValueError:
+            return None
+        if all(any(piece in t for t in texts) for piece in pieces):
+            return pieces
+    return None
 
 
 @pytest.mark.parametrize("bundle_id", NORMAL)
