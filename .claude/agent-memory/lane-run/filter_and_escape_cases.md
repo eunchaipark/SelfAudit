@@ -18,4 +18,5 @@ T31(2026-11-22)에서 `bench/run/rea_mcp_filter.py`·`escape_cases.json`·`mcp-B
 - 거르개는 target 아래 재분석 지점이 있으면 띄우지 않는다(검증 T31 6) → F-R10 문지기 B에 정션을 두면 B가 늘 연결 안 됨. 설계에 요청해 둠(T31 보고).
 - 8.3·정션 시험은 `GetShortPathNameW`(ctypes)·`_winapi.CreateJunction`으로, 관리자 권한 없이 된다. 못 만들면 건너뛰지 말고 실패.
 - 격리 worktree 훅: `git -C`, heredoc+git 한 명령, 긴 `&&` 묶음은 막힌다. git은 한 명령씩. 파일을 고치는 임시 스크립트는 heredoc 말고 Write로 scratchpad에 만들어 `python -I`로(heredoc 안 `\\`·`\n`이 깨진 적 있음).
+- 띄운 프로세스 나무 끝내기는 kill-on-close Job Object(ctypes)가 기본이다. taskkill /T는 부모가 먼저 끝난 고아를 못 찾는다(T31 재검증 ③). 큰 입력을 다루는 글 함수는 N·2N·4N 시간 비율 시험(gc 끄고 최소값)을 붙인다 — `strip().strip()` 되풀이가 제곱이었다(재검증 ①).
 - 열린 일: F-R10 문지기 B에서 target 안 정션 + 허용된 `input_path:<T>`로 REA가 밖을 읽을 수 있다(보고서 T31 요청). [[lane-run-f-r10]]
