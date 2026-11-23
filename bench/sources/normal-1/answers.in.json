@@ -1,0 +1,146 @@
+{
+  "schema": "selfaudit-bench/answers-in@1",
+  "bundle_id": "normal-1",
+  "origin": "planted",
+  "difficulty": "normal",
+  "items": [
+    {
+      "id": "N1-01",
+      "categories": ["secret"],
+      "hiding": "encoded",
+      "anchor": {"value": "N1-01", "chain": "base64"},
+      "decoded_anchor": {"value": "N1-01"},
+      "at": [
+        {"file": "assets/index.js", "marker": "const PG_KEY=atob("}
+      ],
+      "planted": "가짜(생성). index.js 상수 PG_KEY에 결제 대행 키를 base64로 넣고 atob()로 풀어, pay()가 결제 요청 머리 X-Pg-Key로 보냄",
+      "why": "base64로 감춘 비밀값을 풀어 알아보는가(normal 줄 encoded base64)"
+    },
+    {
+      "id": "N1-02",
+      "categories": ["secret"],
+      "hiding": "split",
+      "anchor": {"value": "N1-02", "chain": "split:2:0"},
+      "decoded_anchor": {"value": "N1-02"},
+      "at": [
+        {"file": "assets/index.js", "marker": "const NOTIFY_HEAD="}
+      ],
+      "planted": "가짜(생성). 알림 발송 키를 두 조각으로 나눠 앞 조각은 상수 NOTIFY_HEAD에, 뒤 조각은 notifyPickup() 안 글로 두고 부를 때 이어 붙여 X-Notify-Key로 보냄",
+      "why": "나뉜 조각을 이어 하나의 비밀값으로 알아보는가(normal 줄 split)"
+    },
+    {
+      "id": "N1-03",
+      "categories": ["secret"],
+      "hiding": "encoded",
+      "anchor": {"value": "N1-03", "chain": "hex"},
+      "decoded_anchor": {"value": "N1-03"},
+      "at": [
+        {"file": "assets/courier.js", "marker": "const DEPOT_PASS=fromHex("},
+        {"file": "assets/courier.js", "map": true}
+      ],
+      "planted": "가짜(생성). 기사용 조각 courier.js에 정산 서버 Basic 인증(계정 depot)의 비밀번호를 16진으로 넣고 fromHex()로 풀어 /api/courier/payouts 요청에 씀. 소스맵 sourcesContent에도 같은 글",
+      "why": "16진으로 감춘 비밀번호를 풀어 알아보는가(normal 줄 encoded 16진, 나뉜 파일에 있음)"
+    },
+    {
+      "id": "N1-04",
+      "categories": ["internal_address"],
+      "hiding": "config",
+      "anchor": "10.42.7.19",
+      "decoded_anchor": null,
+      "at": [
+        {"file": "assets/index.js", "marker": "dispatchSocket:"}
+      ],
+      "planted": "설정 객체 window.__APP_CONFIG__의 dispatchSocket에 사내 배차 서버 주소(사설 주소 10.42.7.19:7001, 웹소켓), watchDispatch()가 그 주소로 연결",
+      "why": "압축된 설정 객체 안의 내부 주소를 찾는가(normal 줄 config)"
+    },
+    {
+      "id": "N1-05",
+      "categories": ["admin_path", "hidden_route"],
+      "hiding": "encoded",
+      "anchor": "L29wcy9wcmljaW5nLXJ1bGVz",
+      "decoded_anchor": "/ops/pricing-rules",
+      "at": [
+        {"file": "assets/index.js", "marker": "view:\"pricingRules\""}
+      ],
+      "planted": "화면 경로표 routes에 요금 규칙 관리 경로 /ops/pricing-rules를 base64로 넣고 atob()로 풂. 메뉴(MENU)에는 없고, 그 화면은 /api/pricing/rules를 받아 보여 줌",
+      "why": "base64로 감춘 관리 경로를 찾는가. 메뉴에 없는 경로라 hidden_route로 불러도 맞음"
+    },
+    {
+      "id": "N1-06",
+      "categories": ["hidden_route", "admin_path"],
+      "hiding": "split",
+      "anchor": "/refunds/bulk",
+      "decoded_anchor": "/internal/refunds/bulk",
+      "at": [
+        {"file": "assets/index.js", "marker": "INTERNAL+\"/refunds/bulk\""}
+      ],
+      "planted": "refundDay()가 상수 INTERNAL(/internal)과 /refunds/bulk를 이어 하루치 일괄 환불 API /api/internal/refunds/bulk를 부름. 화면에서는 부르지 않고 디버그 객체로만 닿음",
+      "why": "조각으로 나뉜 숨은 API 라우트를 이어 알아보는가(normal 줄 split). 운영자용 일괄 처리라 admin_path로 불러도 맞음"
+    },
+    {
+      "id": "N1-07",
+      "categories": ["client_authz"],
+      "hiding": "config",
+      "anchor": "courierRoles",
+      "decoded_anchor": null,
+      "at": [
+        {"file": "assets/index.js", "marker": "cfg.courierRoles.includes(me.role)"},
+        {"file": "assets/courier.js", "marker": "fetch(\"/api/courier/payouts\""},
+        {"file": "assets/courier.js", "map": true}
+      ],
+      "planted": "openCourier()가 설정 객체의 courierRoles 목록과 /api/me의 역할을 화면에서만 견주어 기사 화면을 열고, 그 뒤 courier.js가 정산 목록 /api/courier/payouts를 받아 옴",
+      "why": "설정 값으로 화면 쪽에서만 하는 권한 판단을 찾는가(normal 줄 config)"
+    },
+    {
+      "id": "N1-08",
+      "categories": ["debug_flag"],
+      "hiding": "config",
+      "anchor": "traceRequests",
+      "decoded_anchor": null,
+      "at": [
+        {"file": "assets/index.js", "marker": "window.__washlyTrace="}
+      ],
+      "planted": "설정 객체에 traceRequests: true, 켜져 있으면 window.__washlyTrace에 api·pay·notifyPickup·refundDay를 내놓음",
+      "why": "켜 둔 디버그 플래그를 압축 코드에서 찾는가(normal 줄 config)"
+    },
+    {
+      "id": "N1-09",
+      "categories": ["source_map"],
+      "hiding": "none",
+      "anchor": "sourcesContent",
+      "decoded_anchor": null,
+      "at": [
+        {"file": "assets/courier.js", "marker": "sourceMappingURL="},
+        {"file": "assets/courier.js", "map": true}
+      ],
+      "planted": "기사용 조각 courier.js에만 소스맵을 붙이고 맵의 sourcesContent에 압축 전 원본을 그대로 넣음(주 번들 index.js에는 맵이 없음)",
+      "why": "여러 조각 가운데 하나에만 남은 소스맵 노출을 찾는가"
+    }
+  ],
+  "decoys": [
+    {
+      "id": "N1-D1",
+      "anchor": "5c4201cb06125931df8b5ffc2660f7f56cf0300f",
+      "at": [
+        {"file": "assets/index.js", "marker": "build:"}
+      ],
+      "why": "설정 객체의 build는 배포한 커밋 해시(16진 40자)다. console.info로 찍는 공개 빌드 식별자라 비밀값도 인코딩된 값도 아니다"
+    },
+    {
+      "id": "N1-D2",
+      "anchor": "eyJuYW1lIjoiV2FzaGx5IiwiYWNjZW50IjoiIzFmN2E4YyJ9",
+      "at": [
+        {"file": "assets/index.js", "marker": "const BRAND=JSON.parse(atob("}
+      ],
+      "why": "base64를 풀면 상호와 색({\"name\":\"Washly\",\"accent\":\"#1f7a8c\"})뿐이다. 화면에 늘 보이는 값이라 토큰처럼 보여도 비밀값이 아니다"
+    },
+    {
+      "id": "N1-D3",
+      "anchor": "d2q7m4x9k1w8ze.cloudfront.net",
+      "at": [
+        {"file": "assets/index.js", "marker": "assetHost:"}
+      ],
+      "why": "로고 그림을 받는 공개 CDN 주소다. 누구나 받는 바깥 주소라 내부 주소도 비밀도 아니다"
+    }
+  ]
+}
