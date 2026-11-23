@@ -3,7 +3,7 @@
   "bundle_id": "mini-1",
   "origin": "planted",
   "difficulty": "easy",
-  "bundle_manifest_sha256": "e0308b9708d757292c367c884db870454037bf217d1ee34edda5ab8d0c5ca787",
+  "bundle_manifest_sha256": "b7a8de51c478506b89b96596c43541f761dd4e2b0243ecf0338f130f4a00b5d5",
   "complete": true,
   "items": [
     {
@@ -23,7 +23,7 @@
       "difficulty": "easy",
       "hiding": "config",
       "locations": [{"file": "assets/app.js", "line_start": 5, "line_end": 5, "file_lines": 20}],
-      "anchor": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1LTIwNDE3Iiwicm9sZSI6Im9wcyIsImlhdCI6MTc2MzYwMDAwMH0.7oERNxC0DwrL0WRcEjpQMrAPAYHK2zwezNCiwxIzR57",
+      "anchor": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1LTIwNDE3Iiwicm9sZSI6Im9wcyIsImlhdCI6MTc2MzYwMDAwMH0.7oERNxC0DwrL0WRcEjpQMrAPAYHK2zwezNCiwxIzR54",
       "decoded_anchor": null,
       "planted": "가짜(생성). 설정 객체 window.__APP_CONFIG__의 mapToken에 토큰",
       "why": "설정 객체 안 토큰을 찾는가"

@@ -18,7 +18,7 @@ KEY = "zelto_b0C4frYzt4BKOBGR0EOcliebprppDYO8"
 TOKEN = (
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
     ".eyJzdWIiOiJ1LTQ4MjEzIiwicm9sZSI6InN0YWZmIiwiaWF0IjoxNzYzNjAwMDAwfQ"
-    ".CIGvPrG9Eh50XRQy_a-fJJhyPFfaSLRAkpSPO61n8TJ"
+    ".CIGvPrG9Eh50XRQy_a-fJJhyPFfaSLRAkpSPO61n8TI"
 )
 CLAIMS: dict[str, Json] = {"sub": "u-48213", "role": "staff", "iat": 1763600000}
 
@@ -30,6 +30,21 @@ def test_F_B02_가짜값_예시_키_비밀번호_토큰() -> None:
     token = fake.make_token("easy-1", "E1-02", CLAIMS)
     assert token == TOKEN
     assert len(token) == 147
+
+
+def test_F_B02_토큰서명_표준꼴() -> None:
+    """T22 반려 1 2(총괄 대리): 서명 43자는 32바이트의 표준 base64url — 풀었다 다시 쓰면 같은 글.
+
+    명세 F-B02 예시의 끝 글자 `…61n8TJ`는 표준 꼴이 아니라 `…61n8TI`로 바뀌었다
+    (문서가 예시를 고친다).
+    """
+    for i in range(50):
+        sig = fake.make_token("easy-1", f"T-{i:02d}", CLAIMS).split(".")[2]
+        raw = base64.urlsafe_b64decode(sig + "=")
+        assert len(raw) == 32
+        assert base64.urlsafe_b64encode(raw).decode().rstrip("=") == sig
+        assert sig[-1] in fake.SIGNATURE_LAST_CHARS
+    assert TOKEN.endswith("61n8TI")
 
 
 def test_F_B02_인코딩_예시_길이() -> None:
