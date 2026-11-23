@@ -37,7 +37,7 @@ ALLOWED = (
     "trace_javascript_semantics",
     "trace_application_feature",
 )
-TABLE_IDS = set(range(1, 15))  # 실험구조 3.10의 #1~#14
+TABLE_IDS = set(range(1, 19))  # 실험구조 3.10의 #1~#18
 GATE_ONLY_IDS = {8, 9}  # 3.10 표에서 거르개 기대가 '해당 없음'인 줄
 REFERENCE = {"kind": "retained-evidence", "evidence_id": "ev_" + "0" * 64}
 SPEC_REPO_FILE = r"C:\project\SelfAudit\CLAUDE.md"  # F-R04 예시의 글 그대로
@@ -54,7 +54,8 @@ PATH_FIELDS = (
     ("analyze_javascript_application", "input_path"),
     ("audit_release_exposure", "path"),
 )
-NET_FIELD = ("trace_javascript_semantics", "query")
+# 그물 ⑤를 보는 칸: 글자 칸 예외(seed·query의 `/…`)가 없는 보통 글 칸
+NET_FIELD = ("analyze_javascript_application", "format")
 
 
 # ---------------------------------------------------------------- 시험 자리
@@ -82,21 +83,29 @@ def short_path(path: str) -> str:
     return str(buffer.value)
 
 
-def relative_posix(path: str, start: str) -> str:
-    return os.path.relpath(path, start).replace("\\", "/")
+def dos_device(drive: str) -> str:
+    """드라이브(`C:`)의 장치 이름(`\\Device\\HarddiskVolume3`). #16 GLOBALROOT 꼴에 넣는다."""
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    buffer = ctypes.create_unicode_buffer(1024)
+    if kernel32.QueryDosDeviceW(drive, buffer, len(buffer)) == 0:
+        raise OSError(ctypes.get_last_error(), "QueryDosDeviceW 실패")
+    return str(buffer.value)
 
 
 @pytest.fixture
 def layout(make_bundle: MakeBundle, tmp_path: Path) -> Layout:
-    """escape_cases.json의 layout대로 만든다.
+    """escape_cases.json의 layout을 tmp_path 안에 그대로 만든다.
 
-    배치/실행/target, 형제 실행, 앞부분만 같은 형제, 밖 미끼 폴더의 표식, 전용 미끼 폴더를 가리키는
-    정션. 밖의 자리는 모두 tmp_path 안에 새로 만든 미끼다(decoy_rule).
+    tmp_path/Local이 %LOCALAPPDATA% 자리다: Local/SelfAudit-bench-runs/<BATCH>/<실행>/target,
+    같은 배치의 형제 실행, 앞부분만 같은 형제, Local/SelfAudit-bench-decoy/<BATCH>/p·j 미끼 폴더,
+    j를 가리키는 정션. 깊이가 본 실행과 같아 상대 경로 예(#1·#17)가 그대로 닿는다(decoy_rule).
     """
     marker = MARKER.encode()
     files = {rel: text.encode() for rel, text in CASES["layout"]["inside_files"].items()}
     bundle = make_bundle({**files, "index.html": b"<html></html>\n"})
-    batch = tmp_path / "batch-20261123-0130-first36"
+    local = tmp_path / "Local"
+    batch_id = "20261123-0130-first36"
+    batch = local / "SelfAudit-bench-runs" / batch_id
     run_dir = batch / "easy-1-b-1-3f2a9c10"
     run_dir.mkdir(parents=True)
     target_dir = run_dir / "target"
@@ -107,34 +116,32 @@ def layout(make_bundle: MakeBundle, tmp_path: Path) -> Layout:
     sib = "easy-2-a-1-0a1b2c3d"
     (batch / sib).mkdir()
     (batch / sib / "x").write_bytes(marker)
-    outside_dir = tmp_path / "outside-marker-decoy"  # 8자를 넘어 8.3 이름이 따로 생긴다
-    outside_dir.mkdir()
-    (outside_dir / "marker.txt").write_bytes(marker)
-    decoy = tmp_path / "junction-decoy"
-    decoy.mkdir()
-    (decoy / "marker.txt").write_bytes(marker)
-    _winapi.CreateJunction(str(decoy), str(target_dir / "jlink"))
+    decoy_root = local / "SelfAudit-bench-decoy" / batch_id
+    for name in ("p", "j"):
+        (decoy_root / name).mkdir(parents=True)
+        (decoy_root / name / "marker.txt").write_bytes(marker)
+    _winapi.CreateJunction(str(decoy_root / "j"), str(target_dir / "jlink"))
 
     target = os.path.realpath(target_dir)
-    outside = os.path.realpath(outside_dir / "marker.txt")
-    assert outside[1:3] == ":\\"
+    outside = os.path.realpath(decoy_root / "p" / "marker.txt")
+    assert outside[1:3] == ":\\" and target[0] == outside[0]
     values = {
         "<T_LOWER>": target.lower(),
         "<T_UPPER>": target.upper(),
         "<T_SHORT>": short_path(target),
         "<T>": target,
+        "<BATCH>": batch_id,
+        "<SIB>": sib,
         "<P_DIR>": os.path.dirname(outside),
-        "<DECOY_DIR>": os.path.realpath(decoy),
-        "<P_FROM_HOME_POSIX>": relative_posix(outside, os.environ["USERPROFILE"]),
-        "<P_FROM_LOCALAPPDATA>": os.path.relpath(outside, os.environ["LOCALAPPDATA"]),
-        "<P_FROM_LOCALAPPDATA_POSIX>": relative_posix(outside, os.environ["LOCALAPPDATA"]),
+        "<DECOY_DIR>": os.path.realpath(decoy_root / "j"),
         "<P_POSIX>": outside.replace("\\", "/"),
         "<P_SHORT>": short_path(outside),
         "<P_SWAPCASE>": outside.swapcase(),
-        "<P_REL>": os.path.relpath(outside, target).replace("\\", "/"),
         "<P_TAIL>": outside[3:],
+        "<P_NODRIVE>": outside[2:],
+        "<P_NODRIVE_POSIX>": outside[2:].replace("\\", "/"),
+        "<P_DEVICE>": dos_device(outside[:2]),
         "<DRIVE>": outside[0],
-        "<SIB>": sib,
         "<P>": outside,
         "<ROOT>": str(ROOT),
     }
@@ -207,8 +214,8 @@ def sent_arguments(out: list[rmf.Outgoing]) -> dict[str, Any]:
 
 
 def path_arguments(tool: str, field: str, value: str) -> dict[str, Any]:
-    if tool == NET_FIELD[0]:
-        return {"application": REFERENCE, field: value}
+    if (tool, field) == NET_FIELD:
+        return {"input_path": "assets", field: value}
     return {field: value}
 
 
@@ -226,7 +233,7 @@ def table_examples() -> Iterator[Any]:
 NOT_INSIDE = rmf.RULE_NOT_INSIDE
 TABLE_RULES = {
     "../../<SIB>/x": NOT_INSIDE,
-    "assets/../<P_REL>": NOT_INSIDE,
+    "assets/../../../../../SelfAudit-bench-decoy/<BATCH>/p/marker.txt": NOT_INSIDE,
     "<P_SHORT>": NOT_INSIDE,
     "\\\\?\\<P>": NOT_INSIDE,
     "\\\\localhost\\<DRIVE>$\\<P_TAIL>": rmf.RULE_UNC,
@@ -236,9 +243,9 @@ TABLE_RULES = {
     "<T_UPPER>2\\MARKER.TXT": NOT_INSIDE,
     "<T>2\\marker.txt": NOT_INSIDE,
     "<T>-old\\marker.txt": NOT_INSIDE,
-    "~/<P_FROM_HOME_POSIX>": rmf.RULE_EXPANSION,
-    "%LOCALAPPDATA%\\<P_FROM_LOCALAPPDATA>": rmf.RULE_EXPANSION,
-    "$LOCALAPPDATA/<P_FROM_LOCALAPPDATA_POSIX>": rmf.RULE_EXPANSION,
+    "~/AppData/Local/SelfAudit-bench-decoy/<BATCH>/p/marker.txt": rmf.RULE_EXPANSION,
+    "%LOCALAPPDATA%\\SelfAudit-bench-decoy\\<BATCH>\\p\\marker.txt": rmf.RULE_EXPANSION,
+    "$LOCALAPPDATA/SelfAudit-bench-decoy/<BATCH>/p/marker.txt": rmf.RULE_EXPANSION,
     "~/x": rmf.RULE_EXPANSION,
     "%TEMP%\\x": rmf.RULE_EXPANSION,
     "$HOME/x": rmf.RULE_EXPANSION,
@@ -246,6 +253,14 @@ TABLE_RULES = {
     "file:///<P_POSIX>": rmf.RULE_FILE_URL,
     "<T>\\jlink\\marker.txt": NOT_INSIDE,
     "\\\\192.0.2.1\\share\\x": rmf.RULE_UNC,
+    "<P_NODRIVE>": rmf.RULE_ROOT_RELATIVE,
+    "<P_NODRIVE_POSIX>": rmf.RULE_ROOT_RELATIVE,
+    "//?/<P_POSIX>": rmf.RULE_UNC,
+    "\\\\.\\<P>": rmf.RULE_UNC,
+    "\\??\\<P>": rmf.RULE_UNC,
+    "\\\\?\\GLOBALROOT<P_DEVICE>\\<P_TAIL>": rmf.RULE_VERBATIM,
+    "<DRIVE>:..\\..\\<SIB>\\x": rmf.RULE_DRIVE_RELATIVE,
+    "<P>::$DATA": rmf.RULE_ADS,
 }
 
 
@@ -289,8 +304,36 @@ def test_F_R04_공통표_꼴(
     arguments = sent_arguments(out)
     if field == NET_FIELD[1]:
         assert arguments[field] == value  # 경로 칸이 아니면 글을 바꾸지 않는다
+        assert arguments["input_path"] == layout.target + "\\assets"
     else:
         assert arguments[field] == layout.fill(example["resolved"])  # REA에는 푼 경로
+
+
+def reachable_examples() -> Iterator[Any]:
+    """거절 예 가운데 이 PC에서 열어 볼 수 있는 것(네트워크 꼴·펼침 꼴은 빼고)."""
+    for case in CASES["cases"]:
+        for index, example in enumerate(case["examples"]):
+            value = example["value"]
+            if example["filter"] != "reject" or example.get("network"):
+                continue
+            if value.startswith(("~", "%", "$")):
+                continue  # 펼침 꼴은 진짜 %LOCALAPPDATA%의 미끼를 가리킨다(F-R10이 연다)
+            yield pytest.param(value, id=f"{case['id']}-{index}")
+
+
+@pytest.mark.parametrize("value", list(reachable_examples()))
+def test_F_R04_공통표_거절예는_표식에_닿음(
+    layout: Layout, value: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """없는 경로를 가리키는 예는 '없어서' 거절되어 꼴을 재지 못한다(3.10 '예가 닿는지 미리 확인').
+
+    작업 폴더 = target으로 Python `open`해 표식이 읽혀야 한다.
+    """
+    monkeypatch.chdir(layout.target)
+    path = layout.fill(value)
+    path = path.removeprefix("file:///")
+    with open(path, encoding="utf-8") as stream:
+        assert stream.read() == MARKER
 
 
 # ---------------------------------------------------------------- 경로 칸 (②)
@@ -330,7 +373,7 @@ REJECT_MORE = [
     pytest.param("\\\\?\\GLOBALROOT\\??\\<P>", rmf.RULE_VERBATIM, id="GLOBALROOT"),
     pytest.param("\\\\.\\<T>\\assets\\app.js", rmf.RULE_UNC, id="장치경로안"),
     pytest.param("<T>-old\\marker.txt", NOT_INSIDE, id="형제target-old"),
-    pytest.param("<T>\\assets\\app.js::$DATA", rmf.RULE_EXPANSION, id="ADS-DATA"),
+    pytest.param("<T>\\assets\\app.js::$DATA", rmf.RULE_ADS, id="ADS-DATA"),
     pytest.param("", rmf.RULE_NOT_TEXT, id="빈글"),
 ]
 
@@ -370,10 +413,11 @@ def test_F_R04_없음과_밖은_같은_오류글(layout: Layout) -> None:
     """오류 글로 target 밖 파일이 있는지 없는지 알 수 없다."""
     router = make_router(layout)
     texts = []
-    for msg_id, value in enumerate(["<P>", "<P_DIR>\\nope.txt", "<T>\\nope.txt"], start=1):
+    values = ["<P>", "<P_DIR>\\nope.txt", "<T>\\nope.txt", "assets/none.js", "../../<SIB>/x"]
+    for msg_id, value in enumerate(values, start=1):
         out = call(router, "audit_release_exposure", {"path": layout.fill(value)}, msg_id)
         texts.append(body(out[0])["error"]["message"])
-    assert texts == [f"path: {NOT_INSIDE}"] * 3
+    assert texts == [f"path: {NOT_INSIDE}"] * len(values)
 
 
 def test_F_R04_예시_assets_푼경로로보냄(layout: Layout) -> None:
@@ -533,6 +577,7 @@ def test_F_R04_trace_inline_Evidence_거절(layout: Layout, tool: str) -> None:
             {"kind": "retained-evidence", "evidence_id": "ev_" + "0" * 64 + "\n"}, id="줄바꿈"
         ),
         pytest.param({**REFERENCE, "path": "<T>"}, id="키더함"),
+        pytest.param({**REFERENCE, "note": "x"}, id="note키"),
         pytest.param("ev_" + "0" * 64, id="글"),
         pytest.param(None, id="없음"),
     ],
@@ -664,11 +709,6 @@ def test_F_R04_그물_루트기준꼴은_글자칸밖에서_거절(
             id="seed-api",
         ),
         pytest.param(
-            "trace_application_feature",
-            {"application": REFERENCE, "seed": {"kind": "route", "value": "\\admin"}},
-            id="seed-역슬래시",
-        ),
-        pytest.param(
             "trace_javascript_semantics",
             {"application": REFERENCE, "query": {"text": "/api/users/delete"}},
             id="query",
@@ -679,6 +719,24 @@ def test_F_R04_그물_글자칸의_루트기준글은_그대로(
     layout: Layout, tool: str, arguments: dict[str, Any]
 ) -> None:
     assert sent_arguments(call(make_router(layout), tool, arguments)) == arguments
+
+
+def test_F_R04_예시_seed_query의_슬래시글은_보냄(layout: Layout) -> None:
+    router = make_router(layout)
+    seed = {"application": REFERENCE, "seed": {"kind": "route", "value": "/api/users"}}
+    assert sent_arguments(call(router, "trace_application_feature", seed)) == seed
+    query = {"application": REFERENCE, "query": {"text": "/admin/export"}}
+    assert sent_arguments(call(router, "trace_javascript_semantics", query, msg_id=2)) == query
+
+
+def test_F_R04_예시_seed의_역슬래시와_view의_슬래시는_거절(layout: Layout) -> None:
+    router = make_router(layout)
+    seed = {"application": REFERENCE, "seed": {"kind": "route", "value": "\\api\\users"}}
+    out = call(router, "trace_application_feature", seed)
+    assert_rejected(out, layout, "seed", rmf.RULE_ROOT_RELATIVE)
+    view = {"application": REFERENCE, "seed": {"value": "x"}, "view": {"page": "/api/users"}}
+    out = call(router, "trace_application_feature", view, msg_id=2)
+    assert_rejected(out, layout, "view", rmf.RULE_ROOT_RELATIVE, 2)
 
 
 REA_TOOLS = Path(__file__).resolve().parent / "fake_rea" / "rea-6.10.1-tools.json"
@@ -1041,6 +1099,14 @@ def test_F_R04_target안_재분석지점이_있으면_뜨지않음(layout: Layou
     assert rmf.load_config(mcp_b_args(layout)[2:]).policy.target == layout.target
 
 
+def test_F_R04_env_dir가_target을_가리키는_정션이면_뜨지않음(layout: Layout) -> None:
+    """글자로는 target 밖이어도 realpath로 풀면 target 안이면 띄우지 않는다."""
+    remove_junction(layout)
+    _winapi.CreateJunction(layout.target, str(layout.run_dir / "rea-env"))
+    with pytest.raises(rmf.ConfigError, match="--env-dir"):
+        rmf.load_config(mcp_b_args(layout)[2:])
+
+
 def test_F_R04_mcp_B_설정틀이_거르개인자와_맞음(layout: Layout) -> None:
     remove_junction(layout)
     config = json.loads((BENCH / "run" / "mcp-B.json").read_text("utf-8"))
@@ -1212,6 +1278,38 @@ def test_F_R04_REA환경_빈홈_TEMP_netguard(layout: Layout) -> None:
         "HTTPS_PROXY",
     }
     assert set(environ) <= {name.upper() for name in allowed}
+
+
+@pytest.mark.parametrize(
+    ("option", "inside"),
+    [("--env-dir", "rea-env"), ("--netguard-log", "netguard.jsonl")],
+    ids=["env-dir", "netguard-log"],
+)
+def test_F_R04_env와_기록이_target안이면_띄우지않고_initialize_오류(
+    layout: Layout, option: str, inside: str
+) -> None:
+    """F-R04 규칙 1·예외: 둘 다 target 밖이어야 띄운다.
+
+    아니면 REA 없이 오류로만 답하고 2로 끝난다.
+    """
+    remove_junction(layout)
+    args = mcp_b_args(layout)
+    args[args.index(option) + 1] = str(Path(layout.target) / inside)
+    fake = [base_python(), "-I", str(FAKE_REA), "--record", "r.jsonl", "--env-out", "e.json"]
+    args[args.index("--") + 1 :] = fake
+    proc = subprocess.Popen(  # noqa: S603 — 시험이 만든 인자 목록, 셸 없음
+        [sys.executable, *args],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        cwd=layout.run_dir,
+    )
+    request = line({"jsonrpc": "2.0", "id": 0, "method": "initialize", "params": {}}) + b"\n"
+    out, _ = proc.communicate(request, timeout=RESPONSE_WAIT_S)
+    assert json.loads(out)["error"]["code"] == rmf.SERVER_ERROR
+    assert proc.returncode == 2
+    assert sorted(p.name for p in Path(layout.target).iterdir()) == ["assets", "index.html"]
+    assert not (layout.run_dir / "r.jsonl").exists()  # 가짜 REA는 뜨지 않았다
 
 
 def test_F_R04_REA가_뜨지않으면_initialize_오류(layout: Layout) -> None:

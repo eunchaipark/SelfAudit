@@ -138,10 +138,15 @@ FILE_URL: Final = "file:"
 # 펼침 꼴(⑤): `%이름%`, `$이름`·`${이름}`·`$(…)`, `~`로 시작.
 # 모두 앞에서 한 번만 훑는 꼴이라 입력 길이에 선형이다
 PERCENT_VAR: Final = re.compile(r"%[^%]+%")
-DOLLAR_VAR: Final = re.compile(r"\$[A-Za-z_{(]")
+# `::$DATA`의 `$`는 NTFS 흐름 종류라 펼침이 아니다(`:` 뒤 `$`는 빼고 ADS 규칙이 거절한다)
+DOLLAR_VAR: Final = re.compile(r"(?<!:)\$[A-Za-z_{(]")
 HOME_MARK: Final = "~"
 QUOTES: Final = "\"'`"
 SEGMENT: Final = re.compile(r"[^\\/]+")
+# NT 이름 공간 접두(`\??\C:\…`). Python은 열고 Node는 못 여는 꼴(실험구조 3.10 #16 측정)
+NT_NAMESPACE_PREFIXES: Final = ("\\??\\", "/??/")
+# 글자 칸 예외는 `/`로 시작하는 글만(`\`로 시작하면 그대로 본다, F-R04 5⑤)
+LITERAL_ROUTE_MARK: Final = "/"
 # 글자 그대로를 맞춰 보는 칸: REA 6.10.1 스키마가 seed를 'Typed literal starting point …
 # value is the literal text', query를 'feature or text query'로 적는다. 열어 보는 경로가
 # 아니라 `/api/…` 같은 글이 정당하게 들어온다(fake_rea/rea-6.10.1-tools.json으로 시험이 확인)
@@ -343,7 +348,7 @@ def _check_path_shape(text: str, where: str) -> None:
     if chr(0) in text:
         raise _reject(where, RULE_NUL)
     if text[:1] and text[0] in SEPARATORS:
-        if text[1:2] and text[1] in SEPARATORS:
+        if (text[1:2] and text[1] in SEPARATORS) or text.startswith(NT_NAMESPACE_PREFIXES):
             raise _reject(where, RULE_UNC)
         raise _reject(where, RULE_ROOT_RELATIVE)
     drive_absolute = bool(DRIVE_ABSOLUTE.match(text))
@@ -474,16 +479,18 @@ def has_dot_dot_segment(text: str) -> bool:
 
 
 def looks_like_path(text: str) -> bool:
-    """경로 꼴: 드라이브 문자로 시작, 구분자 둘로 시작(UNC·장치), `file:`, `..` 마디."""
+    """경로 꼴: 드라이브 문자로 시작, `\\`·`/`로 시작, `file:`, `..` 마디.
+
+    `\\`·`/`로 시작하는 것은 UNC·장치·이름 공간·루트 기준을 모두 덮는다.
+
+    루트 기준(`\\Users\\…`·`/Users/…`)도 넣는다: REA 6.10.1은 이 꼴을 절대 경로로 받아 현재
+    드라이브 맨 위에서 푼다(localPath.js, 실험구조 3.10 #15). ②가 이 꼴을 거절한다.
+    """
     if DRIVE.match(text) or text[: len(FILE_URL)].lower() == FILE_URL:
         return True
-    if len(text) >= 2 and text[0] in SEPARATORS and text[1] in SEPARATORS:
+    if text[:1] and text[0] in SEPARATORS:
         return True
     return has_dot_dot_segment(text)
-
-
-def _is_root_relative(text: str) -> bool:
-    return text[:1] in {"\\", "/"} and not (len(text) >= 2 and text[1] in SEPARATORS)
 
 
 def check_expansions(arguments: Mapping[str, Json]) -> None:
@@ -502,9 +509,9 @@ def scan_strings(
 ) -> None:
     """F-R04 5⑤. ②·③·④가 본 칸 밖의 모든 글을 공백·따옴표를 벗긴 꼴로 본다.
 
-    경로 꼴은 ②를 통과해야 한다. 드라이브 없는 루트 기준 꼴(`\\Users\\…`·`/Users/…`)은 REA가
-    절대 경로로 받으므로(REA 6.10.1 localPath.js) 글자 그대로를 맞춰 보는 칸(LITERAL_TEXT_FIELDS)
-    밖에서는 거절한다.
+    경로 꼴은 ②를 통과해야 한다. 예외: 글자 그대로를 맞춰 보는 칸(LITERAL_TEXT_FIELDS)에서
+    `/`로 시작하는 글은 경로 꼴로 보지 않는다(`/api/users` 같은 라우트 글, F-R04 5⑤ 예외).
+    `\\`로 시작하면 그 칸에서도 그대로 본다.
     """
     literal = LITERAL_TEXT_FIELDS.get(tool, frozenset())
     for field, value in arguments.items():
@@ -512,10 +519,10 @@ def scan_strings(
             continue
         for raw in _strings(value):
             text = strip_wrapping(raw)
+            if field in literal and text.startswith(LITERAL_ROUTE_MARK):
+                continue
             if looks_like_path(text):
                 resolve_path_field(text, field, target)
-            elif field not in literal and _is_root_relative(text):
-                raise _reject(field, RULE_ROOT_RELATIVE)
 
 
 # ---------------------------------------------------------------- tools/call (①~⑤)
@@ -777,7 +784,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _outside_target(raw: str, target: str, name: str) -> str:
-    """파일·폴더 하나의 절대 경로. 부모는 있어야 하고, 푼 경로가 target 밖이어야 한다."""
+    """파일·폴더 하나의 절대 경로. 부모는 있어야 하고, realpath로 푼 경로가 target 밖이어야 한다."""
     raw = raw.rstrip(SEPARATORS)
     if not os.path.isabs(raw) or not DRIVE_ABSOLUTE.match(raw):
         raise ConfigError(f"{name}: 드라이브 문자 절대 경로여야 함")
@@ -785,7 +792,8 @@ def _outside_target(raw: str, target: str, name: str) -> str:
         parent = os.path.realpath(os.path.dirname(raw), strict=True)
     except OSError as error:
         raise ConfigError(f"{name}: 부모 폴더가 없음") from error
-    path = os.path.join(parent, os.path.basename(raw))
+    # 이미 있으면 그 자신이 링크·정션일 수 있어 한 번 더 푼다(없으면 그대로 돌려준다)
+    path = os.path.realpath(os.path.join(parent, os.path.basename(raw)))
     if is_within(path, target):
         raise ConfigError(f"{name}: target 안이면 안 됨")
     return path
@@ -819,7 +827,10 @@ def load_config(argv: Sequence[str]) -> Config:
     if "--" not in argv:
         raise ConfigError("REA 명령 앞에 -- 가 없음")
     split = list(argv).index("--")
-    options = _parser().parse_args(list(argv[:split]))
+    try:
+        options = _parser().parse_args(list(argv[:split]))
+    except SystemExit as error:  # argparse는 잘못된 인자에 끝내 버린다. 띄우지 않음으로 바꾼다
+        raise ConfigError("명령줄 인자가 맞지 않음") from error
     command = list(argv[split + 1 :])
     if not command or not os.path.isabs(command[0]):
         raise ConfigError("REA 프로그램은 절대 경로여야 함")
@@ -987,11 +998,16 @@ def kill_tree(pid: int, environ: Mapping[str, str]) -> bool:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """F-R04 MCP 거르개를 띄운다. 설정이 맞지 않으면 2로 끝난다."""
+    """F-R04 MCP 거르개를 띄운다.
+
+    설정이 맞지 않으면(`--env-dir`·기록이 target 안, target 아래 재분석 지점 포함) REA를 띄우지
+    않고, 입력이 끝날 때까지 모든 요청에 오류로 답한 뒤 2로 끝난다(F-R04 예외: initialize에 오류).
+    """
     try:
         config = load_config(sys.argv[1:] if argv is None else argv)
     except ConfigError as error:
         _log(str(error))
+        _answer_without_rea()
         return 2
     env = build_rea_env(os.environ, config.command[0], config.env_dir, config.netguard_log)
     make_env_dirs(env)
@@ -1006,6 +1022,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         bridge.deliver(router.too_long() if raw is None else router.from_client(raw))
     _stop(process, bridge, pump)
     return 0
+
+
+def _answer_without_rea() -> None:
+    # 허용 도구·target이 없는 Router: REA가 없으므로 모든 요청이 'REA가 떠 있지 않음'이 된다
+    router = Router(Policy(allow=frozenset(), target=""), rea_running=False)
+    bridge = Bridge(router, sys.stdout.buffer, None)
+    for raw in _client_lines(sys.stdin.buffer):
+        bridge.deliver(router.too_long() if raw is None else router.from_client(raw))
 
 
 def _stop(
