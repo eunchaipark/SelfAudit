@@ -161,7 +161,8 @@ def read_contract(name: ContractName, path: Path) -> dict[str, Json]:
 
 
 def check_answers_semantics(answers: Mapping[str, Json]) -> list[ContractError]:
-    """정답지 뜻 규칙(2.10): 줄 범위, ID 고유, 종류와 난이도·complete, 풀어낸 값."""
+    """정답지 뜻 규칙(2.10·8.4): 줄 범위, ID 고유, 종류와 난이도·complete, 풀어낸 값(정답·미끼),
+    위치 닻이 그 정답·미끼의 닻·풀어낸 값과 다름."""
     errors: list[ContractError] = []
     _check_origin(answers, errors)
     seen: set[str] = set()
@@ -175,8 +176,8 @@ def check_answers_semantics(answers: Mapping[str, Json]) -> list[ContractError]:
                 seen.add(entry_id)
             for j, location in enumerate(_objects(entry.get("locations"))):
                 _check_location(location, f"{where}.locations[{j}]", errors)
-            if group == "items":
-                _check_decoded(entry, where, errors)
+                _check_location_anchor(entry, location, f"{where}.locations[{j}]", errors)
+            _check_decoded(entry, where, errors)
     return errors
 
 
@@ -198,7 +199,21 @@ def _check_location(location: Mapping[str, Json], where: str, errors: list[Contr
         errors.append(ContractError(where, "line_end <= file_lines"))
 
 
+def _check_location_anchor(
+    entry: Mapping[str, Json], location: Mapping[str, Json], where: str, errors: list[ContractError]
+) -> None:
+    """위치 닻(8.4 2)은 그 정답·미끼의 `anchor`·`decoded_anchor`와 같으면 안 된다.
+
+    같으면 칸이 뜻이 없다(정답 닻이 이미 그 일을 한다)."""
+    anchor = location.get("anchor")
+    if anchor is not None and anchor in (entry.get("anchor"), entry.get("decoded_anchor")):
+        errors.append(ContractError(f"{where}.anchor", "정답·미끼의 anchor·decoded_anchor와 같음"))
+
+
 def _check_decoded(item: Mapping[str, Json], where: str, errors: list[ContractError]) -> None:
+    """풀어낸 값(정답·미끼, 8.4 6): 숨긴 방법이 split·encoded·obfuscated일 때만, anchor와 다르게.
+
+    미끼는 `hiding`이 선택 칸이라 없으면 숨긴 방법이 아닌 것으로 본다."""
     decoded = item.get("decoded_anchor")
     if decoded is None:
         return

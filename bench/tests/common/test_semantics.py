@@ -66,6 +66,76 @@ def test_common_정답지_풀어낸값(hiding: str, decoded: str | None, expecte
     assert [e.rule for e in validate_contract("answers", data)] == expected
 
 
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("PAY_TAIL_piece_01", []),
+        (None, []),
+        (
+            "ITEM_ANCHOR",
+            [("$.items[0].locations[0].anchor", "정답·미끼의 anchor·decoded_anchor와 같음")],
+        ),
+        (
+            "DECODED",
+            [("$.items[0].locations[0].anchor", "정답·미끼의 anchor·decoded_anchor와 같음")],
+        ),
+        ("abc", [("$.items[0].locations[0].anchor", "minLength 4")]),
+    ],
+)
+def test_common_정답지_위치닻(value: str | None, expected: list[tuple[str, str]]) -> None:
+    """실험구조 8.4 2: 위치마다 선택 칸 anchor, 그 정답의 닻·풀어낸 값과 달라야 한다."""
+    data = answers_example()
+    item = first_item(data)
+    item.update(hiding="encoded", decoded_anchor="zelto_fakeDecodedValue01")
+    location = first_location(item)
+    location["anchor"] = {"ITEM_ANCHOR": item["anchor"], "DECODED": item["decoded_anchor"]}.get(
+        value or "", value
+    )
+    assert [(e.where, e.rule) for e in validate_contract("answers", data)] == expected
+
+
+def test_common_정답지_위치닻_미끼도() -> None:
+    data = answers_example()
+    decoys = data["decoys"]
+    assert isinstance(decoys, list) and isinstance(decoys[0], dict)
+    locations = decoys[0]["locations"]
+    assert isinstance(locations, list) and isinstance(locations[0], dict)
+    locations[0]["anchor"] = "cover_piece_only_here"
+    assert validate_contract("answers", data) == []
+    locations[0]["anchor"] = decoys[0]["anchor"]
+    assert [e.where for e in validate_contract("answers", data)] == [
+        "$.decoys[0].locations[0].anchor"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("hiding", "decoded", "expected"),
+    [
+        ("encoded", "Lobby kiosk: tap a room", []),
+        ("split", "Lobby kiosk: tap a room", []),
+        (None, None, []),
+        ("comment", None, []),
+        (None, "Lobby kiosk: tap a room", ["split·encoded·obfuscated만"]),
+        ("plain", "Lobby kiosk: tap a room", ["split·encoded·obfuscated만"]),
+        ("encoded", "SAME", ["anchor와 같음"]),
+        ("hidden", None, ["enum"]),
+    ],
+)
+def test_common_정답지_미끼_hiding·풀어낸값(
+    hiding: str | None, decoded: str | None, expected: list[str]
+) -> None:
+    """실험구조 8.4 3·6: 미끼의 선택 칸 hiding·decoded_anchor, 뜻 규칙은 정답과 같다."""
+    data = answers_example()
+    decoys = data["decoys"]
+    assert isinstance(decoys, list) and isinstance(decoys[0], dict)
+    decoy = decoys[0]
+    if hiding is not None:
+        decoy["hiding"] = hiding
+    if decoded is not None:
+        decoy["decoded_anchor"] = decoy["anchor"] if decoded == "SAME" else decoded
+    assert [e.rule for e in validate_contract("answers", data)] == expected
+
+
 def test_common_대상목록_ID겹침·경로꼴() -> None:
     data = targets_example()
     rows = data["targets"]

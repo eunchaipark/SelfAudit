@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "selfaudit-bench/answers@1",
   "title": "정답지 (bench/answers/<번들 ID>.json)",
-  "description": "docs/설계/실험구조.md 2.2절·2.10절. 값마다 근거는 그 절에 있다. 뜻 규칙(줄 범위, ID 고유, 종류·난이도·complete, 풀어낸 값)은 bench/common/contracts.py check_answers_semantics.",
+  "description": "docs/설계/실험구조.md 2.2절·2.10절·8.4절. 값마다 근거는 그 절에 있다. 뜻 규칙(줄 범위, ID 고유, 종류·난이도·complete, 풀어낸 값, 위치 닻)은 bench/common/contracts.py check_answers_semantics.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "bundle_id", "origin", "difficulty", "bundle_manifest_sha256", "complete", "items", "decoys"],
@@ -31,11 +31,13 @@
         "file": { "$ref": "#/$defs/relpath" },
         "line_start": { "$ref": "#/$defs/line" },
         "line_end": { "$ref": "#/$defs/line" },
-        "file_lines": { "$ref": "#/$defs/line" }
+        "file_lines": { "$ref": "#/$defs/line" },
+        "anchor": { "$ref": "#/$defs/anchor" }
       }
     },
     "locations": { "type": "array", "minItems": 1, "maxItems": 20, "items": { "$ref": "#/$defs/location" } },
     "anchor": { "type": ["string", "null"], "minLength": 4, "maxLength": 200 },
+    "hiding": { "enum": ["plain", "split", "encoded", "obfuscated", "sourcemap_only", "comment", "config", "none"] },
     "entry_id": { "type": "string", "pattern": "^[A-Z0-9][A-Z0-9-]{1,29}$" },
     "note": { "type": "string", "minLength": 1, "maxLength": 500 }
   },
@@ -58,7 +60,7 @@
           "id": { "$ref": "#/$defs/entry_id" },
           "categories": { "type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/category" } },
           "difficulty": { "$ref": "#/$defs/difficulty" },
-          "hiding": { "enum": ["plain", "split", "encoded", "obfuscated", "sourcemap_only", "comment", "config", "none"] },
+          "hiding": { "$ref": "#/$defs/hiding" },
           "locations": { "$ref": "#/$defs/locations" },
           "anchor": { "$ref": "#/$defs/anchor" },
           "decoded_anchor": { "$ref": "#/$defs/anchor" },
@@ -78,6 +80,8 @@
           "id": { "$ref": "#/$defs/entry_id" },
           "locations": { "$ref": "#/$defs/locations" },
           "anchor": { "$ref": "#/$defs/anchor" },
+          "hiding": { "$ref": "#/$defs/hiding" },
+          "decoded_anchor": { "$ref": "#/$defs/anchor" },
           "why": { "$ref": "#/$defs/note" }
         }
       }
