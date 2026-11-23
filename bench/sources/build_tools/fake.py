@@ -54,6 +54,10 @@ PASSWORD_CHARS: Final = 16  # ⓒ 16자
 TOKEN_SIGNATURE_CHARS: Final = 43  # ⓑ 서명 43자(HS256 서명 32바이트의 base64url 길이)
 TOKEN_MAX_CHARS: Final = 200  # ⓑ 200자 안(닻 상한, 설계 2.2)
 JWT_HEADER: Final[Mapping[str, str]] = {"alg": "HS256", "typ": "JWT"}
+# 서명 끝 글자(T22 반려 1 2, 총괄 대리): 32바이트 = 256비트를 base64url 43자(258비트)로 쓰면 끝 글자의 아래
+# 2비트는 쓰지 않으므로 표준 꼴에서는 0이다 — 글자표에서 4의 배수 자리 16글자(A E I M … 0 4 8)만 된다.
+# 무작위로 고르면 4개 중 3개가 엄격한 디코더에서 '깨진 토큰'이 되어 정답이 미끼처럼 보일 수 있다
+SIGNATURE_LAST_CHARS: Final = BASE64URL[::4]
 PREFIX: Final = re.compile(r"[a-z]{4,6}_")  # ⓐ 지어낸 서비스 이름 소문자 4~6자 + `_`
 # 규칙 4로 만든 값의 꼴(F-B07 10이 '규칙 4 값이 든 정답·미끼'를 가를 때 쓴다, 반려 1 9 총괄 대리).
 # 토큰 머리는 늘 같은 글(JWT_HEADER의 base64url)이다
@@ -266,7 +270,15 @@ def make_token(bundle_id: str, entry_id: str, claims: Mapping[str, Json]) -> str
     if len(fixed) + TOKEN_SIGNATURE_CHARS > TOKEN_MAX_CHARS:
         raise FakeValueError(f"토큰이 {TOKEN_MAX_CHARS}자를 넘음(클레임을 줄인다)")
     seed = seed_for(bundle_id, entry_id)
-    return _reseeded(seed, fixed, lambda s: fixed + _draw(s, BASE64URL, TOKEN_SIGNATURE_CHARS))
+    return _reseeded(seed, fixed, lambda s: fixed + _signature(s))
+
+
+def _signature(seed: str) -> str:
+    """서명 43자: 앞 42자는 base64url 글자, 끝 글자는 표준 꼴(쓰지 않는 끝 비트 0)."""
+    # 같은 시드면 같은 값이어야 해서(F-B02 근거 5) 시드를 주는 random.Random을 쓴다. 암호용이 아니다
+    rng = random.Random(seed)  # noqa: S311
+    head = "".join(rng.choice(BASE64URL) for _ in range(TOKEN_SIGNATURE_CHARS - 1))
+    return head + rng.choice(SIGNATURE_LAST_CHARS)
 
 
 def _b64url_json(value: Mapping[str, Json]) -> str:

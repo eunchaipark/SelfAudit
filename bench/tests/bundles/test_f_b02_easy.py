@@ -33,7 +33,7 @@ SPEC_PASSWORD = "Q0HQvzBsuZJRMH46"
 SPEC_TOKEN = (
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
     ".eyJzdWIiOiJ1LTQ4MjEzIiwicm9sZSI6InN0YWZmIiwiaWF0IjoxNzYzNjAwMDAwfQ"
-    ".CIGvPrG9Eh50XRQy_a-fJJhyPFfaSLRAkpSPO61n8TJ"
+    ".CIGvPrG9Eh50XRQy_a-fJJhyPFfaSLRAkpSPO61n8TI"
 )
 RESERVED_SUFFIXES = (".test", ".example", ".invalid", ".localhost")  # F-B02 6 (RFC 2606)
 

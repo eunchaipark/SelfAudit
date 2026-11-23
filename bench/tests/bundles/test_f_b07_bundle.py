@@ -70,6 +70,8 @@ def test_F_B07_손으로만든_작은번들_통과(mini_bundle: Mini) -> None:
     # 작은 번들의 가짜 값도 F-B02 도구로 만든 것이다
     assert fake.make_key("mini-1", "M-01", "korvel_") == KEY
     assert fake.make_password("mini-1", "M-09") == _item(mini_bundle.answers, "M-09")["anchor"]
+    claims: dict[str, Json] = {"sub": "u-20417", "role": "ops", "iat": 1763600000}
+    assert fake.make_token("mini-1", "M-02", claims) == _item(mini_bundle.answers, "M-02")["anchor"]
 
 
 def test_F_B07_닻이_미끼위치에도있으면_실패(mini_bundle: Mini) -> None:
