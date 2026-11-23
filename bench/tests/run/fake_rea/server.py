@@ -107,22 +107,29 @@ def main() -> int:
     parser.add_argument(
         "--hang-with-child", help="자식 PID를 쓸 파일. 자식을 띄우고 입력이 끝나도 버틴다"
     )
+    parser.add_argument(
+        "--orphan-child",
+        help="자식 PID를 쓸 파일. 자식을 띄우고, 입력이 끝나면 자식을 둔 채 끝난다",
+    )
+    parser.add_argument("--exit-on", help="이 메서드를 받으면 답하지 않고 바로 끝난다")
     args = parser.parse_args()
     state = {"environ": dict(os.environ), "cwd": os.getcwd()}
     Path(args.env_out).write_text(json.dumps(state), encoding="utf-8")
-    child = None
-    if args.hang_with_child:
-        # 분석 자식을 둔 채 멈춘 REA 흉내: 거르개가 프로세스 나무째 끝내는지 본다
+    pid_file = args.hang_with_child or args.orphan_child
+    if pid_file:
+        # 분석 자식을 띄운 REA 흉내: 거르개가 자식까지 끝내는지 본다
         child = subprocess.Popen([sys.executable, "-c", f"import time; time.sleep({HANG_S})"])  # noqa: S603
-        Path(args.hang_with_child).write_text(str(child.pid), encoding="utf-8")
+        Path(pid_file).write_text(str(child.pid), encoding="utf-8")
     record = Path(args.record)
     for raw in sys.stdin.buffer:
         with record.open("ab") as out:
             out.write(raw)
         message = json.loads(raw)
+        if args.exit_on and message.get("method") == args.exit_on:
+            return 1  # 답하기 전에 끝난 REA 흉내
         if "method" in message and "id" in message:
             answer(message)
-    if child is not None:
+    if args.hang_with_child:
         time.sleep(HANG_S)
     return 0
 

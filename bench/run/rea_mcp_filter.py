@@ -29,6 +29,7 @@ sys.path에 들어가지 않는다. 오류·로그 글에는 받은 값을 싣�
 from __future__ import annotations
 
 import argparse
+import ctypes
 import json
 import os
 import queue
@@ -38,6 +39,7 @@ import subprocess
 import sys
 import threading
 from collections.abc import Iterator, Mapping, Sequence
+from ctypes import wintypes
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Final, NamedTuple
@@ -164,6 +166,11 @@ LITERAL_TEXT_FIELDS: Final[Mapping[str, frozenset[str]]] = {
 # 5초는 그 약 70배: 바쁜 PC에서도 스스로 끝날 틈을 주고, 넘으면 나무째 끝낸다. Claude Code가 떠난
 # 뒤의 분석 결과는 쓸 곳이 없어 더 기다릴 까닭이 없고, 길면 실행기(F-R03)의 정리가 늦어진다
 STOP_WAIT_S: Final = 5.0
+# Job Object(Win32 winnt.h·jobapi2.h 값)
+JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE: Final = 0x2000
+JOB_EXTENDED_LIMIT_CLASS: Final = 9  # JobObjectExtendedLimitInformation
+PROCESS_SET_QUOTA: Final = 0x0100
+PROCESS_TERMINATE: Final = 0x0001
 
 
 class ConfigError(ValueError):
@@ -992,6 +999,107 @@ def _start_rea(config: Config, env: dict[str, str]) -> subprocess.Popen[bytes] |
         return None
 
 
+class _BasicLimit(ctypes.Structure):
+    _fields_ = (
+        ("PerProcessUserTimeLimit", ctypes.c_int64),
+        ("PerJobUserTimeLimit", ctypes.c_int64),
+        ("LimitFlags", wintypes.DWORD),
+        ("MinimumWorkingSetSize", ctypes.c_size_t),
+        ("MaximumWorkingSetSize", ctypes.c_size_t),
+        ("ActiveProcessLimit", wintypes.DWORD),
+        ("Affinity", ctypes.c_size_t),
+        ("PriorityClass", wintypes.DWORD),
+        ("SchedulingClass", wintypes.DWORD),
+    )
+
+
+class _IoCounters(ctypes.Structure):
+    _fields_ = tuple(
+        (name, ctypes.c_uint64)
+        for name in (
+            "ReadOperationCount",
+            "WriteOperationCount",
+            "OtherOperationCount",
+            "ReadTransferCount",
+            "WriteTransferCount",
+            "OtherTransferCount",
+        )
+    )
+
+
+class _ExtendedLimit(ctypes.Structure):
+    _fields_ = (
+        ("BasicLimitInformation", _BasicLimit),
+        ("IoInfo", _IoCounters),
+        ("ProcessMemoryLimit", ctypes.c_size_t),
+        ("JobMemoryLimit", ctypes.c_size_t),
+        ("PeakProcessMemoryUsed", ctypes.c_size_t),
+        ("PeakJobMemoryUsed", ctypes.c_size_t),
+    )
+
+
+class KillJob:
+    """Windows Job Object(kill-on-close). 표준 라이브러리 ctypes만 쓴다(재검증 ③).
+
+    REA를 띄우자마자 이 작업에 넣으면 REA가 그 뒤에 띄우는 자식도 같은 작업에 든다. 작업 핸들을
+    닫으면(거르개가 어떻게 끝나든 운영체제가 닫는다) 작업 안 프로세스가 모두 끝난다 — REA 본
+    프로세스가 먼저 끝나 남은 자식(고아)도. taskkill /T는 부모가 사라진 자식을 찾지 못한다.
+    한계: 띄운 뒤 작업에 넣기까지의 짧은 틈에 띄운 자식은 들지 않는다. REA는 분석을 부를 때
+    자식을 띄우므로(REA환경.md 4절 한계 ①) 그 틈에 띄울 일이 없다(추정).
+    """
+
+    def __init__(self, handle: int) -> None:
+        self._handle = handle
+
+    @classmethod
+    def for_process(cls, pid: int) -> KillJob | None:
+        kernel32 = _kernel32()
+        job = kernel32.CreateJobObjectW(None, None)
+        if not job:
+            return None
+        info = _ExtendedLimit()
+        info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        size = ctypes.sizeof(info)
+        if not kernel32.SetInformationJobObject(
+            job, JOB_EXTENDED_LIMIT_CLASS, ctypes.byref(info), size
+        ):
+            kernel32.CloseHandle(job)
+            return None
+        process = kernel32.OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE, False, pid)
+        if not process:
+            kernel32.CloseHandle(job)
+            return None
+        assigned = kernel32.AssignProcessToJobObject(job, process)
+        kernel32.CloseHandle(process)
+        if not assigned:
+            kernel32.CloseHandle(job)
+            return None
+        return cls(int(job))
+
+    def close(self) -> None:
+        """작업을 닫아 안에 남은 프로세스를 모두 끝낸다(두 번 불러도 된다)."""
+        if self._handle:
+            _kernel32().CloseHandle(self._handle)
+            self._handle = 0
+
+
+def _kernel32() -> ctypes.WinDLL:
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateJobObjectW.restype = wintypes.HANDLE
+    kernel32.CreateJobObjectW.argtypes = (ctypes.c_void_p, wintypes.LPCWSTR)
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    kernel32.SetInformationJobObject.argtypes = (
+        wintypes.HANDLE,
+        ctypes.c_int,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+    )
+    kernel32.AssignProcessToJobObject.argtypes = (wintypes.HANDLE, wintypes.HANDLE)
+    kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    return kernel32
+
+
 def kill_tree(pid: int, environ: Mapping[str, str]) -> bool:
     """`%SystemRoot%\\System32\\taskkill.exe /T /F /PID`로 프로세스 나무째 끝낸다.
 
@@ -1029,6 +1137,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     env = build_rea_env(os.environ, config.command[0], config.env_dir, config.netguard_log)
     make_env_dirs(env)
     process = _start_rea(config, env)
+    job = KillJob.for_process(process.pid) if process is not None else None
+    if process is not None and job is None:
+        _log("작업 객체에 넣지 못함: 끝낼 때 taskkill /T만 쓴다")
     router = Router(config.policy, rea_running=process is not None)
     bridge = Bridge(router, sys.stdout.buffer, process.stdin if process else None)
     pump: threading.Thread | None = None
@@ -1037,7 +1148,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         pump.start()
     for raw in _client_lines(sys.stdin.buffer):
         bridge.deliver(router.too_long() if raw is None else router.from_client(raw))
-    _stop(process, bridge, pump)
+    _stop(process, job, bridge, pump)
     return 0
 
 
@@ -1050,19 +1161,29 @@ def _answer_without_rea() -> None:
 
 
 def _stop(
-    process: subprocess.Popen[bytes] | None, bridge: Bridge, pump: threading.Thread | None
+    process: subprocess.Popen[bytes] | None,
+    job: KillJob | None,
+    bridge: Bridge,
+    pump: threading.Thread | None,
 ) -> None:
-    """입력을 닫아 스스로 끝날 틈을 주고, STOP_WAIT_S 안에 안 끝나면 나무째 끝낸다."""
+    """입력을 닫아 스스로 끝날 틈을 주고, STOP_WAIT_S 안에 안 끝나면 나무째 끝낸다.
+
+    REA가 스스로 끝났어도 작업을 닫는다: 본 프로세스가 먼저 끝나 남은 자식까지 끝내려고다.
+    """
     if process is None:
         return
     bridge.close_rea()
     try:
         process.wait(timeout=STOP_WAIT_S)
     except subprocess.TimeoutExpired:
-        if not kill_tree(process.pid, os.environ):
+        if job is not None:
+            job.close()
+        elif not kill_tree(process.pid, os.environ):
             _log("taskkill로 끝내지 못해 본 프로세스만 끝냄")
             process.kill()
         process.wait(timeout=STOP_WAIT_S)
+    if job is not None:
+        job.close()
     if pump is not None:
         pump.join(timeout=STOP_WAIT_S)
 

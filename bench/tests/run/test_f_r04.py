@@ -1304,6 +1304,37 @@ def test_F_R04_멈춘REA는_자식까지_나무째_끝냄(layout: Layout) -> Non
     assert not process_alive(child)
 
 
+def test_F_R04_REA가_먼저끝나도_남은자식까지_끝냄(layout: Layout) -> None:
+    """재검증 ③: REA 본 프로세스가 자식을 둔 채 스스로 끝나도, 거르개가 끝날 때 자식도 끝난다.
+
+    부모가 사라진 자식은 taskkill /T가 찾지 못한다. 작업 객체(kill-on-close)가 맡는다.
+    """
+    child_pid_file = layout.run_dir / "child.pid"
+    process = FilterProcess(
+        layout, base_python(), {}, fake_args=["--orphan-child", str(child_pid_file)]
+    )
+    assert "result" in process.request(0, "initialize", {"capabilities": {}})
+    child = int(child_pid_file.read_text("utf-8"))
+    assert process_alive(child)
+    process.close()
+    assert not process_alive(child)
+
+
+def test_F_R04_REA가_답하기전에_끝나면_기다리던요청에_오류(layout: Layout) -> None:
+    """재검증 ④: REA 출력이 끝나면 펌프가 기다리던 요청마다 `-32000`으로 답한다(실제 프로세스)."""
+    process = FilterProcess(layout, base_python(), {}, fake_args=["--exit-on", "tools/list"])
+    assert "result" in process.request(0, "initialize", {"capabilities": {}})
+    response = process.request(1, "tools/list")
+    assert response == {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "error": {"code": rmf.SERVER_ERROR, "message": "REA가 끝남"},
+    }
+    later = process.request(2, "ping")
+    assert later["error"]["code"] == rmf.SERVER_ERROR
+    process.close()
+
+
 def test_F_R04_REA환경_빈홈_TEMP_netguard(layout: Layout) -> None:
     extra = {"FAKE_SECRET_FOR_TEST": "x", "REA_MCP_TOOL_FAMILIES": "electron,artifact,application"}
     process = FilterProcess(layout, base_python(), extra)
