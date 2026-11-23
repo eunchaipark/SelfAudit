@@ -1,0 +1,15 @@
+{
+  "schema": "selfaudit-bench/plan@1",
+  "bundle_id": "normal-1",
+  "mode": "minified",
+  "hash_names": ["assets/index.js", "assets/courier.js", "assets/style.css"],
+  "sourcemaps": ["assets/courier.js"],
+  "sourcemap_content": true,
+  "values": {
+    "N1-01": {"form": "key", "prefix": "fenzo_"},
+    "N1-02": {"form": "key", "prefix": "lumac_"},
+    "N1-03": {"form": "password"}
+  },
+  "plugins": ["encode"],
+  "steps": []
+}
