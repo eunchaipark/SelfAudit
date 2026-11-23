@@ -145,8 +145,14 @@ QUOTES: Final = "\"'`"
 SEGMENT: Final = re.compile(r"[^\\/]+")
 # NT 이름 공간 접두(`\??\C:\…`). Python은 열고 Node는 못 여는 꼴(실험구조 3.10 #16 측정)
 NT_NAMESPACE_PREFIXES: Final = ("\\??\\", "/??/")
-# 글자 칸 예외는 `/`로 시작하는 글만(`\`로 시작하면 그대로 본다, F-R04 5⑤)
+# 벗길 글자의 연속(앞에서부터). `\s`는 str.strip()과 같은 유니코드 공백이다. 앞에서 한 번 훑는
+# 꼴이라 입력 길이에 선형이다
+WRAPPING_RUN: Final = re.compile(r"[\s\"'`]+")
+# 글자 칸 예외는 `/`로 시작하는 글만(`\`로 시작하면 그대로 본다, F-R04 5⑤). 다만 둘째 글자가
+# `/`·`\`·`?`면 예외가 아니다: `//host/share`·`/\host`(UNC), `//?/`·`/??/`(장치·이름 공간)는
+# 라우트가 아니고, 지금 REA trace가 파일을 열지 않아도 판이 바뀌면 그물이 막아야 한다(재검증 ②)
 LITERAL_ROUTE_MARK: Final = "/"
+NOT_ROUTE_SECOND: Final = frozenset({"/", "\\", "?"})
 # 글자 그대로를 맞춰 보는 칸: REA 6.10.1 스키마가 seed를 'Typed literal starting point …
 # value is the literal text', query를 'feature or text query'로 적는다. 열어 보는 경로가
 # 아니라 `/api/…` 같은 글이 정당하게 들어온다(fake_rea/rea-6.10.1-tools.json으로 시험이 확인)
@@ -447,12 +453,18 @@ def _strings(value: Json) -> Iterator[str]:
 
 
 def strip_wrapping(text: str) -> str:
-    """앞뒤 공백(유니코드 공백 포함)과 따옴표를 벗긴다. 받는 쪽이 벗겨 읽을 수 있어서다."""
-    while True:
-        stripped = text.strip().strip(QUOTES)
-        if stripped == text:
-            return text
-        text = stripped
+    """앞뒤 공백(유니코드 공백 포함)과 따옴표를 벗긴다. 받는 쪽이 벗겨 읽을 수 있어서다.
+
+    앞과 뒤에서 '공백·따옴표가 아닌 첫 글자'를 한 번씩 찾아 한 번만 자른다(입력 길이에 선형).
+    공백과 따옴표를 번갈아 벗기며 되풀이하면 `"' " * n` 같은 글에서 제곱이 된다(검증 T31 재검증 ①).
+    """
+    start = WRAPPING_RUN.match(text)
+    begin = start.end() if start else 0
+    if begin == len(text):
+        return ""
+    tail = WRAPPING_RUN.match(text[::-1])
+    end = len(text) - (tail.end() if tail else 0)
+    return text[begin:end]
 
 
 def is_expansion(text: str) -> bool:
@@ -493,6 +505,11 @@ def looks_like_path(text: str) -> bool:
     return has_dot_dot_segment(text)
 
 
+def is_route_text(text: str) -> bool:
+    """글자 칸 예외: `/`로 시작하고 둘째 글자가 `/`·`\\`·`?`가 아닌 글(`/api/users`, `/`)."""
+    return text.startswith(LITERAL_ROUTE_MARK) and text[1:2] not in NOT_ROUTE_SECOND
+
+
 def check_expansions(arguments: Mapping[str, Json]) -> None:
     """F-R04 5⑤ 앞부분. 모든 칸의 모든 글(경로 칸 포함)에서 펼침 꼴은 늘 거절한다.
 
@@ -519,7 +536,7 @@ def scan_strings(
             continue
         for raw in _strings(value):
             text = strip_wrapping(raw)
-            if field in literal and text.startswith(LITERAL_ROUTE_MARK):
+            if field in literal and is_route_text(text):
                 continue
             if looks_like_path(text):
                 resolve_path_field(text, field, target)

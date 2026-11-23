@@ -8,14 +8,17 @@ from __future__ import annotations
 
 import _winapi
 import ctypes
+import functools
+import gc
 import json
 import os
 import queue
 import subprocess
 import sys
 import threading
+import time
 import tracemalloc
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -48,6 +51,8 @@ RESPONSE_WAIT_S = 20.0
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000  # OpenProcess 권한(Win32)
 STILL_ACTIVE = 259  # GetExitCodeProcess가 아직 도는 프로세스에 돌려주는 값
 NUL = chr(0)
+# 선형 4N/N 약 4, 제곱 약 16의 가운데(부하 흔들림을 두 배까지 받아 줌, 코드규칙 6장 N·2N 비율)
+LINEAR_RATIO_LIMIT = 8.0
 
 # 경로 칸 셋: 두 경로 칸(②)과 경로 칸이 아닌 글 칸(그물 ⑤)
 PATH_FIELDS = (
@@ -727,6 +732,62 @@ def test_F_R04_예시_seed_query의_슬래시글은_보냄(layout: Layout) -> No
     assert sent_arguments(call(router, "trace_application_feature", seed)) == seed
     query = {"application": REFERENCE, "query": {"text": "/admin/export"}}
     assert sent_arguments(call(router, "trace_javascript_semantics", query, msg_id=2)) == query
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        pytest.param("//host/share/x", id="슬래시둘"),
+        pytest.param("/\\host\\share", id="슬래시역슬래시"),
+        pytest.param("//?/C:/x", id="슬래시긴접두"),
+        pytest.param("/??/C:/x", id="이름공간"),
+    ],
+)
+@pytest.mark.parametrize("tool", ["trace_application_feature", "trace_javascript_semantics"])
+def test_F_R04_글자칸_예외는_둘째글자가_구분자물음표면_아님(
+    layout: Layout, value: str, tool: str
+) -> None:
+    """재검증 ②: `/` 예외는 라우트 꼴만. UNC·장치·이름 공간 꼴은 글자 칸에서도 ②가 막는다."""
+    field = "seed" if tool == "trace_application_feature" else "query"
+    arguments = {"application": REFERENCE, field: {"value": value}}
+    assert_rejected(call(make_router(layout), tool, arguments), layout, field, rmf.RULE_UNC)
+
+
+@pytest.mark.parametrize("value", ["/api/users", "/", "/a?b=1", "/api/../admin"])
+def test_F_R04_글자칸_라우트글은_예외(layout: Layout, value: str) -> None:
+    arguments = {"application": REFERENCE, "seed": {"kind": "route", "value": value}}
+    out = call(make_router(layout), "trace_application_feature", arguments)
+    assert sent_arguments(out) == arguments
+
+
+def test_F_R04_그물_벗기기는_선형() -> None:
+    """재검증 ①: `"' " * n`에서 N·2N·4N 시간 비율이 선형 쪽이다(gc 끄고 다섯 번 중 최소값).
+
+    선형이면 4N/N이 약 4, 제곱이면 약 16이다. 8을 넘으면 실패(부하 흔들림을 두 배까지 받아 줌).
+    """
+    base = 50_000
+    times = []
+    for scale in (1, 2, 4):
+        text = "\"' " * (base * scale) + "x" + "' \"" * (base * scale)
+        times.append(min_time(functools.partial(rmf.strip_wrapping, text)))
+        assert rmf.strip_wrapping(text) == "x"
+    assert times[2] / times[0] < LINEAR_RATIO_LIMIT
+    assert rmf.strip_wrapping("\"' " * base) == ""
+
+
+def min_time(work: Callable[[], object], repeats: int = 5) -> float:
+    enabled = gc.isenabled()
+    gc.disable()
+    try:
+        best = float("inf")
+        for _ in range(repeats):
+            start = time.perf_counter()
+            work()
+            best = min(best, time.perf_counter() - start)
+        return best
+    finally:
+        if enabled:
+            gc.enable()
 
 
 def test_F_R04_예시_seed의_역슬래시와_view의_슬래시는_거절(layout: Layout) -> None:
