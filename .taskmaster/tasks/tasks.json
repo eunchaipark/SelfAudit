@@ -1395,9 +1395,9 @@
         "id": "21",
         "title": "번들·정답지: 빌드·심기 틀과 대상 목록 (F-B01, F-B04, F-B05, F-B02 틀, F-B07 번들 하나)",
         "description": "원본→결과물 빌드(펼침·압축·해시 이름), 가짜 값 만들기·나눔 도구, 지문 쓰기, targets.json, 번들 하나 구성 검사 틀",
-        "details": "영역: 번들·정답지\n목적: A·B가 늘 같은 대상을 받고, 번들이 바뀌면 채점이 멈추게 한다 (요구사항 5.1 '같게 하는 것: 대상', R3)\n읽을 문서: 기능명세 F-B01·F-B02·F-B04·F-B05·F-B07 (문서가 쓸 절), 설계 실험구조 1절, 2.2 'anchor'·'bundle_manifest_sha256'·'가짜 값의 꼴', 2.7, 4절 ⑶\n고칠 파일: bench/sources/_build/**, bench/targets.json, bench/tests/bundles/conftest.py, bench/tests/bundles/fixtures/**, bench/tests/bundles/test_f_b01.py, bench/tests/bundles/test_f_b02_tools.py, bench/tests/bundles/test_f_b04.py, bench/tests/bundles/test_f_b05.py, bench/tests/bundles/test_f_b07_bundle.py\n계약: answers.schema.json, bench.common 지문 함수(T20), check_bench.py가 읽는 targets.json 꼴(설계 4절 ⑶)\n명세 기준: d19b509\n\n제안: 변환 단계(압축·인코딩·난독화)는 원본 폴더마다 둔 빌드 설정이 고르게 한다. 그러면 T23·T24가 `build.py`를 고치지 않고 자기 파일만 더한다(쌍 A의 두 쪽이 같은 파일을 건드리지 않게). `_build/` 자리는 설계 1절 폴더 표에 없어서 후보로 둔 것이다(미결 5).\n크기: 예시 약 12 · 파일 약 11 · 하위 작업 6",
+        "details": "영역: 번들·정답지\n목적: A·B가 늘 같은 대상을 받고, 번들이 바뀌면 채점이 멈추게 한다 (요구사항 5.1 '같게 하는 것: 대상', R3)\n읽을 문서: 기능명세 F-B01·F-B02·F-B04·F-B05·F-B07 (문서가 쓸 절), 설계 실험구조 1절, 2.2 'anchor'·'bundle_manifest_sha256'·'가짜 값의 꼴', 2.7, 4절 ⑶\n고칠 파일: bench/sources/build_tools/**, bench/targets.json, bench/tests/bundles/conftest.py, bench/tests/bundles/fixtures/**, bench/tests/bundles/test_f_b01.py, bench/tests/bundles/test_f_b02_tools.py, bench/tests/bundles/test_f_b04.py, bench/tests/bundles/test_f_b05.py, bench/tests/bundles/test_f_b07_bundle.py\n계약: answers.schema.json, bench.common 지문 함수(T20), check_bench.py가 읽는 targets.json 꼴(설계 4절 ⑶)\n명세 기준: d19b509\n\n제안: 변환 단계(압축·인코딩·난독화)는 원본 폴더마다 둔 빌드 설정이 고르게 한다. 그러면 T23·T24가 `build.py`를 고치지 않고 자기 파일만 더한다(쌍 A의 두 쪽이 같은 파일을 건드리지 않게). `build_tools/` 자리는 설계 1절 폴더 표에 없어서 후보로 둔 것이다(미결 5).\n크기: 예시 약 12 · 파일 약 11 · 하위 작업 6",
         "testStrategy": "test_F_B01_같은원본_두번빌드_바이트같음 / test_F_B01_빌드기록_도구버전 / test_F_B01_압축모드_한줄_해시이름 / test_F_B02_가짜값_서비스꼴아님 / test_F_B02_가짜값_시드같으면_같음 / test_F_B02_나눔_합치면_원값 / test_F_B04_한바이트_바뀌면_지문다름_멈춤 / test_F_B05_종류_planted_practice만 / test_F_B05_mine_거절 / test_F_B07_닻이_미끼위치에도있으면_실패 / test_F_B07_정답7개·미끼4개_실패 / test_F_B07_손으로만든_작은번들_통과. `check.py --only 실험자료` 통과. 화면 없음",
-        "status": "review",
+        "status": "done",
         "dependencies": [
           "20"
         ],
@@ -1463,9 +1463,9 @@
         "id": "22",
         "title": "번들·정답지: 쉬움 번들 둘 (F-B02, F-B03, F-B07 — easy-1·easy-2)",
         "description": "펼친 코드와 sourcesContent가 든 소스맵, plain·comment·config로 숨기기, 정답 8~10개·미끼 2~3개씩",
-        "details": "영역: 번들·정답지\n목적: 정답을 우리가 아는 번들로 재현율을 세고, 쉬움 단계의 바닥값을 둔다 (요구사항 R3, 5.1 대상 ①)\n읽을 문서: 기능명세 F-B02·F-B03·F-B07, 설계 실험구조 2.2, 2.3 category, 2.7 표 easy 줄\n고칠 파일: bench/sources/easy-1/**, bench/sources/easy-2/**, bench/bundles/easy-1/**, bench/bundles/easy-2/**, bench/answers/easy-1.json, bench/answers/easy-2.json, bench/targets.json, bench/tests/bundles/test_f_b02_easy.py\n계약: answers.schema.json\n\n크기: 예시 약 8 · 파일 약 20 · 하위 작업 6",
+        "details": "영역: 번들·정답지\n목적: 정답을 우리가 아는 번들로 재현율을 세고, 쉬움 단계의 바닥값을 둔다 (요구사항 R3, 5.1 대상 ①)\n읽을 문서: 기능명세 F-B02·F-B03·F-B07, 설계 실험구조 2.2, 2.3 category, 2.7 표 easy 줄\n고칠 파일: bench/sources/easy-1/**, bench/sources/easy-2/**, bench/bundles/easy-1/**, bench/bundles/easy-2/**, bench/answers/easy-1.json, bench/answers/easy-2.json, bench/tests/bundles/test_f_b02_easy.py\n계약: answers.schema.json\n명세 기준: ef9a348\n\n크기: 예시 약 8 · 파일 약 20 · 하위 작업 6\nT21 검증 넘김: build_tools/build.py `_write_bundle` 바꿔 넣기를 원자적으로 — 옛 폴더를 `.<id>.old`로 rename → 새 폴더 rename → 옛 폴더 지움, 실패하면 되돌림, OSError는 BuildError로. 열린 파일(Windows 잠금)로 한 번 시험. 키 접두어는 허용 목록에서만, 한 번들 안에서 겹치지 않게. 16자 영숫자 닻에는 fake·test·demo 낱말을 넣지 않는다(규칙 10).",
         "testStrategy": "test_F_B02_easy_plain·comment·config_모두있음 / test_F_B03_easy_정답마다_js와_map_두위치 / test_F_B03_easy_planted에_가짜생성 / test_F_B03_easy_미끼_자리표시값 / test_F_B04_easy_지문같음 / test_F_B07_easy1_구성통과 / test_F_B07_easy2_구성통과 / test_F_B07_쉬움_두번들합쳐_범주8개. 화면 없음",
-        "status": "pending",
+        "status": "review",
         "dependencies": [
           "21"
         ],
@@ -1531,7 +1531,7 @@
         "id": "23",
         "title": "번들·정답지: 보통 번들 둘 (F-B02, F-B03, F-B07 — normal-1·normal-2)",
         "description": "압축(한 줄)·해시 이름, split·encoded(base64·16진)·config로 숨기기",
-        "details": "영역: 번들·정답지\n목적: 숨긴 문제에서 REA가 차이를 내는지 난이도별로 시험할 수 있게 한다 (요구사항 R3 '난이도를 나누는 것', 5.1 대상 ①)\n읽을 문서: 기능명세 F-B02·F-B03·F-B07, 설계 실험구조 2.2 'anchor'·'hiding', 2.7 표 normal 줄\n고칠 파일: bench/sources/_build/encode.py, bench/sources/normal-1/**, bench/sources/normal-2/**, bench/bundles/normal-1/**, bench/bundles/normal-2/**, bench/answers/normal-1.json, bench/answers/normal-2.json, bench/targets.json, bench/tests/bundles/test_f_b02_normal.py\n계약: answers.schema.json\n\n작업 쌍: A 병렬 쪽 (lane-bench + 보안·명세 검토 + 총괄)\n크기: 예시 약 9 · 파일 약 19 · 하위 작업 6",
+        "details": "영역: 번들·정답지\n목적: 숨긴 문제에서 REA가 차이를 내는지 난이도별로 시험할 수 있게 한다 (요구사항 R3 '난이도를 나누는 것', 5.1 대상 ①)\n읽을 문서: 기능명세 F-B02·F-B03·F-B07, 설계 실험구조 2.2 'anchor'·'hiding', 2.7 표 normal 줄\n고칠 파일: bench/sources/build_tools/encode.py, bench/sources/normal-1/**, bench/sources/normal-2/**, bench/bundles/normal-1/**, bench/bundles/normal-2/**, bench/answers/normal-1.json, bench/answers/normal-2.json, bench/tests/bundles/test_f_b02_normal.py\n계약: answers.schema.json\n\n작업 쌍: A 병렬 쪽 (lane-bench + 보안·명세 검토 + 총괄)\n크기: 예시 약 9 · 파일 약 19 · 하위 작업 6\nT21 넘김: 키 접두어는 build_tools 허용 목록에서만, 한 번들 안에서 겹치지 않게. 16자 영숫자 닻에는 fake·test·demo 낱말을 넣지 않는다(규칙 10). 변환 도구는 build_tools/encode.py·obfuscate.py를 더하고 plan.json에 이름만.",
         "testStrategy": "test_F_B02_normal_split_두조각_따로있음 / test_F_B02_normal_encoded_base64 / test_F_B02_normal_encoded_16진 / test_F_B02_normal_config / test_F_B01_normal_한줄_해시이름 / test_F_B03_normal_닻_번들에서_한곳만 / test_F_B07_normal1_구성통과 / test_F_B07_normal2_구성통과 / test_F_B07_보통_범주8개. 화면 없음",
         "status": "pending",
         "dependencies": [
@@ -1599,7 +1599,7 @@
         "id": "24",
         "title": "번들·정답지: 어려움 번들 둘과 직접 만든 난독화 (F-B02, F-B03, F-B07 — hard-1·hard-2)",
         "description": "압축 + 문자열 배열·돌리기·글자 코드 난독화, sourcemap_only·split",
-        "details": "영역: 번들·정답지\n목적: 'REA는 숨기거나 난독화한 문제에서 차이를 낼 것'이라는 가설을 시험할 대상을 둔다 (요구사항 R3, 5.1 대상 ①)\n읽을 문서: 기능명세 F-B02·F-B03·F-B07, 설계 실험구조 2.2, 2.7 표 hard 줄·'난독화를 직접 만드는 근거'\n고칠 파일: bench/sources/_build/obfuscate.py, bench/sources/hard-1/**, bench/sources/hard-2/**, bench/bundles/hard-1/**, bench/bundles/hard-2/**, bench/answers/hard-1.json, bench/answers/hard-2.json, bench/targets.json, bench/tests/bundles/test_f_b02_hard.py\n계약: answers.schema.json\n\n작업 쌍: A 한 세션 쪽 (solo-bench, 병합 전 검토 없음 — 사용자 확인 8절 12)\n크기: 예시 약 10 · 파일 약 20 · 하위 작업 6",
+        "details": "영역: 번들·정답지\n목적: 'REA는 숨기거나 난독화한 문제에서 차이를 낼 것'이라는 가설을 시험할 대상을 둔다 (요구사항 R3, 5.1 대상 ①)\n읽을 문서: 기능명세 F-B02·F-B03·F-B07, 설계 실험구조 2.2, 2.7 표 hard 줄·'난독화를 직접 만드는 근거'\n고칠 파일: bench/sources/build_tools/obfuscate.py, bench/sources/hard-1/**, bench/sources/hard-2/**, bench/bundles/hard-1/**, bench/bundles/hard-2/**, bench/answers/hard-1.json, bench/answers/hard-2.json, bench/tests/bundles/test_f_b02_hard.py\n계약: answers.schema.json\n\n작업 쌍: A 한 세션 쪽 (solo-bench, 병합 전 검토 없음 — 사용자 확인 8절 12)\n크기: 예시 약 10 · 파일 약 20 · 하위 작업 6\nT21 넘김: 키 접두어는 build_tools 허용 목록에서만, 한 번들 안에서 겹치지 않게. 16자 영숫자 닻에는 fake·test·demo 낱말을 넣지 않는다(규칙 10). 변환 도구는 build_tools/encode.py·obfuscate.py를 더하고 plan.json에 이름만.",
         "testStrategy": "test_F_B02_hard_문자열배열_원값이_결과물에없음 / test_F_B02_hard_돌리기 / test_F_B02_hard_글자코드 / test_F_B02_hard_sourcemap_only_값은_map에만 / test_F_B02_hard_split / test_F_B01_난독화_같은시드_같은바이트 / test_F_B01_난독화결과_문법검사_통과 / test_F_B07_hard1_구성통과 / test_F_B07_hard2_구성통과 / test_F_B07_어려움_범주8개. 화면 없음",
         "status": "pending",
         "dependencies": [
