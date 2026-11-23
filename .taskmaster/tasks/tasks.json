@@ -1465,7 +1465,7 @@
         "description": "펼친 코드와 sourcesContent가 든 소스맵, plain·comment·config로 숨기기, 정답 8~10개·미끼 2~3개씩",
         "details": "영역: 번들·정답지\n목적: 정답을 우리가 아는 번들로 재현율을 세고, 쉬움 단계의 바닥값을 둔다 (요구사항 R3, 5.1 대상 ①)\n읽을 문서: 기능명세 F-B02·F-B03·F-B07, 설계 실험구조 2.2, 2.3 category, 2.7 표 easy 줄\n고칠 파일: bench/sources/easy-1/**, bench/sources/easy-2/**, bench/bundles/easy-1/**, bench/bundles/easy-2/**, bench/answers/easy-1.json, bench/answers/easy-2.json, bench/tests/bundles/test_f_b02_easy.py\n계약: answers.schema.json\n명세 기준: ef9a348\n\n크기: 예시 약 8 · 파일 약 20 · 하위 작업 6\nT21 검증 넘김: build_tools/build.py `_write_bundle` 바꿔 넣기를 원자적으로 — 옛 폴더를 `.<id>.old`로 rename → 새 폴더 rename → 옛 폴더 지움, 실패하면 되돌림, OSError는 BuildError로. 열린 파일(Windows 잠금)로 한 번 시험. 키 접두어는 허용 목록에서만, 한 번들 안에서 겹치지 않게. 16자 영숫자 닻에는 fake·test·demo 낱말을 넣지 않는다(규칙 10).",
         "testStrategy": "test_F_B02_easy_plain·comment·config_모두있음 / test_F_B03_easy_정답마다_js와_map_두위치 / test_F_B03_easy_planted에_가짜생성 / test_F_B03_easy_미끼_자리표시값 / test_F_B04_easy_지문같음 / test_F_B07_easy1_구성통과 / test_F_B07_easy2_구성통과 / test_F_B07_쉬움_두번들합쳐_범주8개. 화면 없음",
-        "status": "review",
+        "status": "in-progress",
         "dependencies": [
           "21"
         ],
