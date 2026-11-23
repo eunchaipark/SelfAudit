@@ -15,7 +15,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +41,8 @@ DENIED_NAMED = (
     "trace_web_module_imports",
 )
 TOOL_COUNT = 68
+# 멈춘 흉내의 길이: 거르개의 STOP_WAIT_S(5초)보다 훨씬 길어, 스스로 끝나기 전에 거르개가 끝내야 한다
+HANG_S = 60
 
 
 def tool_names() -> list[str]:
@@ -100,9 +104,17 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--record", required=True)
     parser.add_argument("--env-out", required=True)
+    parser.add_argument(
+        "--hang-with-child", help="자식 PID를 쓸 파일. 자식을 띄우고 입력이 끝나도 버틴다"
+    )
     args = parser.parse_args()
     state = {"environ": dict(os.environ), "cwd": os.getcwd()}
     Path(args.env_out).write_text(json.dumps(state), encoding="utf-8")
+    child = None
+    if args.hang_with_child:
+        # 분석 자식을 둔 채 멈춘 REA 흉내: 거르개가 프로세스 나무째 끝내는지 본다
+        child = subprocess.Popen([sys.executable, "-c", f"import time; time.sleep({HANG_S})"])  # noqa: S603
+        Path(args.hang_with_child).write_text(str(child.pid), encoding="utf-8")
     record = Path(args.record)
     for raw in sys.stdin.buffer:
         with record.open("ab") as out:
@@ -110,6 +122,8 @@ def main() -> int:
         message = json.loads(raw)
         if "method" in message and "id" in message:
             answer(message)
+    if child is not None:
+        time.sleep(HANG_S)
     return 0
 
 

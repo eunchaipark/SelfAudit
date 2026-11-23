@@ -15,7 +15,7 @@ import subprocess
 import sys
 import threading
 import tracemalloc
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -41,7 +41,12 @@ TABLE_IDS = set(range(1, 15))  # 실험구조 3.10의 #1~#14
 GATE_ONLY_IDS = {8, 9}  # 3.10 표에서 거르개 기대가 '해당 없음'인 줄
 REFERENCE = {"kind": "retained-evidence", "evidence_id": "ev_" + "0" * 64}
 SPEC_REPO_FILE = r"C:\project\SelfAudit\CLAUDE.md"  # F-R04 예시의 글 그대로
+# 가짜 REA는 바로 답한다. 20초는 진짜 REA initialize 최장 10.2초(REA환경.md 5절)의 약 2배이고,
+# check.py로 다른 검사·레인과 함께 돌아 이 시험 묶음이 15초에서 92초까지 늘던 부하에서도
+# 한 응답이 이만큼 늦은 적은 없었다. 더 짧으면 부하에서 헛실패하고, 길면 진짜 멈춤을 늦게 안다
 RESPONSE_WAIT_S = 20.0
+PROCESS_QUERY_LIMITED_INFORMATION = 0x1000  # OpenProcess 권한(Win32)
+STILL_ACTIVE = 259  # GetExitCodeProcess가 아직 도는 프로세스에 돌려주는 값
 NUL = chr(0)
 
 # 경로 칸 셋: 두 경로 칸(②)과 경로 칸이 아닌 글 칸(그물 ⑤)
@@ -990,6 +995,7 @@ def test_F_R04_REA환경_허용목록(tmp_path: Path) -> None:
     ],
 )
 def test_F_R04_설정이상하면_뜨지않음(layout: Layout, change: dict[str, str]) -> None:
+    remove_junction(layout)  # 정션 때문이 아니라 바꾼 설정 때문에 멈추는지 본다
     options = {
         "--allow": ",".join(ALLOWED),
         "--target": "<RUN>\\target",
@@ -1007,7 +1013,36 @@ def test_F_R04_설정이상하면_뜨지않음(layout: Layout, change: dict[str,
         rmf.load_config(argv)
 
 
+def remove_junction(layout: Layout) -> None:
+    """정션(링크만, 가리키는 폴더는 그대로)을 지운다.
+
+    실제로 띄우는 시험의 target은 F-R02 ㉠을 지난 target처럼 재분석 지점이 없어야 한다.
+    """
+    os.rmdir(Path(layout.target) / "jlink")
+
+
+def mcp_b_args(layout: Layout) -> list[str]:
+    config = json.loads((BENCH / "run" / "mcp-B.json").read_text("utf-8"))
+    args: list[str] = config["mcpServers"]["rea"]["args"]
+    return [a.replace("<ROOT>", str(ROOT)).replace("<RUN>", str(layout.run_dir)) for a in args]
+
+
+def test_F_R04_target안_재분석지점이_있으면_뜨지않음(layout: Layout) -> None:
+    """두 층(검증 T31 6): F-R02 ㉠과 별개로 거르개도 띄우기 전에 target 아래를 본다."""
+    with pytest.raises(rmf.ConfigError, match="재분석 지점"):
+        rmf.load_config(mcp_b_args(layout)[2:])
+    deep = Path(layout.target) / "assets" / "deep"
+    deep.mkdir()
+    remove_junction(layout)
+    _winapi.CreateJunction(layout.values["<DECOY_DIR>"], str(deep / "link"))
+    with pytest.raises(rmf.ConfigError, match="재분석 지점"):
+        rmf.load_config(mcp_b_args(layout)[2:])
+    os.rmdir(deep / "link")
+    assert rmf.load_config(mcp_b_args(layout)[2:]).policy.target == layout.target
+
+
 def test_F_R04_mcp_B_설정틀이_거르개인자와_맞음(layout: Layout) -> None:
+    remove_junction(layout)
     config = json.loads((BENCH / "run" / "mcp-B.json").read_text("utf-8"))
     assert list(config["mcpServers"]) == ["rea"]
     server = config["mcpServers"]["rea"]
@@ -1031,7 +1066,14 @@ def test_F_R04_mcp_B_설정틀이_거르개인자와_맞음(layout: Layout) -> N
 class FilterProcess:
     """거르개를 가짜 REA와 함께 띄우고 줄 단위로 주고받는다."""
 
-    def __init__(self, layout: Layout, program: str, extra_env: dict[str, str]) -> None:
+    def __init__(
+        self,
+        layout: Layout,
+        program: str,
+        extra_env: dict[str, str],
+        fake_args: Sequence[str] = (),
+    ) -> None:
+        remove_junction(layout)
         run = layout.run_dir
         self.record = run / "rea-record.jsonl"
         self.env_out = run / "rea-env.json"
@@ -1055,6 +1097,7 @@ class FilterProcess:
             str(self.record),
             "--env-out",
             str(self.env_out),
+            *fake_args,
         ]
         self._stderr = (run / "filter-stderr.txt").open("wb")
         self.proc = subprocess.Popen(  # noqa: S603 — 시험이 만든 인자 목록, 셸 없음
@@ -1106,6 +1149,32 @@ def base_python() -> str:
     # venv의 python.exe는 진짜 실행 파일을 띄우는 대리라 환경 변수를 더한다.
     # 가짜 REA는 진짜 실행 파일로 띄운다
     return str(getattr(sys, "_base_executable", sys.executable))
+
+
+def process_alive(pid: int) -> bool:
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not handle:
+        return False
+    try:
+        code = ctypes.c_ulong()
+        assert kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
+        return code.value == STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def test_F_R04_멈춘REA는_자식까지_나무째_끝냄(layout: Layout) -> None:
+    """입력을 닫아도 안 끝나는 REA는 STOP_WAIT_S 뒤 taskkill /T로 자식까지 끝낸다(검증 T31 9)."""
+    child_pid_file = layout.run_dir / "child.pid"
+    process = FilterProcess(
+        layout, base_python(), {}, fake_args=["--hang-with-child", str(child_pid_file)]
+    )
+    assert "result" in process.request(0, "initialize", {"capabilities": {}})
+    child = int(child_pid_file.read_text("utf-8"))
+    assert process_alive(child)
+    process.close()
+    assert not process_alive(child)
 
 
 def test_F_R04_REA환경_빈홈_TEMP_netguard(layout: Layout) -> None:

@@ -31,7 +31,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import queue
 import re
+import stat
 import subprocess
 import sys
 import threading
@@ -147,6 +149,9 @@ LITERAL_TEXT_FIELDS: Final[Mapping[str, frozenset[str]]] = {
     "trace_application_feature": frozenset({"seed"}),
     "trace_javascript_semantics": frozenset({"query"}),
 }
+# REA를 놓아 둔 채 입력을 닫으면 0.065~0.072초 안에 스스로 끝났다(진짜 REA 6.10.1, 2026-11-23, 3번).
+# 5초는 그 약 70배: 바쁜 PC에서도 스스로 끝날 틈을 주고, 넘으면 나무째 끝낸다. Claude Code가 떠난
+# 뒤의 분석 결과는 쓸 곳이 없어 더 기다릴 까닭이 없고, 길면 실행기(F-R03)의 정리가 늦어진다
 STOP_WAIT_S: Final = 5.0
 
 
@@ -786,6 +791,29 @@ def _outside_target(raw: str, target: str, name: str) -> str:
     return path
 
 
+def has_reparse_point(root: str) -> bool:
+    """root 아래에 재분석 지점(정션·심볼릭 링크 등)이 하나라도 있는지. 따라 들어가지 않는다.
+
+    거르개는 경로 칸의 맨 위만 풀므로, `input_path: <T>`로 REA가 폴더를 훑다가 안쪽 정션을 따라
+    밖을 읽을 수 있다. 실행기 F-R02 ㉠이 먼저 막지만 거르개도 띄우기 전에 한 번 더 본다(두 층,
+    검증 T31 6). 훑지 못하는 폴더가 있으면 있는 것으로 본다(실패하면 안전한 쪽).
+    """
+    folders = [root]
+    while folders:
+        folder = folders.pop()
+        try:
+            with os.scandir(folder) as entries:
+                for entry in entries:
+                    info = entry.stat(follow_symlinks=False)
+                    if info.st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+                        return True
+                    if entry.is_dir(follow_symlinks=False):
+                        folders.append(entry.path)
+        except OSError:
+            return True
+    return False
+
+
 def load_config(argv: Sequence[str]) -> Config:
     """F-R04 입력. `--` 뒤는 REA 명령(첫 칸은 절대 경로)."""
     if "--" not in argv:
@@ -806,6 +834,8 @@ def load_config(argv: Sequence[str]) -> Config:
         raise ConfigError("--target: 없는 폴더") from error
     if not os.path.isdir(target) or os.path.dirname(target) == target:
         raise ConfigError("--target: 드라이브 맨 위가 아닌 폴더여야 함")
+    if has_reparse_point(target):
+        raise ConfigError("--target: 아래에 재분석 지점(정션·심볼릭 링크)이 있음")
     netguard_log = _outside_target(options.netguard_log, target, "--netguard-log")
     env_dir = _outside_target(options.env_dir, target, "--env-dir")
     if not NETGUARD.is_file():
@@ -844,14 +874,23 @@ def make_env_dirs(env: Mapping[str, str]) -> None:
 
 
 class Bridge:
-    """Router가 돌려준 메시지를 두 쪽 스트림에 쓴다(쓰는 쪽마다 잠금)."""
+    """Router가 돌려준 메시지를 두 쪽 스트림에 쓴다.
+
+    Claude Code 쪽은 두 스레드(요청 읽기·REA 읽기)가 잠금 하나로 쓴다. REA 쪽은 큐 하나와 쓰기
+    스레드 하나가 맡는다: REA 입력 파이프가 차서 쓰기가 막혀도 다른 스레드가 잠금을 쥔 채 서지 않고,
+    쓰는 차례가 넣은 차례 그대로다(검증 T31 8).
+    """
 
     def __init__(self, router: Router, client: IO[bytes], rea: IO[bytes] | None) -> None:
         self.router = router
         self._client = client
-        self._rea = rea
         self._client_lock = threading.Lock()
-        self._rea_lock = threading.Lock()
+        self._rea = rea
+        self._rea_queue: queue.Queue[bytes | None] = queue.Queue()
+        self._writer: threading.Thread | None = None
+        if rea is not None:
+            self._writer = threading.Thread(target=self._write_rea, args=(rea,), daemon=True)
+            self._writer.start()
 
     def deliver(self, outgoing: list[Outgoing]) -> None:
         for item in outgoing:
@@ -859,18 +898,29 @@ class Bridge:
                 with self._client_lock:
                     self._client.write(dump_line(item.message))
                     self._client.flush()
-            else:
-                self._to_rea(item)
+            elif self._rea is not None:
+                self._rea_queue.put(dump_line(item.message))
 
-    def _to_rea(self, item: Outgoing) -> None:
-        if self._rea is None:
-            return
+    def _write_rea(self, rea: IO[bytes]) -> None:
+        while (data := self._rea_queue.get()) is not None:
+            try:
+                rea.write(data)
+                rea.flush()
+            except OSError:
+                _log("REA 입력에 쓰지 못함")
+                self.deliver(self.router.rea_stopped())
+                break
         try:
-            with self._rea_lock:
-                self._rea.write(dump_line(item.message))
-                self._rea.flush()
+            rea.close()
         except OSError:
-            self.deliver(self.router.rea_stopped())
+            _log("REA 입력을 닫지 못함")
+
+    def close_rea(self) -> None:
+        """넣어 둔 것을 다 쓴 뒤 REA 입력을 닫는다(REA는 입력이 끝나면 스스로 끝난다)."""
+        if self._writer is None:
+            return
+        self._rea_queue.put(None)
+        self._writer.join(timeout=STOP_WAIT_S)
 
 
 def _client_lines(stream: IO[bytes]) -> Iterator[bytes | None]:
@@ -889,10 +939,14 @@ def _client_lines(stream: IO[bytes]) -> Iterator[bytes | None]:
 
 
 def _pump_rea(bridge: Bridge, stdout: IO[bytes]) -> None:
-    for raw in iter(stdout.readline, b""):
-        if raw.strip():
-            bridge.deliver(bridge.router.from_rea(raw))
-    bridge.deliver(bridge.router.rea_stopped())
+    try:
+        for raw in iter(stdout.readline, b""):
+            if raw.strip():
+                bridge.deliver(bridge.router.from_rea(raw))
+    except Exception as error:  # 읽기가 깨져도 기다리는 요청에 답하고 끝낸다
+        _log(f"REA 출력 읽기 중 예외 {type(error).__name__}")
+    finally:
+        bridge.deliver(bridge.router.rea_stopped())
 
 
 def _start_rea(config: Config, env: dict[str, str]) -> subprocess.Popen[bytes] | None:
@@ -906,8 +960,30 @@ def _start_rea(config: Config, env: dict[str, str]) -> subprocess.Popen[bytes] |
             shell=False,
         )
     except OSError:
-        print("rea_mcp_filter: REA를 띄우지 못함", file=sys.stderr)
+        _log("REA를 띄우지 못함")
         return None
+
+
+def kill_tree(pid: int, environ: Mapping[str, str]) -> bool:
+    """`%SystemRoot%\\System32\\taskkill.exe /T /F /PID`로 프로세스 나무째 끝낸다.
+
+    셸 없이, 절대 경로로 부른다. PATH에서 찾지 않는 것은 실행 폴더·target에 같은 이름의
+    프로그램을 두어 바꿔치기할 수 없게 하려고다.
+    """
+    system_root = environ.get("SystemRoot")
+    if not system_root:
+        return False
+    taskkill = os.path.join(system_root, "System32", "taskkill.exe")
+    try:
+        result = subprocess.run(  # noqa: S603 — 고정된 절대 경로와 정수 PID, 셸 없음
+            [taskkill, "/T", "/F", "/PID", str(pid)],
+            capture_output=True,
+            timeout=STOP_WAIT_S,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -915,7 +991,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         config = load_config(sys.argv[1:] if argv is None else argv)
     except ConfigError as error:
-        print(f"rea_mcp_filter: {error}", file=sys.stderr)
+        _log(str(error))
         return 2
     env = build_rea_env(os.environ, config.command[0], config.env_dir, config.netguard_log)
     make_env_dirs(env)
@@ -928,22 +1004,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         pump.start()
     for raw in _client_lines(sys.stdin.buffer):
         bridge.deliver(router.too_long() if raw is None else router.from_client(raw))
-    _stop(process, pump)
+    _stop(process, bridge, pump)
     return 0
 
 
-def _stop(process: subprocess.Popen[bytes] | None, pump: threading.Thread | None) -> None:
+def _stop(
+    process: subprocess.Popen[bytes] | None, bridge: Bridge, pump: threading.Thread | None
+) -> None:
+    """입력을 닫아 스스로 끝날 틈을 주고, STOP_WAIT_S 안에 안 끝나면 나무째 끝낸다."""
     if process is None:
         return
-    if process.stdin is not None:
-        try:
-            process.stdin.close()
-        except OSError:
-            print("rea_mcp_filter: REA 입력을 닫지 못함", file=sys.stderr)
+    bridge.close_rea()
     try:
         process.wait(timeout=STOP_WAIT_S)
     except subprocess.TimeoutExpired:
-        process.kill()
+        if not kill_tree(process.pid, os.environ):
+            _log("taskkill로 끝내지 못해 본 프로세스만 끝냄")
+            process.kill()
         process.wait(timeout=STOP_WAIT_S)
     if pump is not None:
         pump.join(timeout=STOP_WAIT_S)
