@@ -102,8 +102,9 @@ _CR: Final = chr(0x0D)
 _BUILTIN_FILTERS: Final[Mapping[str, Callable[[str, Sequence[str]], str]]] = {
     "split": fake.split_piece,
 }
-_CORE_MODULES: Final = frozenset({"build", "fake", "minify", "sourcemap", "verify"})
+_CORE_MODULES: Final = frozenset({"build", "fake", "locate", "minify", "sourcemap", "verify"})
 _BUILDING_SUFFIX: Final = ".building"  # 쓰는 동안의 임시 폴더 `bench/bundles/.<id>.building`
+_OLD_SUFFIX: Final = ".old"  # 바꿔 넣는 동안 옛 결과물을 잠깐 두는 곳 `bench/bundles/.<id>.old`
 _PACKAGE: Final = __name__.rpartition(".")[0]
 
 
@@ -158,6 +159,7 @@ class BuildResult:
     bundle_manifest_sha256: str
     files: Mapping[str, str]  # src 안 경로 → 결과물 경로
     values: Mapping[str, str] = field(repr=False)  # 정답 ID → 가짜 값(정답지 닻을 적을 때)
+    warnings: tuple[str, ...] = ()  # 빌드는 됐지만 알릴 것(옛 폴더를 지우지 못함 등). 값은 없다
 
 
 # --- 진입 ------------------------------------------------------------------------------------
@@ -177,11 +179,13 @@ def build(
     plan = _read_plan(source_dir / PLAN_NAME, bundle_id)
     files = _read_sources(source_dir / SRC_NAME)
     outputs, names, values = _Builder(plan, files).run()
-    _write_bundle(bundle_dir, outputs)
+    warnings = _write_bundle(bundle_dir, outputs)
     fingerprint = bundle_manifest_sha256(bundle_dir)
     record_path = source_dir / RECORD_NAME
     record_path.write_bytes(_record(bundle_id, fingerprint))
-    return BuildResult(bundle_id, bundle_dir, record_path, fingerprint, names, values)
+    return BuildResult(
+        bundle_id, bundle_dir, record_path, fingerprint, names, values, tuple(warnings)
+    )
 
 
 def _check_places(sources_dir: Path, source_dir: Path, bundles_dir: Path, bundle_dir: Path) -> None:
@@ -198,6 +202,7 @@ def _check_places(sources_dir: Path, source_dir: Path, bundles_dir: Path, bundle
         bundles_dir,
         bundle_dir,
         _building_dir(bundle_dir),
+        _old_dir(bundle_dir),
     )
     for path in places:
         if _is_link(path):
@@ -214,6 +219,10 @@ def _is_link(path: Path) -> bool:
 
 def _building_dir(bundle_dir: Path) -> Path:
     return bundle_dir.with_name(f".{bundle_dir.name}{_BUILDING_SUFFIX}")
+
+
+def _old_dir(bundle_dir: Path) -> Path:
+    return bundle_dir.with_name(f".{bundle_dir.name}{_OLD_SUFFIX}")
 
 
 # --- 계획 읽기 -------------------------------------------------------------------------------
@@ -557,26 +566,82 @@ def _with_final_newline(text: str) -> str:
 # --- 쓰기 ------------------------------------------------------------------------------------
 
 
-def _write_bundle(bundle_dir: Path, outputs: Mapping[str, bytes]) -> None:
+def _write_bundle(bundle_dir: Path, outputs: Mapping[str, bytes]) -> list[str]:
     """F-B01 1: 결과물 폴더를 비우고 새로 만든다(지난 빌드 찌꺼기를 남기지 않는다).
 
-    옆의 임시 폴더에 다 쓴 뒤 바꿔 넣는다 — 쓰다가 멈춰도 반쯤 쓴 결과물이 번들 자리에 남지 않는다.
+    옆의 임시 폴더에 다 쓴 뒤 바꿔 넣는다(T21 검증 넘김):
+    옛 폴더를 `.<id>.old`로 이름 바꿈 → 새 폴더를 제자리로 이름 바꿈 → 옛 폴더 지움.
+    중간에 실패하면 옛 폴더를 되돌린다. 어디서 멈춰도 번들 자리에는
+    옛 결과물이나 새 결과물 하나만 온전히 있다(되돌리기마저 실패하면 옛 결과물은 `.<id>.old`에).
+    디스크 오류(`OSError`)는 `BuildError`로 알린다. 돌려주는 것은 경고(빌드는 됨).
     """
-    building = _building_dir(bundle_dir)
-    if building.exists():
-        shutil.rmtree(building)
-    building.mkdir(parents=True)
+    building, old = _building_dir(bundle_dir), _old_dir(bundle_dir)
     try:
+        _clear_leftovers(bundle_dir, building, old)
+        building.mkdir(parents=True)
         for out_rel in sorted(outputs):
             path = resolve_in_bundle(building, out_rel)
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(outputs[out_rel])
-    except BaseException:
+    except OSError as e:
         shutil.rmtree(building, ignore_errors=True)
-        raise
-    if bundle_dir.exists():
-        shutil.rmtree(bundle_dir)
-    building.rename(bundle_dir)
+        raise BuildError(f"결과물을 쓸 수 없음({type(e).__name__}): {bundle_dir.name}") from None
+    return _swap_in(building, bundle_dir, old)
+
+
+def _clear_leftovers(bundle_dir: Path, building: Path, old: Path) -> None:
+    """지난 빌드가 남긴 임시 폴더를 치운다. 번들 자리가 비고 `.old`만 있으면(지난 되돌리기 실패)
+    지우지 않고 먼저 제자리로 되돌린다 — 지우면 옛 결과물이 아주 사라진다(T22 반려 1 5)."""
+    if building.exists():
+        shutil.rmtree(building)
+    if old.exists():
+        if bundle_dir.exists():
+            shutil.rmtree(old)
+        else:
+            old.rename(bundle_dir)
+
+
+def _swap_in(building: Path, bundle_dir: Path, old: Path) -> list[str]:
+    had_old = bundle_dir.exists()
+    try:
+        if had_old:
+            bundle_dir.rename(old)
+    except OSError as e:
+        shutil.rmtree(building, ignore_errors=True)
+        raise BuildError(
+            f"결과물을 바꿔 넣을 수 없음({type(e).__name__}, 열린 파일?): {bundle_dir.name} 그대로"
+        ) from None
+    try:
+        building.rename(bundle_dir)
+    except OSError as e:
+        shutil.rmtree(building, ignore_errors=True)
+        _restore_old(had_old, old, bundle_dir)
+        raise BuildError(
+            f"결과물을 바꿔 넣을 수 없음({type(e).__name__}): {bundle_dir.name} 그대로"
+        ) from None
+    if not had_old:
+        return []
+    try:
+        shutil.rmtree(old)
+    except OSError as e:
+        # 새 결과물은 이미 제자리다. 멈추면 빌드 기록(build.json)이 옛 지문으로 남아 더 어긋난다
+        return [f"옛 폴더를 지우지 못함({type(e).__name__}): {old.name} — 손으로 지운다"]
+    return []
+
+
+def _restore_old(had_old: bool, old: Path, bundle_dir: Path) -> None:
+    """새 폴더를 넣지 못했을 때 옛 폴더를 제자리로.
+
+    그마저 안 되면 옛 결과물이 어디 있는지 알린다.
+    """
+    if not had_old:
+        return
+    try:
+        old.rename(bundle_dir)
+    except OSError as e:
+        raise BuildError(
+            f"바꿔 넣기와 되돌리기가 모두 실패({type(e).__name__}): 옛 결과물은 {old.name}에 있음"
+        ) from None
 
 
 def _record(bundle_id: str, fingerprint: str) -> bytes:

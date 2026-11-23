@@ -1,0 +1,16 @@
+{
+  "schema": "selfaudit-bench/plan@1",
+  "bundle_id": "easy-1",
+  "mode": "expanded",
+  "hash_names": ["assets/index.js", "assets/backoffice.js", "assets/style.css"],
+  "sourcemaps": ["assets/index.js", "assets/backoffice.js"],
+  "sourcemap_content": true,
+  "values": {
+    "E1-01": {"form": "key", "prefix": "zelto_"},
+    "E1-02": {"form": "token", "claims": {"sub": "u-48213", "role": "staff", "iat": 1763600000}},
+    "E1-07": {"form": "password"},
+    "E1-09": {"form": "key", "prefix": "quvar_"}
+  },
+  "plugins": [],
+  "steps": []
+}

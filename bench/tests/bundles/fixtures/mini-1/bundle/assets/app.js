@@ -2,7 +2,7 @@
 // 미니 상점 화면 (손으로 만든 F-B07 시험 번들, 값은 모두 가짜)
 window.__APP_CONFIG__ = {
   apiBase: "/api",
-  mapToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1LTIwNDE3Iiwicm9sZSI6Im9wcyIsImlhdCI6MTc2MzYwMDAwMH0.7oERNxC0DwrL0WRcEjpQMrAPAYHK2zwezNCiwxIzR57",
+  mapToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1LTIwNDE3Iiwicm9sZSI6Im9wcyIsImlhdCI6MTc2MzYwMDAwMH0.7oERNxC0DwrL0WRcEjpQMrAPAYHK2zwezNCiwxIzR54",
   debugPanel: true,
   docsKey: "YOUR_API_KEY"
 };

@@ -1465,7 +1465,7 @@
         "description": "펼친 코드와 sourcesContent가 든 소스맵, plain·comment·config로 숨기기, 정답 8~10개·미끼 2~3개씩",
         "details": "영역: 번들·정답지\n목적: 정답을 우리가 아는 번들로 재현율을 세고, 쉬움 단계의 바닥값을 둔다 (요구사항 R3, 5.1 대상 ①)\n읽을 문서: 기능명세 F-B02·F-B03·F-B07, 설계 실험구조 2.2, 2.3 category, 2.7 표 easy 줄\n고칠 파일: bench/sources/easy-1/**, bench/sources/easy-2/**, bench/bundles/easy-1/**, bench/bundles/easy-2/**, bench/answers/easy-1.json, bench/answers/easy-2.json, bench/tests/bundles/test_f_b02_easy.py\n계약: answers.schema.json\n명세 기준: ef9a348\n\n크기: 예시 약 8 · 파일 약 20 · 하위 작업 6\nT21 검증 넘김: build_tools/build.py `_write_bundle` 바꿔 넣기를 원자적으로 — 옛 폴더를 `.<id>.old`로 rename → 새 폴더 rename → 옛 폴더 지움, 실패하면 되돌림, OSError는 BuildError로. 열린 파일(Windows 잠금)로 한 번 시험. 키 접두어는 허용 목록에서만, 한 번들 안에서 겹치지 않게. 16자 영숫자 닻에는 fake·test·demo 낱말을 넣지 않는다(규칙 10).",
         "testStrategy": "test_F_B02_easy_plain·comment·config_모두있음 / test_F_B03_easy_정답마다_js와_map_두위치 / test_F_B03_easy_planted에_가짜생성 / test_F_B03_easy_미끼_자리표시값 / test_F_B04_easy_지문같음 / test_F_B07_easy1_구성통과 / test_F_B07_easy2_구성통과 / test_F_B07_쉬움_두번들합쳐_범주8개. 화면 없음",
-        "status": "in-progress",
+        "status": "done",
         "dependencies": [
           "21"
         ],
@@ -1667,7 +1667,7 @@
         "id": "25",
         "title": "번들·정답지: 심은 번들 전체 구성 검사 (F-B07 전체)",
         "description": "번들 6개, 난이도마다 2개, 난이도마다 범주 8개, bench 전체에 서비스 꼴 키 없음",
-        "details": "영역: 번들·정답지\n목적: 번들 하나의 우연이 결과를 좌우하지 않게, 난이도마다 번들 2개와 범주 전부를 갖췄는지 기계가 확인한다 (요구사항 R3)\n읽을 문서: 기능명세 F-B07, 설계 실험구조 2.7 'F-B07 검사', 4절 ⑶\n고칠 파일: bench/tests/bundles/test_f_b07_suite.py\n계약: answers.schema.json\n\n크기: 예시 약 5 · 파일 1 · 하위 작업 3. 근거: 여섯 번들이 다 있어야 돌 수 있는 검사라 앞 태스크에 넣으면 그 태스크가 끝날 수 없다",
+        "details": "영역: 번들·정답지\n목적: 번들 하나의 우연이 결과를 좌우하지 않게, 난이도마다 번들 2개와 범주 전부를 갖췄는지 기계가 확인한다 (요구사항 R3)\n읽을 문서: 기능명세 F-B07, 설계 실험구조 2.7 'F-B07 검사', 4절 ⑶\n고칠 파일: bench/tests/bundles/test_f_b07_suite.py\n계약: answers.schema.json\n\n크기: 예시 약 5 · 파일 1 · 하위 작업 3. 근거: 여섯 번들이 다 있어야 돌 수 있는 검사라 앞 태스크에 넣으면 그 태스크가 끝날 수 없다\nT22 검증 넘김: verify `_check_fake_values`가 토큰 서명 끝 글자(F-B02 4ⓑ, 표준 꼴 `AEIMQUYcgkosw048`)도 보게 하고 명세 예시 '끝 글자 J → 실패(F-B07 10)' 시험. F-B02 6 '예약 이름은 한 번들 안에서 정답·미끼 한쪽에만 쓰지 않음'을 번들 전체 공통 검사로(지금은 easy 시험에만).",
         "testStrategy": "test_F_B07_심은번들_6개 / test_F_B07_난이도마다_2개 / test_F_B07_난이도마다_범주8개 / test_F_B07_정답지마다_지문이_번들과같음 / test_F_B07_bench전체_서비스꼴키없음. 화면 없음",
         "status": "pending",
         "dependencies": [
@@ -2178,7 +2178,7 @@
         "id": "33",
         "title": "실행기: 네트워크 기록과 문지기 실행 (F-R07, F-R10)",
         "description": "㉡ REA 프로세스 나무 연결 보기(A는 0이어야 함), 기록이 있으면 배치 멈춤, 방화벽 상태, 작업 폴더 밖 표식 파일을 두고 두 조건 모두 막히는지 본 뒤에만 배치 시작",
-        "details": "영역: 실행기\n목적: 작업 폴더 밖 읽기와 바깥 연결이 막혔는지 배치마다 확인해, 정답지·로그인 정보가 대상 에이전트에게 새지 않게 한다 (요구사항 6절, 3절 실패 ①)\n읽을 문서: 기능명세 F-R07·F-R10, 설계 실험구조 3.2 '문지기 실행', 3.7, 설계 REA환경 4절\n고칠 파일: bench/run/netwatch.py, bench/run/gate.py, bench/run/prompt-gate.md, bench/tests/run/test_f_r07.py, bench/tests/run/test_f_r10.py\n계약: run.json settings.firewall_rule·네트워크 기록 수, netguard.jsonl·netstat.json(3.8), rea_netguard.cjs 기록 꼴\n\n크기: 예시 약 9 · 파일 약 5 · 하위 작업 5. 쌍에 넣지 않은 근거: 크기는 T28·T34와 비슷하지만 작업 폴더 밖 읽기를 막는 경계라 한 세션 쪽(병합 전 검토 없음)으로 두지 않는다",
+        "details": "영역: 실행기\n목적: 작업 폴더 밖 읽기와 바깥 연결이 막혔는지 배치마다 확인해, 정답지·로그인 정보가 대상 에이전트에게 새지 않게 한다 (요구사항 6절, 3절 실패 ①)\n읽을 문서: 기능명세 F-R07·F-R10, 설계 실험구조 3.2 '문지기 실행', 3.7, 설계 REA환경 4절\n고칠 파일: bench/run/netwatch.py, bench/run/gate.py, bench/run/prompt-gate.md, bench/tests/run/test_f_r07.py, bench/tests/run/test_f_r10.py\n계약: run.json settings.firewall_rule·네트워크 기록 수, netguard.jsonl·netstat.json(3.8), rea_netguard.cjs 기록 꼴\n\n크기: 예시 약 9 · 파일 약 5 · 하위 작업 5. 쌍에 넣지 않은 근거: 크기는 T28·T34와 비슷하지만 작업 폴더 밖 읽기를 막는 경계라 한 세션 쪽(병합 전 검토 없음)으로 두지 않는다\n총괄 판단(T31 넘김): B 문지기에서는 target 안 정션(#12)을 두지 않고 #12는 A에서만 잰다. 근거: 거르개가 target 아래 재분석 지점이 있으면 REA를 띄우지 않아(두 층) B에 정션을 두면 늘 'MCP 연결 안 됨'이 되고, #12가 재는 것은 두 조건에 같은 Claude Code Read 권한이다. REA 쪽은 거르개의 띄우기 전 훑기가 막는다. 자리 표시(`<P_DEVICE>`·`<P_NODRIVE>` 등)는 T31 시험의 layout 픽스처를 본보기로 채운다.",
         "testStrategy": "test_F_R07_tools_node만_본다 / test_F_R07_조건A_기록0 / test_F_R07_기록있으면_배치멈춤 / test_F_R07_방화벽상태_기록 / test_F_R10_표식4곳_모두막힘_통과 / test_F_R10_대화기록에_표식있으면_배치안함 / test_F_R10_거절흔적없는시도_실패 / test_F_R10_B_REA밖경로_거르개오류필요 / test_F_R10_끄는옵션없음. 화면 없음",
         "status": "pending",
         "dependencies": [
