@@ -94,6 +94,8 @@ CLIENT_REQUESTS: Final = frozenset({"initialize", "ping", "tools/list", "tools/c
 CLIENT_NOTIFICATIONS: Final = frozenset({"notifications/initialized", "notifications/cancelled"})
 CALL_PARAMS: Final = frozenset({"name", "arguments", "_meta"})
 KEPT_CAPABILITY: Final = "tools"
+# initialize 응답에서 넘기는 키(MCP InitializeResult의 필수 키). instructions·_meta 등은 지운다
+INITIALIZE_KEYS: Final = ("protocolVersion", "capabilities", "serverInfo")
 
 # JSON-RPC 2.0 오류 코드. -32000은 구현이 정하는 서버 오류 범위의 첫 값(REA가 없거나 끝남)
 PARSE_ERROR: Final = -32700
@@ -136,6 +138,15 @@ FILE_URL: Final = "file:"
 PERCENT_VAR: Final = re.compile(r"%[^%]+%")
 DOLLAR_VAR: Final = re.compile(r"\$[A-Za-z_{(]")
 HOME_MARK: Final = "~"
+QUOTES: Final = "\"'`"
+SEGMENT: Final = re.compile(r"[^\\/]+")
+# 글자 그대로를 맞춰 보는 칸: REA 6.10.1 스키마가 seed를 'Typed literal starting point …
+# value is the literal text', query를 'feature or text query'로 적는다. 열어 보는 경로가
+# 아니라 `/api/…` 같은 글이 정당하게 들어온다(fake_rea/rea-6.10.1-tools.json으로 시험이 확인)
+LITERAL_TEXT_FIELDS: Final[Mapping[str, frozenset[str]]] = {
+    "trace_application_feature": frozenset({"seed"}),
+    "trace_javascript_semantics": frozenset({"query"}),
+}
 STOP_WAIT_S: Final = 5.0
 
 
@@ -225,7 +236,8 @@ def parse_line(raw: bytes, max_depth: int | None) -> Json:
             parse_constant=_no_constant,
             parse_float=_finite_float,
         )
-    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError) as error:
+    # ValueError: UTF-8 아님·JSON 아님·위 거절들, 그리고 4,300자리를 넘는 정수(int 변환 상한)
+    except (ValueError, RecursionError) as error:
         raise Unreadable("JSON으로 읽을 수 없음") from error
     if max_depth is not None and _depth(value) > max_depth:
         raise Unreadable("깊이 상한을 넘음")
@@ -241,12 +253,54 @@ def _error(msg_id: Json, code: int, message: str) -> dict[str, Json]:
     return {"jsonrpc": "2.0", "id": msg_id, "error": {"code": code, "message": message}}
 
 
+def _log(rule: str) -> None:
+    """stderr에 한 줄. 규칙·예외 이름만 싣고 받은 값은 싣지 않는다."""
+    print(f"rea_mcp_filter: {rule}", file=sys.stderr, flush=True)
+
+
+def _reply_id(message: Json) -> Json:
+    msg_id = message.get("id") if isinstance(message, dict) else None
+    return msg_id if _valid_id(msg_id) else None
+
+
 def _valid_id(value: Json) -> bool:
     return isinstance(value, str) or (isinstance(value, int) and not isinstance(value, bool))
 
 
 def _id_key(value: Json) -> tuple[str, str]:
     return (type(value).__name__, str(value))
+
+
+# ---------------------------------------------------------------- 거절 규칙 ("<칸>: <규칙>")
+
+# 오류 글은 규칙 이름만 싣고 받은 값은 싣지 않는다. '없는 경로'와 '밖'을 같은 글로 두는 것은
+# 오류 글로 target 밖 파일이 있는지 없는지가 드러나지 않게 하려고다(검증 T31 3)
+RULE_NOT_TEXT: Final = "비어 있지 않은 글이어야 함"
+RULE_VERBATIM: Final = "드라이브가 아닌 \\\\?\\ 경로"
+RULE_NUL: Final = "NUL 글자"
+RULE_UNC: Final = "UNC·장치 경로"
+RULE_ROOT_RELATIVE: Final = "드라이브 없는 루트 기준 경로"
+RULE_DRIVE_RELATIVE: Final = "드라이브 상대 경로"
+RULE_FILE_URL: Final = "file: 주소"
+RULE_ADS: Final = "드라이브 뒤의 ':'(ADS)"
+RULE_NOT_INSIDE: Final = "target 안의 있는 경로가 아님"
+RULE_EXPANSION: Final = "펼침 꼴(~·%이름%·$이름)"
+RULE_NOT_ARRAY: Final = "비어 있지 않은 배열이어야 함"
+RULE_SOURCE_SHAPE: Final = "input_path 기준 상대 경로가 아님"
+RULE_INPUT_ITSELF: Final = "input_path 자신"
+RULE_NOT_IN_INPUT: Final = "input_path 안의 있는 경로가 아님"
+RULE_REFERENCE: Final = (
+    f'같은 세션 참조만 받음 {{"kind": "{REFERENCE_KIND}", "evidence_id": "ev_…"}}'
+)
+RULE_REQUIRED: Final = "필수"
+RULE_PARAMS: Final = "name·arguments·_meta만 받음"
+RULE_TOOL: Final = "허용 밖 도구"
+RULE_ARGUMENTS_OBJECT: Final = "객체여야 함"
+RULE_ARGUMENT_NAME: Final = "인자 목록 밖의 인자"
+
+
+def _reject(where: str, rule: str) -> Rejected:
+    return Rejected(INVALID_PARAMS, f"{where}: {rule}")
 
 
 # ---------------------------------------------------------------- 경로 칸 (②)
@@ -258,11 +312,15 @@ def is_within(path: str, root: str) -> bool:
     return folded == base or folded.startswith(base + "\\")
 
 
-def _realpath(path: str, where: str) -> str:
+def _drive_letter(path: str) -> str:
+    return os.path.splitdrive(path.removeprefix(VERBATIM_PREFIX))[0][:1].lower()
+
+
+def _realpath(path: str, where: str, rule: str) -> str:
     try:
         return os.path.realpath(path, strict=True)
     except (OSError, ValueError) as error:
-        raise Rejected(INVALID_PARAMS, f"{where}: 없는 경로이거나 풀 수 없음") from error
+        raise _reject(where, rule) from error
 
 
 def _strip_verbatim(value: str, where: str) -> str:
@@ -271,42 +329,46 @@ def _strip_verbatim(value: str, where: str) -> str:
         return value
     rest = value[len(VERBATIM_PREFIX) :]
     if not DRIVE_ABSOLUTE.match(rest):
-        raise Rejected(INVALID_PARAMS, f"{where}: 드라이브가 아닌 \\\\?\\ 경로")
+        raise _reject(where, RULE_VERBATIM)
     return rest
 
 
 def _check_path_shape(text: str, where: str) -> None:
     """② 허용 꼴: 드라이브 문자 절대 경로 또는 target 기준 상대 경로만."""
     if chr(0) in text:
-        raise Rejected(INVALID_PARAMS, f"{where}: NUL 글자")
+        raise _reject(where, RULE_NUL)
     if text[:1] and text[0] in SEPARATORS:
         if text[1:2] and text[1] in SEPARATORS:
-            raise Rejected(INVALID_PARAMS, f"{where}: UNC·장치 경로")
-        raise Rejected(INVALID_PARAMS, f"{where}: 드라이브 없는 루트 기준 경로")
+            raise _reject(where, RULE_UNC)
+        raise _reject(where, RULE_ROOT_RELATIVE)
     drive_absolute = bool(DRIVE_ABSOLUTE.match(text))
     if DRIVE.match(text) and not drive_absolute:
-        raise Rejected(INVALID_PARAMS, f"{where}: 드라이브 상대 경로")
+        raise _reject(where, RULE_DRIVE_RELATIVE)
+    if text[: len(FILE_URL)].lower() == FILE_URL:
+        raise _reject(where, RULE_FILE_URL)
     if ":" in (text[2:] if drive_absolute else text):
-        raise Rejected(INVALID_PARAMS, f"{where}: 드라이브 뒤의 ':'(ADS)")
+        raise _reject(where, RULE_ADS)
 
 
 def resolve_path_field(value: Json, where: str, target: str) -> str:
     """F-R04 5②. 허용 꼴이고 realpath로 푼 경로가 target 안이면 푼 경로를 돌려준다."""
     if not isinstance(value, str) or not value:
-        raise Rejected(INVALID_PARAMS, f"{where}: 비어 있지 않은 글이어야 함")
+        raise _reject(where, RULE_NOT_TEXT)
     text = _strip_verbatim(value, where)
     _check_path_shape(text, where)
-    joined = text if DRIVE_ABSOLUTE.match(text) else os.path.join(target, text)
-    resolved = _realpath(joined, where)
+    if DRIVE_ABSOLUTE.match(text):
+        # 다른 드라이브는 풀어 보지도 않는다: 네트워크 드라이브(`Z:\`)면 realpath가 연결을 연다
+        if _drive_letter(text) != _drive_letter(target):
+            raise _reject(where, RULE_NOT_INSIDE)
+        joined = text
+    else:
+        joined = os.path.join(target, text)
+    resolved = _realpath(joined, where, RULE_NOT_INSIDE)
     if not is_within(resolved, target):
-        raise Rejected(INVALID_PARAMS, f"{where}: 그 실행의 target 밖")
+        raise _reject(where, RULE_NOT_INSIDE)
+    # audit_release_exposure는 파일을 받으면 부모 폴더 목록도 읽는다(6절 표). 여기서 푼 파일이
+    # target 안이면 그 부모는 target 자신이거나 그 아래라 따로 볼 것이 없다
     return resolved
-
-
-def _check_audit_parent(resolved: str, target: str, where: str) -> None:
-    # 파일을 주면 REA가 부모 폴더 목록도 읽는다(REA환경.md 6절 표)
-    if os.path.isfile(resolved) and not is_within(os.path.dirname(resolved), target):
-        raise Rejected(INVALID_PARAMS, f"{where}: 파일의 부모 폴더가 target 밖")
 
 
 # ---------------------------------------------------------------- source_paths (③)
@@ -315,20 +377,20 @@ def _check_audit_parent(resolved: str, target: str, where: str) -> None:
 def resolve_source_paths(value: Json, input_root: str) -> list[Json]:
     """F-R04 5③. input_path 기준 상대 경로만, 풀어서 input_path 아래면 `/` 꼴 상대 경로로 바꾼다."""
     if not isinstance(value, list) or not value:
-        raise Rejected(INVALID_PARAMS, f"{SOURCE_PATHS_FIELD}: 비어 있지 않은 배열이어야 함")
+        raise _reject(SOURCE_PATHS_FIELD, RULE_NOT_ARRAY)
     result: list[Json] = []
     for index, item in enumerate(value):
         where = f"{SOURCE_PATHS_FIELD}[{index}]"
         if not isinstance(item, str) or not item:
-            raise Rejected(INVALID_PARAMS, f"{where}: 비어 있지 않은 글이어야 함")
+            raise _reject(where, RULE_NOT_TEXT)
         if chr(0) in item or item[0] in SEPARATORS or ":" in item:
-            raise Rejected(INVALID_PARAMS, f"{where}: input_path 기준 상대 경로가 아님")
-        resolved = _realpath(os.path.join(input_root, item), where)
+            raise _reject(where, RULE_SOURCE_SHAPE)
+        resolved = _realpath(os.path.join(input_root, item), where, RULE_NOT_IN_INPUT)
         # 같으면 파일 이름이 없다(REA 정의: 인벤토리의 파일 경로, application root 기준)
         if os.path.normcase(resolved) == os.path.normcase(input_root):
-            raise Rejected(INVALID_PARAMS, f"{where}: input_path 자신")
+            raise _reject(where, RULE_INPUT_ITSELF)
         if not is_within(resolved, input_root):
-            raise Rejected(INVALID_PARAMS, f"{where}: input_path 밖")
+            raise _reject(where, RULE_NOT_IN_INPUT)
         result.append(os.path.relpath(resolved, input_root).replace("\\", "/"))
     return result
 
@@ -337,22 +399,22 @@ def resolve_source_paths(value: Json, input_root: str) -> list[Json]:
 
 
 def check_reference(value: Json, where: str) -> None:
-    """F-R04 5④. `{"kind": "retained-evidence", "evidence_id": "ev_<sha256>"}`만."""
-    # REA가 이 칸을 `{"type": "object"}`로만 알려, 에이전트가 꼴을 알 길은 이 오류뿐이다
-    # (꼴만 싣고 받은 값은 싣지 않는다)
-    rule = f'{where}: 같은 세션 참조만 받음 {{"kind": "{REFERENCE_KIND}", "evidence_id": "ev_…"}}'
+    """F-R04 5④. `{"kind": "retained-evidence", "evidence_id": "ev_<sha256>"}`만.
+
+    REA가 이 칸을 `{"type": "object"}`로만 알려, 에이전트가 꼴을 알 길은 이 오류 글뿐이다.
+    """
     if not isinstance(value, dict) or set(value) != {"kind", "evidence_id"}:
-        raise Rejected(INVALID_PARAMS, rule)
+        raise _reject(where, RULE_REFERENCE)
     evidence_id = value["evidence_id"]
     if value["kind"] != REFERENCE_KIND or not isinstance(evidence_id, str):
-        raise Rejected(INVALID_PARAMS, rule)
+        raise _reject(where, RULE_REFERENCE)
     if not EVIDENCE_ID.fullmatch(evidence_id):
-        raise Rejected(INVALID_PARAMS, rule)
+        raise _reject(where, RULE_REFERENCE)
 
 
 def _check_reference_array(value: Json, where: str) -> None:
     if not isinstance(value, list):
-        raise Rejected(INVALID_PARAMS, f"{where}: 배열이어야 함")
+        raise _reject(where, RULE_NOT_ARRAY)
     for index, item in enumerate(value):
         check_reference(item, f"{where}[{index}]")
 
@@ -374,6 +436,15 @@ def _strings(value: Json) -> Iterator[str]:
             stack.extend(item)
 
 
+def strip_wrapping(text: str) -> str:
+    """앞뒤 공백(유니코드 공백 포함)과 따옴표를 벗긴다. 받는 쪽이 벗겨 읽을 수 있어서다."""
+    while True:
+        stripped = text.strip().strip(QUOTES)
+        if stripped == text:
+            return text
+        text = stripped
+
+
 def is_expansion(text: str) -> bool:
     """홈·환경 변수로 펼칠 수 있는 꼴: `~`로 시작, `%이름%`, `$이름`·`${이름}`·`$(…)`."""
     return (
@@ -383,28 +454,63 @@ def is_expansion(text: str) -> bool:
     )
 
 
-def _is_dot_dot(segment: str) -> bool:
-    # Windows는 마디 끝의 점·공백을 지운다: `.. `·`...`도 `..`로 읽힐 수 있다
-    return segment.count(".") >= 2 and not segment.rstrip(" .")
+def has_dot_dot_segment(text: str) -> bool:
+    """`..` 마디가 있는지. Windows는 마디 끝의 점·공백을 지워 `.. `·`...`도 `..`로 읽을 수 있다.
+
+    마디를 목록으로 나누지 않고 하나씩 훑는다(큰 글에서 메모리가 입력의 몇 배로 늘지 않게).
+    """
+    if ".." not in text and ". " not in text:
+        return False  # 점 둘 이상이고 점·공백뿐인 마디에는 둘 중 하나가 꼭 들어 있다
+    for match in SEGMENT.finditer(text):
+        segment = match.group()
+        if segment.count(".") >= 2 and not segment.rstrip(" ."):
+            return True
+    return False
 
 
 def looks_like_path(text: str) -> bool:
     """경로 꼴: 드라이브 문자로 시작, 구분자 둘로 시작(UNC·장치), `file:`, `..` 마디."""
-    if DRIVE.match(text) or text[:5].lower() == FILE_URL:
+    if DRIVE.match(text) or text[: len(FILE_URL)].lower() == FILE_URL:
         return True
     if len(text) >= 2 and text[0] in SEPARATORS and text[1] in SEPARATORS:
         return True
-    return any(_is_dot_dot(segment) for segment in re.split(r"[\\/]", text))
+    return has_dot_dot_segment(text)
 
 
-def scan_strings(arguments: Mapping[str, Json], target: str, path_checked: frozenset[str]) -> None:
-    """F-R04 5⑤. 펼침 꼴은 늘 거절, 경로 꼴은 ②를 통과해야 한다(②·③이 이미 본 칸은 빼고)."""
+def _is_root_relative(text: str) -> bool:
+    return text[:1] in {"\\", "/"} and not (len(text) >= 2 and text[1] in SEPARATORS)
+
+
+def check_expansions(arguments: Mapping[str, Json]) -> None:
+    """F-R04 5⑤ 앞부분. 모든 칸의 모든 글(경로 칸 포함)에서 펼침 꼴은 늘 거절한다.
+
+    경로를 풀기 전에 본다: 상대 경로로 풀다가 '없음'으로 거절되면 어느 규칙이 막았는지 흐려진다.
+    """
     for field, value in arguments.items():
-        for text in _strings(value):
-            if is_expansion(text):
-                raise Rejected(INVALID_PARAMS, f"{field}: 펼침 꼴(~·%이름%·$이름)")
-            if field not in path_checked and looks_like_path(text):
+        for raw in _strings(value):
+            if is_expansion(strip_wrapping(raw)):
+                raise _reject(field, RULE_EXPANSION)
+
+
+def scan_strings(
+    tool: str, arguments: Mapping[str, Json], target: str, path_checked: frozenset[str]
+) -> None:
+    """F-R04 5⑤. ②·③·④가 본 칸 밖의 모든 글을 공백·따옴표를 벗긴 꼴로 본다.
+
+    경로 꼴은 ②를 통과해야 한다. 드라이브 없는 루트 기준 꼴(`\\Users\\…`·`/Users/…`)은 REA가
+    절대 경로로 받으므로(REA 6.10.1 localPath.js) 글자 그대로를 맞춰 보는 칸(LITERAL_TEXT_FIELDS)
+    밖에서는 거절한다.
+    """
+    literal = LITERAL_TEXT_FIELDS.get(tool, frozenset())
+    for field, value in arguments.items():
+        if field in path_checked:
+            continue
+        for raw in _strings(value):
+            text = strip_wrapping(raw)
+            if looks_like_path(text):
                 resolve_path_field(text, field, target)
+            elif field not in literal and _is_root_relative(text):
+                raise _reject(field, RULE_ROOT_RELATIVE)
 
 
 # ---------------------------------------------------------------- tools/call (①~⑤)
@@ -413,7 +519,7 @@ def scan_strings(arguments: Mapping[str, Json], target: str, path_checked: froze
 def _meta(value: Json) -> dict[str, Json]:
     # 진행 알림에 쓰는 progressToken만 넘긴다. REA가 _meta로 받을 다른 것은 없다
     if not isinstance(value, dict):
-        raise Rejected(INVALID_PARAMS, "_meta: 객체여야 함")
+        raise _reject("_meta", RULE_ARGUMENTS_OBJECT)
     token = value.get("progressToken")
     return {"progressToken": token} if token is not None and _valid_id(token) else {}
 
@@ -421,16 +527,17 @@ def _meta(value: Json) -> dict[str, Json]:
 def filter_tool_call(params: Json, policy: Policy) -> dict[str, Json]:
     """F-R04 4·5. 허용 도구·허용 인자만, 경로 칸은 푼 경로로 바꾼 params를 돌려준다."""
     if not isinstance(params, dict) or not set(params) <= CALL_PARAMS:
-        raise Rejected(INVALID_PARAMS, "params: name·arguments·_meta만 받음")
+        raise _reject("params", RULE_PARAMS)
     name = params.get("name")
     if not isinstance(name, str) or name not in policy.allow:
-        raise Rejected(INVALID_PARAMS, "허용 밖 도구")
+        raise _reject("name", RULE_TOOL)
     arguments = params.get("arguments", {})
     if not isinstance(arguments, dict):
-        raise Rejected(INVALID_PARAMS, "arguments: 객체여야 함")
+        raise _reject("arguments", RULE_ARGUMENTS_OBJECT)
     allowed = TOOL_ARGUMENTS[name]
     if not set(arguments) <= allowed:
-        raise Rejected(INVALID_PARAMS, f"인자 목록 밖의 인자 (허용: {', '.join(sorted(allowed))})")
+        names = ", ".join(sorted(allowed))
+        raise _reject("arguments", f"{RULE_ARGUMENT_NAME} (허용: {names})")
     sent = _filter_arguments(name, arguments, policy.target)
     result: dict[str, Json] = {"name": name, "arguments": sent}
     if "_meta" in params:
@@ -440,31 +547,29 @@ def filter_tool_call(params: Json, policy: Policy) -> dict[str, Json]:
 
 def _filter_arguments(name: str, arguments: dict[str, Json], target: str) -> dict[str, Json]:
     sent = dict(arguments)
+    check_expansions(arguments)
     path_checked: set[str] = set()
-    for field in (REFERENCE_FIELD.get(name), REFERENCE_ARRAY_FIELD.get(name)):
-        if field is not None:
-            path_checked.add(field)
     reference = REFERENCE_FIELD.get(name)
     if reference is not None:
         if reference not in arguments:
-            raise Rejected(INVALID_PARAMS, f"{reference}: 필수")
+            raise _reject(reference, RULE_REQUIRED)
         check_reference(arguments[reference], reference)
+        path_checked.add(reference)
     array = REFERENCE_ARRAY_FIELD.get(name)
     if array is not None and array in arguments:
         _check_reference_array(arguments[array], array)
+        path_checked.add(array)
     field = PATH_FIELD.get(name)
     if field is not None:
         if field not in arguments:
-            raise Rejected(INVALID_PARAMS, f"{field}: 필수")
+            raise _reject(field, RULE_REQUIRED)
         resolved = resolve_path_field(arguments[field], field, target)
-        if name == "audit_release_exposure":
-            _check_audit_parent(resolved, target, field)
         sent[field] = resolved
         path_checked.add(field)
         if SOURCE_PATHS_FIELD in arguments:
             sent[SOURCE_PATHS_FIELD] = resolve_source_paths(arguments[SOURCE_PATHS_FIELD], resolved)
             path_checked.add(SOURCE_PATHS_FIELD)
-    scan_strings(arguments, target, frozenset(path_checked))
+    scan_strings(name, arguments, target, frozenset(path_checked))
     return sent
 
 
@@ -472,14 +577,20 @@ def _filter_arguments(name: str, arguments: dict[str, Json], target: str) -> dic
 
 
 def filter_initialize_result(result: Json) -> Json:
-    """F-R04 2. capabilities에서 tools만 남긴다."""
+    """F-R04 2. 응답 키는 허용 목록만, capabilities에서는 tools만 남긴다.
+
+    `instructions`도 지운다(총괄 판단, 검증 T31 4): 조건 B만 받는 안내 글이 되면 A·B가 REA 말고도
+    달라지고(요구사항 5.1), 그 글이 거르개가 숨긴 도구를 말해 헛호출로 비용만 는다.
+    """
     if not isinstance(result, dict):
         raise Rejected(INTERNAL_ERROR, "REA initialize 응답 꼴이 아님")
+    kept: dict[str, Json] = {key: result[key] for key in INITIALIZE_KEYS if key in result}
     capabilities = result.get("capabilities")
-    kept: dict[str, Json] = {}
+    tools: dict[str, Json] = {}
     if isinstance(capabilities, dict) and KEPT_CAPABILITY in capabilities:
-        kept[KEPT_CAPABILITY] = capabilities[KEPT_CAPABILITY]
-    return {**result, "capabilities": kept}
+        tools[KEPT_CAPABILITY] = capabilities[KEPT_CAPABILITY]
+    kept["capabilities"] = tools
+    return kept
 
 
 def filter_tools_list_result(result: Json, allow: frozenset[str]) -> Json:
@@ -504,22 +615,36 @@ class Router:
         self._lock = threading.Lock()
 
     def from_client(self, raw: bytes) -> list[Outgoing]:
-        """Claude Code → REA 한 줄."""
+        """Claude Code → REA 한 줄. 생각 못 한 예외도 거르개를 죽이지 않고 오류로 답한다."""
         try:
             message = parse_line(raw, MAX_DEPTH)
         except Unreadable:
             return [Outgoing("client", _error(None, PARSE_ERROR, "JSON으로 읽을 수 없음"))]
-        with self._lock:
-            return self._client_message(message)
+        try:
+            with self._lock:
+                return self._client_message(message)
+        except Exception as error:  # 넘기지 않는 쪽으로 끝낸다(실패하면 안전한 쪽)
+            _log(f"요청 처리 중 예외 {type(error).__name__}")
+            return [Outgoing("client", _error(_reply_id(message), INTERNAL_ERROR, "거르개 오류"))]
 
     def from_rea(self, raw: bytes) -> list[Outgoing]:
-        """REA → Claude Code 한 줄. 읽을 수 없는 줄은 넘기지 않는다."""
+        """REA → Claude Code 한 줄. 읽을 수 없거나 꼴이 아닌 줄은 넘기지 않고 오류로 알린다."""
         try:
             message = parse_line(raw, None)
         except Unreadable:
-            return []
-        with self._lock:
-            return self._rea_message(message)
+            return self._rea_unreadable("REA가 보낸 줄을 JSON으로 읽을 수 없음")
+        try:
+            with self._lock:
+                return self._rea_message(message)
+        except Exception as error:  # 넘기지 않는 쪽으로 끝낸다
+            _log(f"REA 메시지 처리 중 예외 {type(error).__name__}")
+            return self._rea_unreadable("REA가 보낸 줄을 처리하지 못함")
+
+    @staticmethod
+    def _rea_unreadable(rule: str) -> list[Outgoing]:
+        # 어느 요청의 응답인지 모르므로 id 없이 알린다(F-R04 예외 '그 글을 넘기지 않고 오류')
+        _log(rule)
+        return [Outgoing("client", _error(None, INTERNAL_ERROR, rule))]
 
     @staticmethod
     def too_long() -> list[Outgoing]:
@@ -551,14 +676,14 @@ class Router:
             return [self._client_request(msg_id, method, message)]
         except Rejected as rejected:
             # 메서드 이름도 받은 값이라 싣지 않는다(규칙만)
-            print(f"rea_mcp_filter: 거절: {rejected.rule}", file=sys.stderr)
+            _log(f"거절: {rejected.rule}")
             return [Outgoing("client", _error(msg_id, rejected.code, rejected.rule))]
 
     @staticmethod
     def _invalid(message: Json) -> Outgoing:
-        msg_id = message.get("id") if isinstance(message, dict) else None
-        reply_id = msg_id if _valid_id(msg_id) else None
-        return Outgoing("client", _error(reply_id, INVALID_REQUEST, "JSON-RPC 요청 꼴이 아님"))
+        return Outgoing(
+            "client", _error(_reply_id(message), INVALID_REQUEST, "JSON-RPC 요청 꼴이 아님")
+        )
 
     def _client_request(self, msg_id: Json, method: str, message: dict[str, Json]) -> Outgoing:
         if method not in CLIENT_REQUESTS:
@@ -591,15 +716,18 @@ class Router:
 
     def _rea_message(self, message: Json) -> list[Outgoing]:
         if not isinstance(message, dict) or message.get("jsonrpc") != "2.0":
-            return []
+            return self._rea_unreadable("REA가 보낸 줄이 JSON-RPC 꼴이 아님")
         if "method" in message:
+            if not isinstance(message["method"], str):
+                return self._rea_unreadable("REA가 보낸 줄이 JSON-RPC 꼴이 아님")
             return self._rea_request_or_notification(message)
         msg_id = message.get("id")
         if not _valid_id(msg_id):
-            return []
+            return self._rea_unreadable("REA 응답의 id가 꼴이 아님")
         entry = self._pending.pop(_id_key(msg_id), None)
         if entry is None:
-            return []  # 보낸 적 없는 id의 응답은 넘기지 않는다
+            _log("보낸 적 없는 id의 REA 응답을 버림")
+            return []
         try:
             return [Outgoing("client", self._response(msg_id, entry[1], message))]
         except Rejected as rejected:
@@ -610,7 +738,8 @@ class Router:
             # REA가 거는 요청(sampling·roots·elicitation…)은 Claude Code에 넘기지 않는다
             msg_id = message["id"]
             if not _valid_id(msg_id):
-                return []
+                return self._rea_unreadable("REA 요청의 id가 꼴이 아님")
+            _log("REA가 건 요청에 오류로 답함")
             return [Outgoing("rea", _error(msg_id, METHOD_NOT_FOUND, "거르개가 넘기지 않는 요청"))]
         sent: dict[str, Json] = {"jsonrpc": "2.0", "method": message["method"]}
         if "params" in message:

@@ -14,6 +14,7 @@ import queue
 import subprocess
 import sys
 import threading
+import tracemalloc
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -138,6 +139,17 @@ def layout(make_bundle: MakeBundle, tmp_path: Path) -> Layout:
     return Layout(run_dir=run_dir, target=target, values=values)
 
 
+def fill_values(layout: Layout, value: Any) -> Any:
+    """객체 안의 글마다 자리 표시를 바꾼다."""
+    if isinstance(value, str):
+        return layout.fill(value) if "<" in value else value
+    if isinstance(value, dict):
+        return {k: fill_values(layout, v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [fill_values(layout, v) for v in value]
+    return value
+
+
 def make_router(layout: Layout) -> rmf.Router:
     return rmf.Router(rmf.Policy(allow=frozenset(ALLOWED), target=layout.target), rea_running=True)
 
@@ -168,8 +180,12 @@ def assert_error_to_client(out: list[rmf.Outgoing], msg_id: Any, code: int) -> d
     return message
 
 
-def assert_rejected(out: list[rmf.Outgoing], layout: Layout, msg_id: int = 1) -> None:
+def assert_rejected(
+    out: list[rmf.Outgoing], layout: Layout, where: str, rule: str, msg_id: int = 1
+) -> None:
+    """REA에 보낸 것 없이 오류 하나, 그 오류 글이 막은 칸과 규칙을 말한다."""
     message = assert_error_to_client(out, msg_id, rmf.INVALID_PARAMS)
+    assert message["error"]["message"].startswith(f"{where}: {rule}")
     text = json.dumps(message, ensure_ascii=False)
     # 오류 글에는 값이 없다(위치와 규칙만, 보안코딩 '실험')
     assert layout.values["<P>"] not in text
@@ -202,6 +218,32 @@ def table_examples() -> Iterator[Any]:
             yield pytest.param(case["id"], example, id=f"{case['id']}-{index}")
 
 
+NOT_INSIDE = rmf.RULE_NOT_INSIDE
+TABLE_RULES = {
+    "../../<SIB>/x": NOT_INSIDE,
+    "assets/../<P_REL>": NOT_INSIDE,
+    "<P_SHORT>": NOT_INSIDE,
+    "\\\\?\\<P>": NOT_INSIDE,
+    "\\\\localhost\\<DRIVE>$\\<P_TAIL>": rmf.RULE_UNC,
+    "\\\\127.0.0.1\\<DRIVE>$\\<P_TAIL>": rmf.RULE_UNC,
+    "<P_POSIX>": NOT_INSIDE,
+    "<P_SWAPCASE>": NOT_INSIDE,
+    "<T_UPPER>2\\MARKER.TXT": NOT_INSIDE,
+    "<T>2\\marker.txt": NOT_INSIDE,
+    "<T>-old\\marker.txt": NOT_INSIDE,
+    "~/<P_FROM_HOME_POSIX>": rmf.RULE_EXPANSION,
+    "%LOCALAPPDATA%\\<P_FROM_LOCALAPPDATA>": rmf.RULE_EXPANSION,
+    "$LOCALAPPDATA/<P_FROM_LOCALAPPDATA_POSIX>": rmf.RULE_EXPANSION,
+    "~/x": rmf.RULE_EXPANSION,
+    "%TEMP%\\x": rmf.RULE_EXPANSION,
+    "$HOME/x": rmf.RULE_EXPANSION,
+    "${HOME}/x": rmf.RULE_EXPANSION,
+    "file:///<P_POSIX>": rmf.RULE_FILE_URL,
+    "<T>\\jlink\\marker.txt": NOT_INSIDE,
+    "\\\\192.0.2.1\\share\\x": rmf.RULE_UNC,
+}
+
+
 def test_F_R04_공통표_모든꼴을_돌림() -> None:
     """표의 #1~#14가 모두 있고, 거르개 기대가 있는 꼴은 모두 아래 시험이 돌린다."""
     ids = {case["id"] for case in CASES["cases"]}
@@ -216,6 +258,8 @@ def test_F_R04_공통표_모든꼴을_돌림() -> None:
         for example in case["examples"]:
             assert example["filter"] in {"allow", "reject", None}
             assert (example["filter"] == "allow") == ("resolved" in example)
+            # 거절 꼴마다 막는 규칙을 시험이 안다(어느 규칙이 막았는지까지 본다)
+            assert (example["filter"] == "reject") == (example["value"] in TABLE_RULES)
 
 
 def test_F_R04_공통표_밖자리는_미끼뿐() -> None:
@@ -235,7 +279,7 @@ def test_F_R04_공통표_꼴(
     value = layout.fill(example["value"])
     out = call(make_router(layout), tool, path_arguments(tool, field, value))
     if example["filter"] == "reject":
-        assert_rejected(out, layout)
+        assert_rejected(out, layout, field, TABLE_RULES[example["value"]])
         return
     arguments = sent_arguments(out)
     if field == NET_FIELD[1]:
@@ -256,33 +300,33 @@ ALLOW_SIX = [
 ]
 
 REJECT_FOURTEEN = [
-    pytest.param("../../<SIB>/x", id="점점으로밖"),
-    pytest.param("<P>", id="밖절대"),
-    pytest.param("<ROOT>\\CLAUDE.md", id="저장소절대"),
-    pytest.param("<T>\\jlink\\marker.txt", id="안쪽정션이밖"),
-    pytest.param("\\\\?\\<P>", id="긴접두밖"),
-    pytest.param("\\\\?\\UNC\\localhost\\<DRIVE>$\\<P_TAIL>", id="긴접두UNC"),
-    pytest.param("\\\\localhost\\<DRIVE>$\\<P_TAIL>", id="UNC"),
-    pytest.param("\\\\.\\<P>", id="장치경로밖"),
-    pytest.param("<P_SHORT>", id="8.3밖"),
-    pytest.param("<T>\\assets\\app.js:hidden", id="ADS"),
-    pytest.param("<P_POSIX>", id="슬래시꼴밖"),
-    pytest.param("<T>\\assets\\nope.js", id="없는파일"),
-    pytest.param("<DRIVE>:assets\\app.js", id="드라이브상대"),
-    pytest.param("<T>2\\marker.txt", id="형제target2"),
+    pytest.param("../../<SIB>/x", NOT_INSIDE, id="점점으로밖"),
+    pytest.param("<P>", NOT_INSIDE, id="밖절대"),
+    pytest.param("<ROOT>\\CLAUDE.md", NOT_INSIDE, id="저장소절대"),
+    pytest.param("<T>\\jlink\\marker.txt", NOT_INSIDE, id="안쪽정션이밖"),
+    pytest.param("\\\\?\\<P>", NOT_INSIDE, id="긴접두밖"),
+    pytest.param("\\\\?\\UNC\\localhost\\<DRIVE>$\\<P_TAIL>", rmf.RULE_VERBATIM, id="긴접두UNC"),
+    pytest.param("\\\\localhost\\<DRIVE>$\\<P_TAIL>", rmf.RULE_UNC, id="UNC"),
+    pytest.param("\\\\.\\<P>", rmf.RULE_UNC, id="장치경로밖"),
+    pytest.param("<P_SHORT>", NOT_INSIDE, id="8.3밖"),
+    pytest.param("<T>\\assets\\app.js:hidden", rmf.RULE_ADS, id="ADS"),
+    pytest.param("<P_POSIX>", NOT_INSIDE, id="슬래시꼴밖"),
+    pytest.param("<T>\\assets\\nope.js", NOT_INSIDE, id="없는파일"),
+    pytest.param("<DRIVE>:assets\\app.js", rmf.RULE_DRIVE_RELATIVE, id="드라이브상대"),
+    pytest.param("<T>2\\marker.txt", NOT_INSIDE, id="형제target2"),
 ]
 
 # 3.10 표·시험 전략에 없지만 ② 허용 꼴 밖이라 거절해야 하는 꼴
 REJECT_MORE = [
-    pytest.param("assets/app.js" + NUL, id="NUL"),
-    pytest.param("\\<P_TAIL>", id="루트기준-역슬래시"),
-    pytest.param("/<P_TAIL>", id="루트기준-슬래시"),
-    pytest.param("//?/<P>", id="슬래시긴접두"),
-    pytest.param("\\\\?\\GLOBALROOT\\??\\<P>", id="GLOBALROOT"),
-    pytest.param("\\\\.\\<T>\\assets\\app.js", id="장치경로안"),
-    pytest.param("<T>-old\\marker.txt", id="형제target-old"),
-    pytest.param("<T>\\assets\\app.js::$DATA", id="ADS-DATA"),
-    pytest.param("", id="빈글"),
+    pytest.param("assets/app.js" + NUL, rmf.RULE_NUL, id="NUL"),
+    pytest.param("\\<P_TAIL>", rmf.RULE_ROOT_RELATIVE, id="루트기준-역슬래시"),
+    pytest.param("/<P_TAIL>", rmf.RULE_ROOT_RELATIVE, id="루트기준-슬래시"),
+    pytest.param("//?/<P>", rmf.RULE_UNC, id="슬래시긴접두"),
+    pytest.param("\\\\?\\GLOBALROOT\\??\\<P>", rmf.RULE_VERBATIM, id="GLOBALROOT"),
+    pytest.param("\\\\.\\<T>\\assets\\app.js", rmf.RULE_UNC, id="장치경로안"),
+    pytest.param("<T>-old\\marker.txt", NOT_INSIDE, id="형제target-old"),
+    pytest.param("<T>\\assets\\app.js::$DATA", rmf.RULE_EXPANSION, id="ADS-DATA"),
+    pytest.param("", rmf.RULE_NOT_TEXT, id="빈글"),
 ]
 
 
@@ -295,11 +339,36 @@ def test_F_R04_경로칸_허용_6가지(
     assert sent_arguments(out) == {field: layout.fill(resolved)}
 
 
-@pytest.mark.parametrize("value", REJECT_FOURTEEN + REJECT_MORE)
+@pytest.mark.parametrize(("value", "rule"), REJECT_FOURTEEN + REJECT_MORE)
 @pytest.mark.parametrize(("tool", "field"), PATH_FIELDS)
-def test_F_R04_경로칸_거절(layout: Layout, value: str, tool: str, field: str) -> None:
+def test_F_R04_경로칸_거절(layout: Layout, value: str, rule: str, tool: str, field: str) -> None:
     out = call(make_router(layout), tool, {field: layout.fill(value)})
-    assert_rejected(out, layout)
+    assert_rejected(out, layout, field, rule)
+
+
+def test_F_R04_다른드라이브는_풀어보지않고_거절(
+    layout: Layout, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """네트워크 드라이브일 수 있는 다른 드라이브 글자는 realpath를 부르기 전에 거절한다."""
+    other = next(d for d in "ZYXWV" if d != layout.target[0].upper())
+
+    def no_realpath(*_args: Any, **_kwargs: Any) -> str:
+        raise AssertionError("realpath를 불렀다")
+
+    monkeypatch.setattr(os.path, "realpath", no_realpath)
+    for msg_id, value in enumerate([f"{other}:\\x", f"\\\\?\\{other}:\\x", f"{other}:/x"], 1):
+        out = call(make_router(layout), "audit_release_exposure", {"path": value}, msg_id)
+        assert_rejected(out, layout, "path", NOT_INSIDE, msg_id)
+
+
+def test_F_R04_없음과_밖은_같은_오류글(layout: Layout) -> None:
+    """오류 글로 target 밖 파일이 있는지 없는지 알 수 없다."""
+    router = make_router(layout)
+    texts = []
+    for msg_id, value in enumerate(["<P>", "<P_DIR>\\nope.txt", "<T>\\nope.txt"], start=1):
+        out = call(router, "audit_release_exposure", {"path": layout.fill(value)}, msg_id)
+        texts.append(body(out[0])["error"]["message"])
+    assert texts == [f"path: {NOT_INSIDE}"] * 3
 
 
 def test_F_R04_예시_assets_푼경로로보냄(layout: Layout) -> None:
@@ -324,12 +393,12 @@ def test_F_R04_audit_path_target와_파일(layout: Layout) -> None:
 
 def test_F_R04_경로칸_없음_거절(layout: Layout) -> None:
     out = call(make_router(layout), "analyze_javascript_application", {"detail": "summary"})
-    assert_rejected(out, layout)
+    assert_rejected(out, layout, "input_path", rmf.RULE_REQUIRED)
 
 
 def test_F_R04_경로칸_글아님_거절(layout: Layout) -> None:
     out = call(make_router(layout), "audit_release_exposure", {"path": ["assets"]})
-    assert_rejected(out, layout)
+    assert_rejected(out, layout, "path", rmf.RULE_NOT_TEXT)
 
 
 # ---------------------------------------------------------------- source_paths (③)
@@ -337,25 +406,27 @@ def test_F_R04_경로칸_글아님_거절(layout: Layout) -> None:
 
 def test_F_R04_source_paths_점점_거절(layout: Layout) -> None:
     arguments = {"input_path": "assets", "source_paths": ["../x"]}
-    assert_rejected(call(make_router(layout), "analyze_javascript_application", arguments), layout)
+    out = call(make_router(layout), "analyze_javascript_application", arguments)
+    assert_rejected(out, layout, "source_paths[0]", rmf.RULE_NOT_IN_INPUT)
 
 
 @pytest.mark.parametrize(
-    "item",
+    ("item", "where", "rule"),
     [
-        pytest.param("../index.html", id="input밖-target안"),
-        pytest.param("../jlink/marker.txt", id="정션"),
-        pytest.param("<T>\\assets\\app.js", id="절대"),
-        pytest.param("/app.js", id="루트기준"),
-        pytest.param("app.js:hidden", id="ADS"),
-        pytest.param("~/app.js", id="홈펼침"),
-        pytest.param(".", id="input자신"),
-        pytest.param("nope.js", id="없는파일"),
+        pytest.param("../index.html", "[1]", rmf.RULE_NOT_IN_INPUT, id="input밖-target안"),
+        pytest.param("../jlink/marker.txt", "[1]", rmf.RULE_NOT_IN_INPUT, id="정션"),
+        pytest.param("<T>\\assets\\app.js", "[1]", rmf.RULE_SOURCE_SHAPE, id="절대"),
+        pytest.param("/app.js", "[1]", rmf.RULE_SOURCE_SHAPE, id="루트기준"),
+        pytest.param("app.js:hidden", "[1]", rmf.RULE_SOURCE_SHAPE, id="ADS"),
+        pytest.param("~/app.js", "", rmf.RULE_EXPANSION, id="홈펼침"),
+        pytest.param(".", "[1]", rmf.RULE_INPUT_ITSELF, id="input자신"),
+        pytest.param("nope.js", "[1]", rmf.RULE_NOT_IN_INPUT, id="없는파일"),
     ],
 )
-def test_F_R04_source_paths_input밖_거절(layout: Layout, item: str) -> None:
+def test_F_R04_source_paths_input밖_거절(layout: Layout, item: str, where: str, rule: str) -> None:
     arguments = {"input_path": "assets", "source_paths": ["app.js", layout.fill(item)]}
-    assert_rejected(call(make_router(layout), "analyze_javascript_application", arguments), layout)
+    out = call(make_router(layout), "analyze_javascript_application", arguments)
+    assert_rejected(out, layout, "source_paths" + where, rule)
 
 
 def test_F_R04_source_paths_정규화해보냄(layout: Layout) -> None:
@@ -367,10 +438,18 @@ def test_F_R04_source_paths_정규화해보냄(layout: Layout) -> None:
     assert sent["input_path"] == layout.target
 
 
-@pytest.mark.parametrize("value", [[], "app.js", [1]], ids=["빈배열", "글", "숫자"])
-def test_F_R04_source_paths_꼴아님_거절(layout: Layout, value: Any) -> None:
+@pytest.mark.parametrize(
+    ("value", "where", "rule"),
+    [
+        pytest.param([], "source_paths", rmf.RULE_NOT_ARRAY, id="빈배열"),
+        pytest.param("app.js", "source_paths", rmf.RULE_NOT_ARRAY, id="글"),
+        pytest.param([1], "source_paths[0]", rmf.RULE_NOT_TEXT, id="숫자"),
+    ],
+)
+def test_F_R04_source_paths_꼴아님_거절(layout: Layout, value: Any, where: str, rule: str) -> None:
     arguments = {"input_path": "assets", "source_paths": value}
-    assert_rejected(call(make_router(layout), "analyze_javascript_application", arguments), layout)
+    out = call(make_router(layout), "analyze_javascript_application", arguments)
+    assert_rejected(out, layout, where, rule)
 
 
 # ---------------------------------------------------------------- 인자 이름 (①)
@@ -378,7 +457,8 @@ def test_F_R04_source_paths_꼴아님_거절(layout: Layout, value: Any) -> None
 
 def test_F_R04_인자목록밖_evidence_output_거절(layout: Layout) -> None:
     arguments = {"input_path": "assets", "evidence_output": "out.json"}
-    assert_rejected(call(make_router(layout), "analyze_javascript_application", arguments), layout)
+    out = call(make_router(layout), "analyze_javascript_application", arguments)
+    assert_rejected(out, layout, "arguments", rmf.RULE_ARGUMENT_NAME)
 
 
 def test_F_R04_인자목록_안이면_그대로(layout: Layout) -> None:
@@ -395,7 +475,8 @@ def test_F_R04_인자목록_안이면_그대로(layout: Layout) -> None:
 
 @pytest.mark.parametrize("arguments", ["assets", ["assets"], None], ids=["글", "배열", "null"])
 def test_F_R04_인자_객체아님_거절(layout: Layout, arguments: Any) -> None:
-    assert_rejected(call(make_router(layout), "audit_release_exposure", arguments), layout)
+    out = call(make_router(layout), "audit_release_exposure", arguments)
+    assert_rejected(out, layout, "arguments", rmf.RULE_ARGUMENTS_OBJECT)
 
 
 def test_F_R04_params_목록밖_키_거절(layout: Layout) -> None:
@@ -403,7 +484,7 @@ def test_F_R04_params_목록밖_키_거절(layout: Layout) -> None:
     out = make_router(layout).from_client(
         line({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": params})
     )
-    assert_rejected(out, layout)
+    assert_rejected(out, layout, "params", rmf.RULE_PARAMS)
 
 
 def test_F_R04_meta는_progressToken만_넘김(layout: Layout) -> None:
@@ -419,6 +500,9 @@ def test_F_R04_meta는_progressToken만_넘김(layout: Layout) -> None:
 # ---------------------------------------------------------------- trace (④)
 
 
+REF_RULE = rmf.RULE_REFERENCE
+
+
 def inline_evidence(layout: Layout) -> dict[str, Any]:
     return {
         "evidence_id": "ev_" + "1" * 64,
@@ -431,7 +515,7 @@ def inline_evidence(layout: Layout) -> dict[str, Any]:
 @pytest.mark.parametrize("tool", ["trace_javascript_semantics", "trace_application_feature"])
 def test_F_R04_trace_inline_Evidence_거절(layout: Layout, tool: str) -> None:
     arguments = {"application": inline_evidence(layout)}
-    assert_rejected(call(make_router(layout), tool, arguments), layout)
+    assert_rejected(call(make_router(layout), tool, arguments), layout, "application", REF_RULE)
 
 
 @pytest.mark.parametrize(
@@ -452,7 +536,9 @@ def test_F_R04_trace_참조꼴아님_거절(layout: Layout, application: Any) ->
     if isinstance(application, dict):
         application = {k: layout.fill(v) for k, v in application.items()}
     arguments = {} if application is None else {"application": application}
-    assert_rejected(call(make_router(layout), "trace_javascript_semantics", arguments), layout)
+    rule = rmf.RULE_REQUIRED if application is None else REF_RULE
+    out = call(make_router(layout), "trace_javascript_semantics", arguments)
+    assert_rejected(out, layout, "application", rule)
 
 
 def test_F_R04_trace_같은세션참조_허용(layout: Layout) -> None:
@@ -472,7 +558,8 @@ def test_F_R04_trace_같은세션참조_허용(layout: Layout) -> None:
 
 def test_F_R04_trace_native_observations_inline_거절(layout: Layout) -> None:
     arguments = {"application": REFERENCE, "native_observations": [inline_evidence(layout)]}
-    assert_rejected(call(make_router(layout), "trace_application_feature", arguments), layout)
+    out = call(make_router(layout), "trace_application_feature", arguments)
+    assert_rejected(out, layout, "native_observations[0]", REF_RULE)
 
 
 # ---------------------------------------------------------------- 그물 (⑤)
@@ -482,7 +569,7 @@ def test_F_R04_query에_저장소경로_거절(layout: Layout) -> None:
     for msg_id, value in enumerate([SPEC_REPO_FILE, str(ROOT / "CLAUDE.md")], start=1):
         arguments = {"application": REFERENCE, "query": value}
         out = call(make_router(layout), "trace_javascript_semantics", arguments, msg_id)
-        assert_rejected(out, layout, msg_id)
+        assert_rejected(out, layout, "query", NOT_INSIDE, msg_id)
 
 
 @pytest.mark.parametrize(
@@ -492,17 +579,140 @@ def test_F_R04_query에_저장소경로_거절(layout: Layout) -> None:
 def test_F_R04_펼침꼴_늘거절(layout: Layout, value: str) -> None:
     router = make_router(layout)
     nested = {"application": REFERENCE, "query": {"seed": {"value": value}}}
-    assert_rejected(call(router, "trace_javascript_semantics", nested), layout)
+    expansion = rmf.RULE_EXPANSION
+    assert_rejected(call(router, "trace_javascript_semantics", nested), layout, "query", expansion)
     seeded = {"application": REFERENCE, "seed": {"kind": "string", "value": value}}
-    assert_rejected(call(router, "trace_application_feature", seeded, msg_id=2), layout, 2)
+    out = call(router, "trace_application_feature", seeded, msg_id=2)
+    assert_rejected(out, layout, "seed", expansion, 2)
 
 
 def test_F_R04_그물_깊은칸과_키도_훑음(layout: Layout) -> None:
     router = make_router(layout)
     deep = {"application": REFERENCE, "query": {"a": [{"b": [layout.values["<P>"]]}]}}
-    assert_rejected(call(router, "trace_javascript_semantics", deep), layout)
+    assert_rejected(call(router, "trace_javascript_semantics", deep), layout, "query", NOT_INSIDE)
     keyed = {"application": REFERENCE, "query": {layout.values["<P>"]: 1}}
-    assert_rejected(call(router, "trace_javascript_semantics", keyed, msg_id=2), layout, 2)
+    out = call(router, "trace_javascript_semantics", keyed, msg_id=2)
+    assert_rejected(out, layout, "query", NOT_INSIDE, 2)
+
+
+@pytest.mark.parametrize(
+    "wrapped",
+    [
+        pytest.param(" <P>", id="앞공백"),
+        pytest.param("\t<P>\n", id="탭줄바꿈"),
+        pytest.param('"<P>"', id="큰따옴표"),
+        pytest.param("'<P>'", id="작은따옴표"),
+        pytest.param(" `'<P>'` ", id="겹친따옴표"),
+        pytest.param(chr(0x3000) + "<P>", id="전각공백"),
+        pytest.param(' "\\\\localhost\\<DRIVE>$\\<P_TAIL>"', id="따옴표UNC"),
+    ],
+)
+def test_F_R04_그물_공백따옴표를_벗겨봄(layout: Layout, wrapped: str) -> None:
+    rule = rmf.RULE_UNC if "localhost" in wrapped else NOT_INSIDE
+    arguments = {"application": REFERENCE, "query": {"text": layout.fill(wrapped)}}
+    out = call(make_router(layout), "trace_javascript_semantics", arguments)
+    assert_rejected(out, layout, "query", rule)
+
+
+@pytest.mark.parametrize(
+    ("tool", "arguments", "field"),
+    [
+        pytest.param(
+            "analyze_javascript_application",
+            {"input_path": "assets", "format": "\\<P_TAIL>"},
+            "format",
+            id="format-역슬래시",
+        ),
+        pytest.param(
+            "analyze_javascript_application",
+            {"input_path": "assets", "view": {"kind": "page", "x": " /<P_TAIL>"}},
+            "view",
+            id="view-슬래시",
+        ),
+        pytest.param(
+            "trace_application_feature",
+            {"application": REFERENCE, "seed": {"kind": "route", "value": "/a"}, "direction": "/x"},
+            "direction",
+            id="direction",
+        ),
+        pytest.param(
+            "trace_application_feature",
+            {"application": REFERENCE, "seed": {"value": "x"}, "semantic_page": {"o": "\\x"}},
+            "semantic_page",
+            id="semantic_page",
+        ),
+    ],
+)
+def test_F_R04_그물_루트기준꼴은_글자칸밖에서_거절(
+    layout: Layout, tool: str, arguments: dict[str, Any], field: str
+) -> None:
+    out = call(make_router(layout), tool, fill_values(layout, arguments))
+    assert_rejected(out, layout, field, rmf.RULE_ROOT_RELATIVE)
+
+
+@pytest.mark.parametrize(
+    ("tool", "arguments"),
+    [
+        pytest.param(
+            "trace_application_feature",
+            {"application": REFERENCE, "seed": {"kind": "api", "value": "/api/admin/users"}},
+            id="seed-api",
+        ),
+        pytest.param(
+            "trace_application_feature",
+            {"application": REFERENCE, "seed": {"kind": "route", "value": "\\admin"}},
+            id="seed-역슬래시",
+        ),
+        pytest.param(
+            "trace_javascript_semantics",
+            {"application": REFERENCE, "query": {"text": "/api/users/delete"}},
+            id="query",
+        ),
+    ],
+)
+def test_F_R04_그물_글자칸의_루트기준글은_그대로(
+    layout: Layout, tool: str, arguments: dict[str, Any]
+) -> None:
+    assert sent_arguments(call(make_router(layout), tool, arguments)) == arguments
+
+
+REA_TOOLS = Path(__file__).resolve().parent / "fake_rea" / "rea-6.10.1-tools.json"
+
+
+def test_F_R04_REA스키마와_인자목록_글자칸이_맞음() -> None:
+    """REA 6.10.1 tools/list(진짜, 2026-11-23 거르개를 거쳐 받음)와 거르개가 아는 칸이 같다.
+
+    REA 판을 올리면 이 파일을 다시 받아 넣는다. 칸이 늘거나 설명이 바뀌면 여기서 걸린다.
+    """
+    tools = {t["name"]: t["inputSchema"] for t in json.loads(REA_TOOLS.read_text("utf-8"))["tools"]}
+    assert set(tools) == set(ALLOWED)
+    for name, schema in tools.items():
+        assert set(schema["properties"]) == rmf.TOOL_ARGUMENTS[name]
+    for name, fields in rmf.LITERAL_TEXT_FIELDS.items():
+        for field in fields:
+            description = tools[name]["properties"][field]["description"]
+            assert "literal" in description or "text query" in description
+    # 경로 칸: REA가 절대 경로·인벤토리 경로로 받는 칸만
+    assert (
+        "Absolute path"
+        in tools["analyze_javascript_application"]["properties"]["input_path"]["description"]
+    )
+    for name, field in rmf.PATH_FIELD.items():
+        assert field in tools[name]["required"]
+    for name, field in rmf.REFERENCE_FIELD.items():
+        assert tools[name]["properties"][field] == {"type": "object"}
+
+
+def test_F_R04_그물_큰글의_메모리가_입력보다작음() -> None:
+    """`..` 마디 찾기가 글을 목록으로 나누지 않는다(검증 T31 7)."""
+    text = "a/" * 400_000 + ".."
+    tracemalloc.start()
+    try:
+        assert rmf.has_dot_dot_segment(text)
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    assert peak < len(text) // 10
 
 
 def test_F_R04_그물_경로꼴아닌글은_그대로(layout: Layout) -> None:
@@ -517,7 +727,7 @@ def test_F_R04_그물_경로꼴아닌글은_그대로(layout: Layout) -> None:
 
 def test_F_R04_허용밖_호출_REA로안감_오류(layout: Layout) -> None:
     out = call(make_router(layout), "extract_artifact", {"input_path": "assets"})
-    assert_rejected(out, layout)
+    assert_rejected(out, layout, "name", rmf.RULE_TOOL)
 
 
 @pytest.mark.parametrize(
@@ -602,14 +812,28 @@ def test_F_R04_tools_list_꼴아님_오류(layout: Layout) -> None:
     assert_error_to_client(out, 1, rmf.INTERNAL_ERROR)
 
 
-def test_F_R04_initialize_응답은_tools능력만(layout: Layout) -> None:
+def test_F_R04_initialize_응답은_허용키와_tools능력만(layout: Layout) -> None:
+    """capabilities는 tools만, 응답 키는 protocolVersion·capabilities·serverInfo만.
+
+    instructions는 지운다(검증 T31 4).
+    """
     router = make_router(layout)
     request = {"jsonrpc": "2.0", "id": 0, "method": "initialize", "params": {"capabilities": {}}}
     assert [o.to for o in router.from_client(line(request))] == ["rea"]
     capabilities = {"tools": {"listChanged": True}, "prompts": {}, "resources": {}, "logging": {}}
-    response = {"jsonrpc": "2.0", "id": 0, "result": {"capabilities": capabilities, "x": 1}}
-    out = router.from_rea(line(response))
-    assert body(out[0])["result"] == {"capabilities": {"tools": {"listChanged": True}}, "x": 1}
+    result = {
+        "protocolVersion": "2025-06-18",
+        "capabilities": capabilities,
+        "serverInfo": {"name": "rea", "version": "6.10.1"},
+        "instructions": "68개 도구를 쓰는 법",
+        "_meta": {"x": 1},
+    }
+    out = router.from_rea(line({"jsonrpc": "2.0", "id": 0, "result": result}))
+    assert body(out[0])["result"] == {
+        "protocolVersion": "2025-06-18",
+        "capabilities": {"tools": {"listChanged": True}},
+        "serverInfo": {"name": "rea", "version": "6.10.1"},
+    }
 
 
 @pytest.mark.parametrize(
@@ -625,6 +849,26 @@ def test_F_R04_REA가_거는요청은_넘기지않고_오류로답함(layout: La
 def test_F_R04_모르는id의_REA응답은_버림(layout: Layout) -> None:
     out = make_router(layout).from_rea(line({"jsonrpc": "2.0", "id": 5, "result": {}}))
     assert out == []
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        b"{not json",
+        b'{"jsonrpc":"2.0","id":1,"result":{},"result":{}}',
+        b'{"jsonrpc":"2.0","id":1,"result":{"n":' + b"9" * 5000 + b"}}",
+        b'{"id":1,"result":{}}',
+        b"[1,2]",
+        b'{"jsonrpc":"2.0","method":7}',
+        b'{"jsonrpc":"2.0","id":1.5,"result":{}}',
+    ],
+    ids=["깨짐", "같은키", "긴정수", "jsonrpc없음", "배열", "method숫자", "id실수"],
+)
+def test_F_R04_REA의_읽을수없는줄_넘기지않고_오류(layout: Layout, raw: bytes) -> None:
+    """F-R04 예외 '읽을 수 없는 JSON 글 → 그 글을 넘기지 않고 오류'(REA 쪽, 검증 T31 11)."""
+    router = make_router(layout)
+    router.from_client(line({"jsonrpc": "2.0", "id": 1, "method": "ping"}))
+    assert_error_to_client(router.from_rea(raw), None, rmf.INTERNAL_ERROR)
 
 
 def test_F_R04_Claude_Code의_응답은_버림(layout: Layout) -> None:
@@ -644,11 +888,26 @@ def test_F_R04_Claude_Code의_응답은_버림(layout: Layout) -> None:
         b'{"jsonrpc":"2.0","id":1,"method":"ping","params":{"x":1e999}}',
         b"\xff\xfe",
         b"[" * 100 + b"]" * 100,
+        b'{"jsonrpc":"2.0","id":1,"method":"ping","params":{"n":' + b"9" * 5000 + b"}}",
     ],
-    ids=["깨짐", "같은키", "NaN", "무한", "UTF8아님", "깊이"],
+    ids=["깨짐", "같은키", "NaN", "무한", "UTF8아님", "깊이", "4300자리넘는정수"],
 )
 def test_F_R04_읽을수없는_JSON_넘기지않고_오류(layout: Layout, raw: bytes) -> None:
     assert_error_to_client(make_router(layout).from_client(raw), None, rmf.PARSE_ERROR)
+
+
+def test_F_R04_생각못한_예외도_오류로답하고_살아있음(
+    layout: Layout, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken(_params: Any, _policy: Any) -> None:
+        raise RuntimeError("시험")
+
+    router = make_router(layout)
+    monkeypatch.setattr(rmf, "filter_tool_call", broken)
+    out = call(router, "audit_release_exposure", {"path": "assets"}, msg_id=7)
+    assert_error_to_client(out, 7, rmf.INTERNAL_ERROR)
+    ping = router.from_client(line({"jsonrpc": "2.0", "id": 8, "method": "ping"}))
+    assert [o.to for o in ping] == ["rea"]
 
 
 @pytest.mark.parametrize(
@@ -854,6 +1113,7 @@ def test_F_R04_REA환경_빈홈_TEMP_netguard(layout: Layout) -> None:
     process = FilterProcess(layout, base_python(), extra)
     response = process.request(0, "initialize", {"capabilities": {}})
     assert response["result"]["capabilities"] == {"tools": {"listChanged": True}}
+    assert set(response["result"]) == {"protocolVersion", "capabilities", "serverInfo"}
     process.close()
     state = json.loads(process.env_out.read_text("utf-8"))
     environ = {k.upper(): v for k, v in state["environ"].items()}
