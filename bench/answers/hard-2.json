@@ -1,0 +1,238 @@
+{
+  "schema": "selfaudit-bench/answers@1",
+  "bundle_id": "hard-2",
+  "origin": "planted",
+  "difficulty": "hard",
+  "bundle_manifest_sha256": "e9850d08ba47beb50217d46a6bc9def859838e7635fef1842a9dbd61695b3041",
+  "complete": true,
+  "items": [
+    {
+      "id": "H2-01",
+      "categories": [
+        "secret"
+      ],
+      "difficulty": "hard",
+      "hiding": "obfuscated",
+      "locations": [
+        {
+          "file": "assets/app-4ebb2ea8.js",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "\\x6e\\x75\\x76\\x6f\\x72\\x5f\\x75\\x4f\\x36\\x51\\x79\\x79\\x6f\\x30\\x6d\\x62",
+      "decoded_anchor": "nuvor_uO6Qyyo0mbv6Ojd4kKhe9ESKwAC1TfyU",
+      "planted": "가짜(생성). 난독화한 화면 코드 app.js의 상수 PARTNER_KEY에 제휴 꽃집 주문 API 키를 넣음. 값은 문자열 배열 안에 글자 코드로만 있고, sendPartnerOrder()가 /api/partner/orders 요청 머리 X-Partner-Key로 보냄",
+      "why": "문자열 배열·돌리기·글자 코드로 감춘 비밀값을 풀어 알아보는가(hard 줄 obfuscated)"
+    },
+    {
+      "id": "H2-02",
+      "categories": [
+        "secret"
+      ],
+      "difficulty": "hard",
+      "hiding": "split",
+      "locations": [
+        {
+          "file": "assets/app-4ebb2ea8.js",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "\\x44\\x41\\x77\\x4d\\x48\\x30\\x2e\\x6a\\x64\\x6f\\x4e\\x55\\x33\\x59\\x32\\x4d",
+      "decoded_anchor": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzdmMtc3RvY2siLCJyb2xlIjoic2VydmljZSIsImlhdCI6MTc2MzYwMDAwMH0.jdoNU3Y2M_UK-aEs4dbF37B5S27-PtxgXYA_KBonMjM",
+      "planted": "가짜(생성). 재고 서버 서비스 토큰을 세 조각으로 나눠 상수 STOCK_T1·stockToken() 안 글·파일 끝 쪽 상수 STOCK_T3에 두고, stockToken()이 이어 붙여 stockLevels()의 Authorization: Bearer로 보냄. 세 조각 모두 난독화한 문자열 배열 안에 있음",
+      "why": "난독화한 배열에서 세 조각을 찾아 차례대로 이어 하나의 토큰으로 알아보는가(hard 줄 split)"
+    },
+    {
+      "id": "H2-03",
+      "categories": [
+        "secret"
+      ],
+      "difficulty": "hard",
+      "hiding": "sourcemap_only",
+      "locations": [
+        {
+          "file": "assets/index-2fa58634.js.map",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "oskel_FEu47lu6UKHVDN7Qw2E80cZDZmyUSllh",
+      "decoded_anchor": null,
+      "planted": "가짜(생성). 시작점 index.js 원본 머리 주석에 지난달까지 쓰던 제휴 주문 키(아직 폐기하지 않음)를 남김. 압축이 주석을 지워 결과물 JS에는 없고 소스맵 sourcesContent에만 있음",
+      "why": "결과물에는 없고 소스맵 원본 주석에만 남은 비밀값을 찾는가(hard 줄 sourcemap_only)"
+    },
+    {
+      "id": "H2-04",
+      "categories": [
+        "internal_address"
+      ],
+      "difficulty": "hard",
+      "hiding": "obfuscated",
+      "locations": [
+        {
+          "file": "assets/app-4ebb2ea8.js",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "\\x31\\x37\\x32\\x2e\\x31\\x38\\x2e\\x39\\x2e\\x32\\x37",
+      "decoded_anchor": "172.18.9.27",
+      "planted": "설정 객체 cfg의 stockBase에 사내 재고 서버 주소(사설 주소 http://172.18.9.27:8080/stock)를 넣음. 열쇠 이름과 주소 모두 난독화한 문자열 배열 안에 있고 stockLevels()가 그 주소로 요청",
+      "why": "난독화한 설정 안의 내부 주소를 풀어 찾는가(hard 줄 obfuscated)"
+    },
+    {
+      "id": "H2-05",
+      "categories": [
+        "admin_path"
+      ],
+      "difficulty": "hard",
+      "hiding": "sourcemap_only",
+      "locations": [
+        {
+          "file": "assets/index-2fa58634.js.map",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "/backoffice/stock-adjust",
+      "decoded_anchor": null,
+      "planted": "시작점 index.js 원본 주석에 재고 맞추기 관리 화면의 주소 /backoffice/stock-adjust(메뉴 없이 주소로만 들어감)를 적음. 결과물 JS에는 없고 소스맵 sourcesContent에만 있음",
+      "why": "소스맵 원본 주석에만 남은 관리 경로를 찾는가(hard 줄 sourcemap_only)"
+    },
+    {
+      "id": "H2-06",
+      "categories": [
+        "hidden_route",
+        "admin_path"
+      ],
+      "difficulty": "hard",
+      "hiding": "split",
+      "locations": [
+        {
+          "file": "assets/app-4ebb2ea8.js",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "\\x2f\\x73\\x75\\x62\\x73\\x63\\x72\\x69\\x70\\x74\\x69\\x6f\\x6e\\x73\\x2f\\x66\\x6f\\x72\\x63\\x65\\x2d\\x72\\x65\\x6e\\x65\\x77",
+      "decoded_anchor": "/staff/subscriptions/force-renew",
+      "planted": "forceRenew()가 상수 STAFF(/staff)와 /subscriptions/force-renew를 이어 정기 배송 강제 갱신 API /api/staff/subscriptions/force-renew를 부름. 화면에서는 부르지 않고 디버그 객체로만 닿음. 두 조각 모두 난독화한 문자열 배열 안에 있음",
+      "why": "난독화한 배열에서 나뉜 조각을 이어 숨은 API 라우트를 알아보는가(hard 줄 split). 직원용 처리라 admin_path로 불러도 맞음"
+    },
+    {
+      "id": "H2-07",
+      "categories": [
+        "debug_flag"
+      ],
+      "difficulty": "hard",
+      "hiding": "obfuscated",
+      "locations": [
+        {
+          "file": "assets/app-4ebb2ea8.js",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "\\x6c\\x6f\\x67\\x42\\x6f\\x64\\x69\\x65\\x73",
+      "decoded_anchor": "logBodies",
+      "planted": "설정 객체 cfg에 logBodies: true, 켜져 있으면 api()가 요청마다 머리(X-Partner-Key 포함)와 본문을 콘솔에 찍고 window.__sproutlyDebug에 cfg·api·forceRenew·stockToken을 내놓음. 플래그 이름과 내놓는 이름은 난독화한 문자열 배열 안에 있음",
+      "why": "이름까지 난독화한 켜 둔 디버그 플래그를 찾는가(hard 줄 obfuscated)"
+    },
+    {
+      "id": "H2-08",
+      "categories": [
+        "vulnerable_library"
+      ],
+      "difficulty": "hard",
+      "hiding": "none",
+      "locations": [
+        {
+          "file": "assets/vendor-5418a121.js",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "2.0.8",
+      "decoded_anchor": null,
+      "planted": "라이브러리 조각 vendor.js에 DOMPurify 2.0.8 배너와 version 값을 둔 흉내 코드. 화면 코드가 그 sanitize()로 거른 선물 메시지 HTML을 innerHTML에 넣음",
+      "why": "알려진 취약 판의 라이브러리를 버전으로 알아보는가. 판정 기준은 배너·version의 버전(2.0.17 앞 판의 mXSS 우회 CVE-2020-26870 — 기억에 기댄 값, 확인: NVD 항목). 흉내 코드라 취약한 처리 자체는 번들에 없음"
+    },
+    {
+      "id": "H2-09",
+      "categories": [
+        "source_map"
+      ],
+      "difficulty": "hard",
+      "hiding": "none",
+      "locations": [
+        {
+          "file": "assets/index-2fa58634.js",
+          "line_start": 2,
+          "line_end": 2,
+          "file_lines": 2
+        },
+        {
+          "file": "assets/index-2fa58634.js.map",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "index-2fa58634.js.map",
+      "decoded_anchor": null,
+      "planted": "시작점 index.js에 소스맵을 붙이고 맵의 sourcesContent에 압축 전 원본(주석 포함)을 그대로 넣음. 난독화한 app.js와 라이브러리 vendor.js에는 맵이 없음",
+      "why": "시작점 하나에 남은 소스맵 노출을 찾는가"
+    }
+  ],
+  "decoys": [
+    {
+      "id": "H2-D1",
+      "locations": [
+        {
+          "file": "assets/app-4ebb2ea8.js",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "\\x42\\x4f\\x73\\x58\\x6b\\x6f\\x71\\x30\\x5f\\x78\\x49\\x34\\x6d\\x53\\x4c\\x4f",
+      "why": "키처럼 긴 base64url 글이 비밀값과 같은 난독화 배열에 있지만, 상수 VAPID_PUBLIC은 '배송 알림 받기' 버튼이 브라우저 푸시 구독(applicationServerKey)에 넘기는 웹 푸시 공개 키다. 공개하라고 만든 값이고 짝인 개인 키는 서버에만 있다"
+    },
+    {
+      "id": "H2-D2",
+      "locations": [
+        {
+          "file": "assets/app-4ebb2ea8.js",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "\\x64\\x33\\x72\\x38\\x6b\\x32\\x6d\\x37\\x78\\x34\\x71\\x39\\x77\\x7a\\x2e\\x63\\x6c\\x6f\\x75\\x64\\x66\\x72\\x6f\\x6e\\x74\\x2e\\x6e\\x65\\x74",
+      "why": "설정의 photoHost(https://d3r8k2m7x4q9wz.cloudfront.net)와 /plants/photos/를 이어 만든 화분 사진 주소다. 나뉘고 난독화돼 있지만 '사진 보기' 버튼을 누를 때만 쓰는 공개 CDN이라 내부 주소도 비밀도 아니다"
+    },
+    {
+      "id": "H2-D3",
+      "locations": [
+        {
+          "file": "assets/index-2fa58634.js.map",
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
+        }
+      ],
+      "anchor": "mockApi",
+      "why": "소스맵 원본 주석에만 있는 '?mockApi=1을 붙여 화면만 확인했다'는 메모다. 결과물 코드 어디에도 그 값을 읽는 곳이 없어 켜지는 디버그 동작이 없다"
+    }
+  ]
+}
