@@ -247,10 +247,11 @@ def test_F_B01_normal_한줄_해시이름(bundle_id: str) -> None:
 
 @pytest.mark.parametrize("bundle_id", NORMAL)
 def test_F_B03_normal_닻_번들에서_한곳만(bundle_id: str) -> None:
-    """압축 파일은 한 줄이라 F-B07 6(줄 범위)으로는 정답끼리 가르지 못한다(설계 2.5). 그래서 더 본다:
+    """압축 파일은 한 줄이라 F-B07 6(줄 범위)으로는 정답끼리 가르지 못한다(설계 2.5).
 
-    ㉮ 닻이 나오는 파일은 모두 그 정답(미끼)의 위치 파일 ㉯ 숨긴 정답의 닻(조각·인코딩 글)은
-    나오는 파일마다 꼭 한 번 ㉰ 닻이 다른 정답·미끼의 닻 안에 들지 않는다(결과 하나가 둘을 맞히지 않게).
+    그래서 더 본다: ㉮ 닻이 나오는 파일은 모두 그 정답(미끼)의 위치 파일
+    ㉯ 숨긴 정답의 닻(조각·인코딩 글)은 나오는 파일마다 꼭 한 번
+    ㉰ 닻이 다른 정답·미끼의 닻 안에 들지 않는다(결과 하나가 둘을 맞히지 않게).
     """
     answers = _answers(bundle_id)
     entries = _entries(answers, "items") + _entries(answers, "decoys")
