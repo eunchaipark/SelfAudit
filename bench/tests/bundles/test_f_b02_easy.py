@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import re
 import shutil
 from pathlib import Path
-from urllib.parse import urlsplit
 
 import pytest
 
@@ -18,6 +18,7 @@ from common.fingerprint import bundle_manifest_sha256
 from common.lines import count_lines
 from sources.build_tools import fake
 from sources.build_tools.build import BUNDLES_DIR, SOURCES_DIR, build
+from sources.build_tools.locate import write_answers
 from sources.build_tools.verify import (
     HIDING_BY_DIFFICULTY,
     REPO_ROOT,
@@ -35,7 +36,17 @@ SPEC_TOKEN = (
     ".eyJzdWIiOiJ1LTQ4MjEzIiwicm9sZSI6InN0YWZmIiwiaWF0IjoxNzYzNjAwMDAwfQ"
     ".CIGvPrG9Eh50XRQy_a-fJJhyPFfaSLRAkpSPO61n8TI"
 )
-RESERVED_SUFFIXES = (".test", ".example", ".invalid", ".localhost")  # F-B02 6 (RFC 2606)
+# F-B02 6: 내부 주소는 RFC 1918 세 네트워크만(is_private는 127/8·169.254/16 등도 참이라 쓰지 않는다)
+PRIVATE_NETWORKS = tuple(
+    ipaddress.ip_network(n) for n in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
+)
+# 예약 이름(RFC 2606)은 정답·미끼 한쪽에만 쓰지 않는다(T22 반려 1 1).
+# 쉬움 번들은 어느 쪽에도 쓰지 않는다
+RESERVED_SUFFIXES = (".test", ".example", ".invalid", ".localhost")
+# 번들 글에 나오는 바깥 호스트: 미끼 E1-D3의 공개 이미지 CDN 하나뿐
+PUBLIC_HOSTS = frozenset({"res.cloudinary.com"})
+IPV4 = re.compile(r"(?<![0-9.])(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?![0-9.])")
+URL_HOST = re.compile(r"https?://([A-Za-z0-9.-]+)")
 
 
 def _answers(bundle_id: str) -> dict[str, Json]:
@@ -70,18 +81,30 @@ def test_F_B03_easy_정답마다_js와_map_두위치(bundle_id: str) -> None:
         assert any(f.endswith(".js.map") for f in files), item["id"]
 
 
+def _generated(bundle_id: str) -> dict[str, str]:
+    """심기 계획(plan.json values)으로 만든 가짜 값 {값: form} — 꼴이 아니라 계획으로 가른다
+    (16자 영숫자 닻 `enableDebugTools`가 비밀번호 꼴과 같다)."""
+    plan = json.loads((SOURCES_DIR / bundle_id / "plan.json").read_text(encoding="utf-8"))
+    return {
+        fake.make_value(bundle_id, entry_id, spec): str(spec["form"])
+        for entry_id, spec in plan["values"].items()
+    }
+
+
 @pytest.mark.parametrize("bundle_id", EASY)
 def test_F_B03_easy_planted에_가짜생성(bundle_id: str) -> None:
-    """F-B02 7: 규칙 4로 만든 값(키·토큰·비밀번호)이 든 정답은 planted에 '가짜(생성)'."""
-    generated = 0
+    """F-B02 7: 규칙 4로 만든 값(키·토큰·비밀번호)이 든 정답은 planted에 '가짜(생성)'.
+
+    그 밖의 정답에는 없다.
+    """
+    generated = _generated(bundle_id)
+    forms: set[str] = set()
     for item in _entries(_answers(bundle_id), "items"):
-        anchor = item["anchor"]
-        if isinstance(anchor, str) and fake.rule4_form(anchor) in {"key", "token"}:
-            generated += 1
-            assert "가짜(생성)" in str(item["planted"]), item["id"]
-        if "가짜(생성)" in str(item["planted"]):
-            assert isinstance(anchor, str) and fake.rule4_form(anchor), item["id"]
-    assert generated >= 2
+        form = generated.get(str(item["anchor"]))
+        assert ("가짜(생성)" in str(item["planted"])) == (form is not None), item["id"]
+        if form is not None:
+            forms.add(form)
+    assert forms == {"key", "token", "password"}
 
 
 @pytest.mark.parametrize("bundle_id", EASY)
@@ -141,20 +164,32 @@ def test_F_B02_easy1_명세예시값() -> None:
 
 @pytest.mark.parametrize("bundle_id", EASY)
 def test_F_B02_easy_가짜주소(bundle_id: str) -> None:
-    """F-B02 6: 내부 주소는 사설 주소(RFC 1918)나 예약 이름만. 미끼 주소도 예약 이름."""
-    answers = _answers(bundle_id)
-    urls = [
-        str(e["anchor"])
-        for e in _entries(answers, "items") + _entries(answers, "decoys")
-        if str(e["anchor"]).startswith(("http://", "https://"))
-    ]
-    assert urls
-    for url in urls:
-        host = urlsplit(url).hostname or ""
-        if host.replace(".", "").isdigit():
-            assert ipaddress.ip_address(host).is_private, url
-        else:
-            assert host.endswith(RESERVED_SUFFIXES), url
+    """F-B02 6 + T22 반려 1 6: 번들 글 전체의 IP는 RFC 1918 세 네트워크 안.
+
+    주소의 호스트는 그 IP나 정해 둔 공개 CDN뿐이고, 예약 이름은 쓰지 않는다.
+    """
+    ips: set[str] = set()
+    for path in sorted((BUNDLES_DIR / bundle_id).rglob("*")):
+        if not path.is_file():
+            continue
+        text = path.read_bytes().decode("utf-8")
+        assert not any(s in text for s in RESERVED_SUFFIXES), path.name
+        for ip in IPV4.findall(text):
+            ips.add(ip)
+            assert any(ipaddress.ip_address(ip) in net for net in PRIVATE_NETWORKS), ip
+        for host in URL_HOST.findall(text):
+            assert IPV4.fullmatch(host) or host in PUBLIC_HOSTS, host
+    assert ips  # 내부 주소 정답이 번들마다 있다
+
+
+@pytest.mark.parametrize("bundle_id", EASY)
+def test_F_B03_easy_정답지_명령으로_다시만들면_같음(bundle_id: str, tmp_path: Path) -> None:
+    """T22 반려 1 3: 정답지는 원본 + 명령 하나로 같은 바이트가 다시 나온다."""
+    sources = tmp_path / "sources"
+    sources.mkdir()
+    shutil.copytree(SOURCES_DIR / bundle_id, sources / bundle_id)
+    path, _ = write_answers(bundle_id, sources, tmp_path / "bundles", tmp_path / "answers")
+    assert path.read_bytes() == (REPO_ROOT / "bench" / "answers" / f"{bundle_id}.json").read_bytes()
 
 
 @pytest.mark.parametrize("bundle_id", EASY)
