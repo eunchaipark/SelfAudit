@@ -3,7 +3,7 @@
   "bundle_id": "normal-2",
   "origin": "planted",
   "difficulty": "normal",
-  "bundle_manifest_sha256": "aceff2b4decd18b65f79e2fa9f9212e69a480a217e00e9ec669d25874d6cce20",
+  "bundle_manifest_sha256": "94fc357a7e1dbf1d10c8eff633bec25614b681641f66303ef334250ab046a70e",
   "complete": true,
   "items": [
     {
@@ -16,9 +16,9 @@
       "locations": [
         {
           "file": "index.html",
-          "line_start": 18,
-          "line_end": 18,
-          "file_lines": 29
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
         },
         {
           "file": "assets/index-b4234ac0.js",
@@ -62,9 +62,9 @@
       "locations": [
         {
           "file": "index.html",
-          "line_start": 13,
-          "line_end": 13,
-          "file_lines": 29
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
         },
         {
           "file": "assets/index-b4234ac0.js",
@@ -129,9 +129,9 @@
       "locations": [
         {
           "file": "index.html",
-          "line_start": 14,
-          "line_end": 14,
-          "file_lines": 29
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
         },
         {
           "file": "assets/index-b4234ac0.js",
@@ -155,9 +155,9 @@
       "locations": [
         {
           "file": "index.html",
-          "line_start": 16,
-          "line_end": 16,
-          "file_lines": 29
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
         },
         {
           "file": "assets/index-b4234ac0.js",
@@ -218,9 +218,9 @@
       "locations": [
         {
           "file": "index.html",
-          "line_start": 17,
-          "line_end": 17,
-          "file_lines": 29
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
         }
       ],
       "anchor": "traceUi",
@@ -231,9 +231,9 @@
       "locations": [
         {
           "file": "index.html",
-          "line_start": 12,
-          "line_end": 12,
-          "file_lines": 29
+          "line_start": 1,
+          "line_end": 1,
+          "file_lines": 1
         }
       ],
       "anchor": "281df04170dd",

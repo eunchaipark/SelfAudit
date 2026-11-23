@@ -222,7 +222,8 @@ def test_F_B02_normal_split·encoded·config_모두있음(bundle_id: str) -> Non
 def test_F_B01_normal_한줄_해시이름(bundle_id: str) -> None:
     """압축(한 줄): JS는 코드 한 줄(+ 소스맵이 있으면 `//# sourceMappingURL=` 한 줄).
 
-    JS·CSS 이름에는 해시가 붙는다. 남기는 주석은 `/*!` 배너뿐이다.
+    HTML·CSS·맵은 한 줄(반려 1 3·4). JS·CSS 이름에는 해시가 붙는다.
+    남기는 주석은 `/*!` 배너뿐이다.
     """
     bundle = BUNDLES_DIR / bundle_id
     scripts = sorted((bundle / "assets").glob("*.js"))
@@ -230,6 +231,9 @@ def test_F_B01_normal_한줄_해시이름(bundle_id: str) -> None:
     for path in sorted((bundle / "assets").iterdir()):
         if path.suffix in {".js", ".css"}:
             assert HASHED.fullmatch(path.name), path.name
+    for path in sorted(bundle.rglob("*")):
+        if path.is_file() and path.suffix in {".html", ".css", ".map"}:
+            assert count_lines(path.read_bytes()) == 1, path.name
     for path in scripts:
         data = path.read_bytes()
         lines = data.decode("utf-8").split(chr(0x0A))

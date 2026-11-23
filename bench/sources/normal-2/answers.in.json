@@ -11,7 +11,7 @@
       "anchor": {"value": "N2-01", "chain": "split:2:0"},
       "decoded_anchor": {"value": "N2-01"},
       "at": [
-        {"file": "index.html", "marker": "\"mk\": "},
+        {"file": "index.html", "marker": "\"mk\":"},
         {"file": "assets/index.js", "marker": "const PAY_TAIL="}
       ],
       "planted": "가짜(생성). 결제 키를 두 조각으로 나눠 앞 조각은 index.html 설정 객체의 mk에, 뒤 조각은 index.js 상수 PAY_TAIL에 두고, bookRoom()이 유료 회의실 예약 때 이어 붙여 X-Pay-Key로 보냄",
@@ -36,7 +36,7 @@
       "anchor": {"value": "N2-03"},
       "decoded_anchor": null,
       "at": [
-        {"file": "index.html", "marker": "\"serviceToken\": "},
+        {"file": "index.html", "marker": "\"serviceToken\":"},
         {"file": "assets/index.js", "marker": "\"Bearer \"+cfg.serviceToken"}
       ],
       "planted": "가짜(생성). index.html의 실행 설정 window.__APP_CONFIG__ serviceToken에 서비스 계정 JWT 꼴 토큰, occupancy()가 Bearer로 보냄",
@@ -73,7 +73,7 @@
       "anchor": "/manage/tenants",
       "decoded_anchor": null,
       "at": [
-        {"file": "index.html", "marker": "\"adminConsole\": "},
+        {"file": "index.html", "marker": "\"adminConsole\":"},
         {"file": "assets/index.js", "marker": "routes.push({path:cfg.adminConsole"}
       ],
       "planted": "실행 설정의 adminConsole에 입주사 관리 경로 /manage/tenants, 값이 있으면 경로표에 더하고 그 화면이 /api/tenants를 받아 보여 줌(메뉴에는 없음)",
@@ -86,7 +86,7 @@
       "anchor": "verboseErrors",
       "decoded_anchor": null,
       "at": [
-        {"file": "index.html", "marker": "\"verboseErrors\": "},
+        {"file": "index.html", "marker": "\"verboseErrors\":"},
         {"file": "assets/index.js", "marker": "window.deskoraDebug="}
       ],
       "planted": "실행 설정에 verboseErrors: true, 켜져 있으면 서버 오류 본문을 화면 #error에 그대로 보이고 window.deskoraDebug에 api·occupancy·startKiosk·cancelAny를 내놓음",
@@ -122,7 +122,7 @@
       "id": "N2-D1",
       "anchor": "traceUi",
       "at": [
-        {"file": "index.html", "marker": "\"traceUi\": "}
+        {"file": "index.html", "marker": "\"traceUi\":"}
       ],
       "why": "꺼져 있는 플래그(false)이고 코드 어디에서도 읽지 않는다"
     },
@@ -130,7 +130,7 @@
       "id": "N2-D2",
       "anchor": "281df04170dd",
       "at": [
-        {"file": "index.html", "marker": "\"release\": "}
+        {"file": "index.html", "marker": "\"release\":"}
       ],
       "why": "실행 설정의 release는 배포한 커밋의 짧은 해시(16진 12자)다. 사용 통계에 싣는 공개 빌드 식별자라 비밀값도 인코딩된 값도 아니다"
     },
