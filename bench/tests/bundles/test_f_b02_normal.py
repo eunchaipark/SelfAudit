@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 import binascii
 import ipaddress
+import itertools
 import json
 import re
 import shutil
@@ -51,7 +52,7 @@ IPV4 = re.compile(r"(?<![0-9.])(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?![0-9.])")
 URL_HOST = re.compile(r"(?:https?|wss?)://([A-Za-z0-9.-]+)")
 # 코드가 실행 중에 푸는 자리(압축 꼴, 빈칸 없음). 닻이 바로 뒤에 온다
 DECODE_CALLS = ('atob("', 'fromHex("')
-CONFIG_START =re.compile(r"window\.__APP_CONFIG__ ?= ?\{")
+CONFIG_START = re.compile(r"window\.__APP_CONFIG__ ?= ?\{")
 
 
 # --- 읽기 ------------------------------------------------------------------------------------
@@ -164,7 +165,7 @@ def test_F_B02_normal_split_두조각_따로있음(bundle_id: str) -> None:
             before, _, after = decoded.partition(anchor)
             pieces = [piece for piece in (before, anchor, after) if piece]
             assert all(any(piece in t for t in texts) for piece in pieces), item["id"]
-        for left, right in zip(pieces, pieces[1:], strict=False):
+        for left, right in itertools.pairwise(pieces):
             assert not any(left + right in t for t in texts), item["id"]
 
 
@@ -397,7 +398,8 @@ def test_F_B02_normal_미끼도_인코딩꼴(bundle_id: str) -> None:
 
 @pytest.mark.parametrize("bundle_id", NORMAL)
 def test_F_B02_normal_푸는함수마다_미끼(bundle_id: str) -> None:
-    """반려 1 2: 코드가 실행 중에 푸는 글(`atob("…")`·`fromHex("…")`)은 함수마다 정답과 미끼가 다 있다.
+    """반려 1 2: 코드가 실행 중에 푸는 글(`atob("…")`·`fromHex("…")`)은 함수마다
+    정답과 미끼가 다 있다.
 
     '푸는 글은 다 신고'로는 정밀도를 지킬 수 없게 — 풀어 본 뒤 내용으로 가르는지를 잰다.
     """
