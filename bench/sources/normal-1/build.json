@@ -1,0 +1,31 @@
+{
+  "schema": "selfaudit-bench/build@1",
+  "bundle_id": "normal-1",
+  "command": [
+    "uv",
+    "run",
+    "--frozen",
+    "--offline",
+    "python",
+    "-m",
+    "sources.build_tools",
+    "build",
+    "normal-1"
+  ],
+  "tools": {
+    "python": "3.13.7",
+    "node": null,
+    "build_scripts_sha256": {
+      "__init__.py": "1157553b746adeb67fe1d14b0fe8e2a4621469f5cc19dcc7a24b00217182dce1",
+      "__main__.py": "2be6591eebada1673ae0a1867c44cf4a7f26ffe8e64ab048868c9472513838ed",
+      "build.py": "c839b21825aad4bce31472874db90b89fc2fec101c1fc596936cf4ff7aa50d2d",
+      "encode.py": "ba8fd3e7684dc5315f01bee48f90871617e442f1538e620fc8f0ca6275edc2d8",
+      "fake.py": "fce08d75bb478e29c6ba3375259f1182effa61dd3c0a572f4aebbe7d4ebdde25",
+      "locate.py": "eb62f5796340dca2193ed63d7f53351fc04a232cde25abf3fddaf44d8b2c44c5",
+      "minify.py": "2a0b13c6d65dcc05338aea67052862b111d2b9b54e765d3c65faaeb5fcefcc27",
+      "sourcemap.py": "a33d5a8fcb174f47f984adf537b6e167e9c55994c18db0cbef15306183a94ebf",
+      "verify.py": "400e18081b001e9687bd8dcdc9bc47bf6554610d07e7db0a301ef1c64e1ced6b"
+    }
+  },
+  "bundle_manifest_sha256": "45e996216d58a4905dfabd64a3b1a9277fad1c3b4a25b99153077e6d91b8d4f1"
+}

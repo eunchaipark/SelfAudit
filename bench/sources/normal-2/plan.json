@@ -1,0 +1,16 @@
+{
+  "schema": "selfaudit-bench/plan@1",
+  "bundle_id": "normal-2",
+  "mode": "minified",
+  "hash_names": ["assets/index.js", "assets/vendor.js", "assets/style.css"],
+  "sourcemaps": [],
+  "sourcemap_content": false,
+  "values": {
+    "N2-01": {"form": "key", "prefix": "cablo_"},
+    "N2-02": {"form": "key", "prefix": "trimba_"},
+    "N2-03": {"form": "token", "claims": {"sub": "svc-occupancy", "role": "service", "iat": 1763600000}},
+    "N2-04": {"form": "password"}
+  },
+  "plugins": ["encode"],
+  "steps": []
+}
