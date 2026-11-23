@@ -37,3 +37,6 @@ work/
 # 실험: 내 앱 결과는 저장소 밖(%LOCALAPPDATA%\SelfAudit-private)에만 쓴다. 잘못 들어와도 올라가지 않게 (docs/설계/실험구조.md 4절)
 bench/private/
 bench/results/**/mine-*/
+# 실험: 번들 빌드가 바꿔 넣을 때 잠깐 쓰는 폴더(.<id>.building·.<id>.old). 실패해 남아도 올라가지 않게 (ops/검증/T21.md 낮음 ①)
+bench/bundles/.*.building
+bench/bundles/.*.old
