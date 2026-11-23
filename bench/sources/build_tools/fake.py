@@ -54,8 +54,9 @@ PASSWORD_CHARS: Final = 16  # ⓒ 16자
 TOKEN_SIGNATURE_CHARS: Final = 43  # ⓑ 서명 43자(HS256 서명 32바이트의 base64url 길이)
 TOKEN_MAX_CHARS: Final = 200  # ⓑ 200자 안(닻 상한, 설계 2.2)
 JWT_HEADER: Final[Mapping[str, str]] = {"alg": "HS256", "typ": "JWT"}
-# 서명 끝 글자(T22 반려 1 2, 총괄 대리): 32바이트 = 256비트를 base64url 43자(258비트)로 쓰면 끝 글자의 아래
-# 2비트는 쓰지 않으므로 표준 꼴에서는 0이다 — 글자표에서 4의 배수 자리 16글자(A E I M … 0 4 8)만 된다.
+# 서명 끝 글자(T22 반려 1 2, 총괄 대리): 32바이트 = 256비트를 base64url 43자(258비트)로 쓰면
+# 끝 글자의 아래 2비트는 쓰지 않으므로 표준 꼴에서는 0이다 —
+# 글자표에서 4의 배수 자리 16글자(A E I M … 0 4 8)만 된다.
 # 무작위로 고르면 4개 중 3개가 엄격한 디코더에서 '깨진 토큰'이 되어 정답이 미끼처럼 보일 수 있다
 SIGNATURE_LAST_CHARS: Final = BASE64URL[::4]
 PREFIX: Final = re.compile(r"[a-z]{4,6}_")  # ⓐ 지어낸 서비스 이름 소문자 4~6자 + `_`

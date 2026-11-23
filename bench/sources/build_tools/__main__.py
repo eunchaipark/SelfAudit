@@ -27,6 +27,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         except BuildError as e:
             print(f"빌드 실패: {e}")
             return 1
+        for warning in result.warnings:
+            print(f"경고: {warning}")
         print(
             f"{result.bundle_id}: 파일 {len(result.files)}개, 지문 {result.bundle_manifest_sha256}"
         )

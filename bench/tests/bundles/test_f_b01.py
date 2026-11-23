@@ -342,3 +342,76 @@ def test_F_B01_계획의_접두어겹침_멈춤(write_source: WriteSource, dirs:
     write_source("easy-1", _plan("easy-1", values=values), FILES)
     with pytest.raises(BuildError, match="X1-02"):
         build("easy-1", dirs.sources, dirs.bundles)
+
+
+def test_F_B01_되돌리기도_실패하면_옛결과물_자리를_알림(
+    write_source: WriteSource, dirs: Dirs, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """T22 반려 1 5: 새 폴더 넣기와 옛 폴더 되돌리기가 모두 실패하면.
+
+    BuildError가 `.old` 자리를 알린다.
+    """
+    write_source("easy-1", _plan("easy-1"), FILES)
+    first = build("easy-1", dirs.sources, dirs.bundles)
+    before = _bundle_bytes(first.bundle_dir)
+    real_rename = Path.rename
+
+    def rename(self: Path, target: str | Path) -> Path:
+        if Path(target).name == "easy-1":  # 제자리로 넣는 것(새 폴더·옛 폴더 둘 다) 실패
+            raise PermissionError("잠김(시험)")
+        return real_rename(self, target)
+
+    monkeypatch.setattr(Path, "rename", rename)
+    with pytest.raises(BuildError, match=r"\.easy-1\.old"):
+        build("easy-1", dirs.sources, dirs.bundles)
+    monkeypatch.undo()
+    assert _bundle_bytes(dirs.bundles / ".easy-1.old") == before
+    again = build("easy-1", dirs.sources, dirs.bundles)  # 다음 빌드가 .old를 먼저 되돌린다
+    assert _bundle_bytes(again.bundle_dir) == before
+    assert [p.name for p in dirs.bundles.iterdir()] == ["easy-1"]
+
+
+def test_F_B01_옛폴더_지우기실패는_경고_기록은씀(
+    write_source: WriteSource, dirs: Dirs, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    write_source("easy-1", _plan("easy-1"), FILES)
+    build("easy-1", dirs.sources, dirs.bundles)
+    (dirs.sources / "easy-1" / "src" / "extra.txt").write_bytes(b"new" + LF.encode())
+    real_rmtree = shutil.rmtree
+
+    def rmtree(path: str | Path, ignore_errors: bool = False) -> None:
+        if Path(path).name == ".easy-1.old":
+            raise PermissionError("잠김(시험)")
+        real_rmtree(path, ignore_errors=ignore_errors)
+
+    monkeypatch.setattr(shutil, "rmtree", rmtree)
+    result = build("easy-1", dirs.sources, dirs.bundles)
+    monkeypatch.undo()
+    assert result.warnings and ".easy-1.old" in result.warnings[0]
+    record = json.loads(result.record_path.read_text(encoding="utf-8"))
+    assert record["bundle_manifest_sha256"] == bundle_manifest_sha256(result.bundle_dir)
+    assert (result.bundle_dir / "extra.txt").exists()
+
+
+def test_F_B01_남은_old만있으면_지우지않고_되돌림(
+    write_source: WriteSource, dirs: Dirs, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """번들 자리가 비고 `.old`만 남았으면(지난 되돌리기 실패) 지우지 않는다.
+
+    이번 빌드가 실패해도 옛 결과물이 남는다.
+    """
+    write_source("easy-1", _plan("easy-1"), FILES)
+    first = build("easy-1", dirs.sources, dirs.bundles)
+    before = _bundle_bytes(first.bundle_dir)
+    first.bundle_dir.rename(dirs.bundles / ".easy-1.old")
+    real = resolve_in_bundle
+
+    def failing(bundle_dir: Path, rel: str) -> Path:
+        if rel == "index.html":
+            raise OSError("디스크 가득 참(시험)")
+        return real(bundle_dir, rel)
+
+    monkeypatch.setattr(build_module, "resolve_in_bundle", failing)
+    with pytest.raises(BuildError, match="쓸 수 없음"):
+        build("easy-1", dirs.sources, dirs.bundles)
+    assert _bundle_bytes(dirs.bundles / "easy-1") == before
