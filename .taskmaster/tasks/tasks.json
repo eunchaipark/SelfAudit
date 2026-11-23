@@ -1533,7 +1533,7 @@
         "description": "압축(한 줄)·해시 이름, split·encoded(base64·16진)·config로 숨기기",
         "details": "영역: 번들·정답지\n목적: 숨긴 문제에서 REA가 차이를 내는지 난이도별로 시험할 수 있게 한다 (요구사항 R3 '난이도를 나누는 것', 5.1 대상 ①)\n읽을 문서: 기능명세 F-B02·F-B03·F-B07, 설계 실험구조 2.2 'anchor'·'hiding', 2.7 표 normal 줄\n고칠 파일: bench/sources/build_tools/encode.py, bench/sources/normal-1/**, bench/sources/normal-2/**, bench/bundles/normal-1/**, bench/bundles/normal-2/**, bench/answers/normal-1.json, bench/answers/normal-2.json, bench/tests/bundles/test_f_b02_normal.py\n계약: answers.schema.json\n명세 기준: b7cadc5\n\n작업 쌍: A 병렬 쪽 (lane-bench + 보안·명세 검토 + 총괄)\n크기: 예시 약 9 · 파일 약 19 · 하위 작업 6\nT21 넘김: 키 접두어는 build_tools 허용 목록에서만, 한 번들 안에서 겹치지 않게. 16자 영숫자 닻에는 fake·test·demo 낱말을 넣지 않는다(규칙 10). 변환 도구는 build_tools/encode.py·obfuscate.py를 더하고 plan.json에 이름만.",
         "testStrategy": "test_F_B02_normal_split_두조각_따로있음 / test_F_B02_normal_encoded_base64 / test_F_B02_normal_encoded_16진 / test_F_B02_normal_config / test_F_B01_normal_한줄_해시이름 / test_F_B03_normal_닻_번들에서_한곳만 / test_F_B07_normal1_구성통과 / test_F_B07_normal2_구성통과 / test_F_B07_보통_범주8개. 화면 없음",
-        "status": "in-progress",
+        "status": "review",
         "dependencies": [
           "21"
         ],
