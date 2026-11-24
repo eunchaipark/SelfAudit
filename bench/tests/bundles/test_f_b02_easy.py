@@ -25,6 +25,7 @@ from sources.build_tools.verify import (
     check_target,
     repo_target,
 )
+from tests.bundles.conftest import bundle_texts, expected_short
 
 EASY = ("easy-1", "easy-2")
 ALL_CATEGORIES = 8
@@ -91,28 +92,29 @@ def _generated(bundle_id: str) -> dict[str, str]:
     }
 
 
-def _generated_form(generated: dict[str, str], anchor: str) -> str | None:
-    """닻이 만든 값이거나 그 앞 조각(F-B03 5 — 64자 넘는 값은 앞에서부터 16자 이상)이면 그 꼴."""
-    if anchor in generated:
-        return generated[anchor]
-    if len(anchor) < SHORT_MIN:
-        return None
-    return next((form for value, form in generated.items() if value.startswith(anchor)), None)
-
-
 @pytest.mark.parametrize("bundle_id", EASY)
 def test_F_B03_easy_planted에_가짜생성(bundle_id: str) -> None:
     """F-B02 7: 규칙 4로 만든 값(키·토큰·비밀번호)이 든 정답은 planted에 '가짜(생성)'.
 
-    그 밖의 정답에는 없다.
+    그 밖의 정답에는 없다. 규칙 4로 만든 값이 든 정답의 닻은 그 값과 같다 — 값이 64자를 넘고
+    줄로 가를 수 없는 위치가 있을 때만 F-B03 5의 앞 조각(`expected_short`)과 같다.
     """
+    plan = json.loads((SOURCES_DIR / bundle_id / "plan.json").read_text(encoding="utf-8"))
+    answers = _answers(bundle_id)
+    texts = bundle_texts(BUNDLES_DIR / bundle_id)
     generated = _generated(bundle_id)
     forms: set[str] = set()
-    for item in _entries(_answers(bundle_id), "items"):
-        form = _generated_form(generated, str(item["anchor"]))
-        assert ("가짜(생성)" in str(item["planted"])) == (form is not None), item["id"]
-        if form is not None:
-            forms.add(form)
+    for item in _entries(answers, "items"):
+        entry_id = str(item["id"])
+        spec = plan["values"].get(entry_id)
+        assert ("가짜(생성)" in str(item["planted"])) == (spec is not None), entry_id
+        if spec is None:
+            assert item["anchor"] not in generated, entry_id
+            continue
+        value = fake.make_value(bundle_id, entry_id, spec)
+        expected = expected_short(value, item, answers, texts, decoded=False)
+        assert item["anchor"] == expected, entry_id
+        forms.add(str(spec["form"]))
     assert forms == {"key", "token", "password"}
 
 

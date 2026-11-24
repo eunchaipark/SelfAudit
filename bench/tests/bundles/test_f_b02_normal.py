@@ -22,13 +22,14 @@ from common.fingerprint import bundle_manifest_sha256
 from common.lines import count_lines
 from sources.build_tools import encode, fake
 from sources.build_tools.build import BUNDLES_DIR, SOURCES_DIR, build
-from sources.build_tools.locate import SHORT_MIN, write_answers
+from sources.build_tools.locate import write_answers
 from sources.build_tools.verify import (
     HIDING_BY_DIFFICULTY,
     REPO_ROOT,
     check_target,
     repo_target,
 )
+from tests.bundles.conftest import bundle_texts, short_or_none
 
 NORMAL = ("normal-1", "normal-2")
 ALL_CATEGORIES = 8
@@ -48,6 +49,8 @@ PRIVATE_NETWORKS = tuple(
 RESERVED_SUFFIXES = (".test", ".example", ".invalid", ".localhost")
 # 번들 글에 나오는 바깥 호스트: 미끼(공개 CDN)뿐
 PUBLIC_HOSTS = frozenset({"d2q7m4x9k1w8ze.cloudfront.net", "res.cloudinary.com"})
+# 나눠 쓴 미끼 N1-D3의 앞 조각 `https://d2q7m4x9k1w8ze`가 주소 꼴로 읽히는 호스트(이으면 위 CDN)
+SPLIT_HOST_PIECES = frozenset({"d2q7m4x9k1w8ze"})
 IPV4 = re.compile(r"(?<![0-9.])(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?![0-9.])")
 URL_HOST = re.compile(r"(?:https?|wss?)://([A-Za-z0-9.-]+)")
 # 코드가 실행 중에 푸는 자리(압축 꼴, 빈칸 없음). 닻이 바로 뒤에 온다
@@ -102,17 +105,6 @@ def _generated(bundle_id: str) -> set[str]:
     """심기 계획(plan.json values)으로 만든 가짜 값."""
     plan = json.loads((SOURCES_DIR / bundle_id / "plan.json").read_text(encoding="utf-8"))
     return {fake.make_value(bundle_id, eid, spec) for eid, spec in plan["values"].items()}
-
-
-def _full_value(generated: set[str], anchor: Json) -> str | None:
-    """닻이 만든 값이거나 그 앞 조각(F-B03 5 — 64자 넘는 값은 앞에서부터 16자 이상)이면 그 값."""
-    if not isinstance(anchor, str):
-        return None
-    if anchor in generated:
-        return anchor
-    if len(anchor) < SHORT_MIN:
-        return None
-    return next((v for v in generated if v.startswith(anchor)), None)
 
 
 def _is_base64(anchor: str, decoded: str) -> bool:
@@ -329,14 +321,27 @@ def test_F_B03_normal_숨긴정답만_풀어낸값(bundle_id: str) -> None:
 
 @pytest.mark.parametrize("bundle_id", NORMAL)
 def test_F_B03_normal_planted에_가짜생성(bundle_id: str) -> None:
-    """F-B02 7: 규칙 4로 만든 값이 닻이나 풀어낸 값인 정답만 planted에 '가짜(생성)'."""
+    """F-B02 7: 규칙 4로 만든 값이 닻이나 풀어낸 값인 정답만 planted에 '가짜(생성)'.
+
+    그 값은 닻이나 풀어낸 값과 같다 — 64자를 넘고 줄로 가를 수 없는 위치가 있을 때만
+    F-B03 5의 앞 조각(`expected_short`)과 같다.
+    """
     generated = _generated(bundle_id)
+    answers = _answers(bundle_id)
+    texts = bundle_texts(BUNDLES_DIR / bundle_id)
     used: set[str] = set()
     for item in _items(bundle_id):
-        values = {_full_value(generated, v) for v in (item["anchor"], item["decoded_anchor"])}
-        values.discard(None)
-        used |= {str(v) for v in values}
-        assert ("가짜(생성)" in str(item["planted"])) == bool(values), item["id"]
+        entry_id = str(item["id"])
+        found = {
+            value
+            for value in generated
+            for key in ("anchor", "decoded_anchor")
+            if item[key] is not None
+            and item[key]
+            == short_or_none(value, item, answers, texts, decoded=key == "decoded_anchor")
+        }
+        used |= found
+        assert ("가짜(생성)" in str(item["planted"])) == bool(found), entry_id
     assert used == generated  # 만든 값은 모두 정답에 쓰인다
 
 
@@ -387,9 +392,7 @@ def test_F_B02_normal_가짜주소(bundle_id: str) -> None:
             ips.add(ip)
             assert any(ipaddress.ip_address(ip) in net for net in PRIVATE_NETWORKS), ip
         for host in URL_HOST.findall(text):
-            # 나눠 쓴 미끼(N1-D3)의 앞 조각은 공개 CDN 호스트의 앞부분이다
-            public = any(h.startswith(host) for h in PUBLIC_HOSTS)
-            assert IPV4.fullmatch(host) or public, host
+            assert IPV4.fullmatch(host) or host in PUBLIC_HOSTS | SPLIT_HOST_PIECES, host
     assert ips  # 내부 주소 정답이 번들마다 있다
 
 

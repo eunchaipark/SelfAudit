@@ -25,13 +25,14 @@ from common.fingerprint import bundle_manifest_sha256
 from common.lines import count_lines
 from sources.build_tools import fake, obfuscate
 from sources.build_tools.build import BUNDLES_DIR, SOURCES_DIR, StepContext, build
-from sources.build_tools.locate import SHORT_MIN, write_answers
+from sources.build_tools.locate import write_answers
 from sources.build_tools.verify import (
     HIDING_BY_DIFFICULTY,
     REPO_ROOT,
     check_target,
     repo_target,
 )
+from tests.bundles.conftest import bundle_texts, expected_short, short_or_none
 
 HARD = ("hard-1", "hard-2")
 ALL_CATEGORIES = 8
@@ -202,13 +203,12 @@ def _generated(bundle_id: str) -> dict[str, str]:
     }
 
 
-def _full_decoded(bundle_id: str, entry: dict[str, Json]) -> str:
-    """풀어낸 값 전체. 64자 넘는 값은 정답지에 앞 조각만 있어(F-B03 5) 심기 계획 값으로 잇는다."""
-    value = str(entry["decoded_anchor"])
-    whole = _generated(bundle_id).get(str(entry["id"]))
-    if whole is not None and len(value) >= SHORT_MIN and whole.startswith(value):
-        return whole
-    return value
+def _expected_decoded(bundle_id: str, entry: dict[str, Json], whole: str) -> str:
+    """정답지 풀어낸 값의 기대값: 값 전체 `whole`, 64자를 넘고 줄로 가를 수 없는 위치가 있으면
+    F-B03 5의 앞 조각(`expected_short`)."""
+    answers = _answers(bundle_id)
+    texts = bundle_texts(BUNDLES_DIR / bundle_id)
+    return expected_short(whole, entry, answers, texts, decoded=True)
 
 
 def _named(code: str, decoded: Decoded) -> str:
@@ -241,7 +241,10 @@ def test_F_B02_hard_글자코드() -> None:
         for item in _items(bundle_id):
             if item["hiding"] not in {"obfuscated", "split"}:
                 continue
-            anchor, value = str(item["anchor"]), _full_decoded(bundle_id, item)
+            anchor = str(item["anchor"])
+            # 풀어낸 값 전체: 심기 계획 값이면 그 값, 아니면(경로·주소) 정답지의 값
+            value = _generated(bundle_id).get(str(item["id"]), str(item["decoded_anchor"]))
+            assert item["decoded_anchor"] == _expected_decoded(bundle_id, item, value), item["id"]
             assert CHAR_CODES.fullmatch(anchor), item["id"]
             assert anchor in code, item["id"]
             plain = _unescape(anchor)
@@ -389,7 +392,9 @@ def test_F_B02_hard_split() -> None:
                 pieces = _pieces_in_array(generated[entry_id], decoded.stored)
             whole = "".join(pieces)
             if "decoded_anchor" in entry:
-                assert _full_decoded(bundle_id, entry) == whole, entry_id
+                assert entry["decoded_anchor"] == _expected_decoded(bundle_id, entry, whole), (
+                    entry_id
+                )
             assert all(p in decoded.stored for p in pieces), entry_id
             assert not any(whole in t or obfuscate.char_codes(whole) in t for t in texts)
             for left, right in itertools.pairwise(pieces):
@@ -578,12 +583,19 @@ def test_F_B03_hard_planted에_가짜생성() -> None:
             entry_id = str(item["id"])
             assert ("가짜(생성)" in str(item["planted"])) == (entry_id in generated), entry_id
             if entry_id in generated:
-                # 값 전체나 그 앞 조각(64자 넘는 값, F-B03 5)이 닻·풀어낸 값이다
+                # 그 값이 닻이나 풀어낸 값과 같다 — 64자를 넘고 줄로 가를 수 없는 위치가 있을 때만
+                # F-B03 5의 앞 조각(`expected_short`)과 같다
                 value = generated[entry_id]
-                pair = [str(v) for v in (item["anchor"], item["decoded_anchor"]) if v is not None]
-                assert any(
-                    v == value or (len(v) >= SHORT_MIN and value.startswith(v)) for v in pair
-                )
+                answers = _answers(bundle_id)
+                texts = bundle_texts(BUNDLES_DIR / bundle_id)
+                matched = [
+                    key
+                    for key in ("anchor", "decoded_anchor")
+                    if item[key] is not None
+                    and item[key]
+                    == short_or_none(value, item, answers, texts, decoded=key == "decoded_anchor")
+                ]
+                assert matched, entry_id
 
 
 def test_F_B03_hard_두번들합쳐_키·토큰·비밀번호() -> None:
