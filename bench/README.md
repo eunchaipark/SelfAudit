@@ -36,7 +36,7 @@ uv run --frozen --offline pytest tests/<영역> -q # 영역 하나
 | `common.contracts.read_contract(name, path)` | 파일을 읽어 계약(`"answers"`·`"findings"`·`"run"`·`"targets"`)과 뜻 규칙으로 검증. 어긋나면 `ContractViolationError`(`.errors`) |
 | `common.contracts.validate_contract(name, value)` | 이미 읽은 값을 검증. 어긋난 곳 목록(`ContractError(where, rule)`, 100곳까지), 맞으면 빈 목록 |
 | `common.contracts.read_json(path)` | 엄격한 JSON 읽기(4 MiB·같은 키·NaN·`1e999`·깊이 64 거절, `ContractJsonError`) |
-| `common.contracts.check_answers_semantics(answers)` · `check_targets_semantics(targets)` | 뜻 규칙만(줄 범위·ID 고유·종류). `validate_contract`가 이미 부른다 |
+| `common.contracts.check_answers_semantics(answers)` · `check_targets_semantics(targets)` | 뜻 규칙만(줄 범위·ID 고유·종류, 대상 ID는 예약 ID `RESERVED_TARGET_IDS` = `empty`·`gate`가 아님). `validate_contract`가 이미 부른다 |
 | `common.fingerprint.bundle_manifest_sha256(bundle_dir)` | 번들 지문(F-B04). `manifest_lines`는 그 줄들, `format_manifest(digests)`는 차례 짓기만. 못 내면 `ManifestError`(번들 안 경로를 알림) |
 | `common.paths.is_bundle_relpath(path)` | 번들 경로 허용 꼴(2.2)인지. 계약의 `format: bundle-relpath`가 이것 |
 | `common.paths.resolve_in_bundle(bundle_dir, rel)` | 번들 안 파일의 디스크 경로. 허용 꼴이 아니거나 풀어 보니 밖이면 `BundlePathError`. **번들 파일을 열 때는 늘 이것** |

@@ -251,6 +251,28 @@ def test_common_대상목록_ID겹침·경로꼴() -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    ("target_id", "kind", "expected"),
+    [
+        ("empty", "planted", [ContractError("$.targets[0].id", "예약 ID(empty·gate)")]),
+        ("gate", "practice", [ContractError("$.targets[0].id", "예약 ID(empty·gate)")]),
+        ("gate", "mine", [ContractError("$.targets[0].id", "예약 ID(empty·gate)")]),
+        ("empty-1", "planted", []),  # 예약 ID와 글자까지 같을 때만
+        ("gates", "planted", []),
+    ],
+)
+def test_common_대상목록_예약ID_empty·gate_거절(
+    target_id: str, kind: str, expected: list[ContractError]
+) -> None:
+    if kind == "mine":
+        bundle, answers = "C:\\Users\\fake\\AppData\\Local\\SelfAudit-private\\b", None
+    else:
+        bundle, answers = f"bench/bundles/{target_id}", f"bench/answers/{target_id}.json"
+    entry: dict[str, Json] = {"id": target_id, "kind": kind, "bundle": bundle, "answers": answers}
+    data: dict[str, Json] = {"schema": "selfaudit-bench/targets@1", "targets": [entry]}
+    assert validate_contract("targets", data) == expected
+
+
 BS = chr(92)
 INSIDE_REPO = str(REPO_ROOT / "bench" / "bundles" / "blog")
 SNEAK_IN = str(REPO_ROOT.parent / "zz") + BS + ".." + BS + REPO_ROOT.name + BS + "bench"
