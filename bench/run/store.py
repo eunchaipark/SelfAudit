@@ -145,9 +145,10 @@ def raw_dir(
     day = batch_date.isoformat()
     if run_kind in RESERVED_RUN_KINDS:
         return places.archive_dir / batch_id / run_id
+    # 종류 글과 실행 ID 꼴이 어긋나면 어느 쪽이 맞는지 모른다 — 저장소 쪽을 고르지 않고 멈춘다
+    if (target_kind == _MINE) != run_id.startswith(_MINE_PREFIX):
+        raise StoreError("내 앱 실행은 실행 ID가 mine-로 시작하고, 그 밖은 mine-로 시작하지 않는다")
     if target_kind == _MINE:
-        if not run_id.startswith(_MINE_PREFIX):
-            raise StoreError("내 앱 실행 ID가 mine-로 시작하지 않음")
         return places.private_dir / "results" / day / run_id
     return places.repo_root / "bench" / "results" / day / run_id
 

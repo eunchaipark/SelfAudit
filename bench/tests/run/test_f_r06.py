@@ -332,6 +332,12 @@ def test_F_R06_mine_실행ID_mine접두_아니면_거절(layout: Layout) -> None
         store(layout, b"", run_id="blog-a-1-0000beef", target_id="blog", target_kind="mine")
 
 
+def test_F_R06_mine접두인데_planted면_거절(layout: Layout) -> None:
+    with pytest.raises(rs.StoreError, match="mine-"):
+        store(layout, b"", run_id="mine-blog-a-1-0000beef", target_id="blog")
+    assert not (layout.places.repo_root / "bench").exists()
+
+
 def _inside_repo(layout: Layout) -> rw.BenchPlaces:
     p = layout.places
     return rw.BenchPlaces(
