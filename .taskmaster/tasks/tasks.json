@@ -1665,10 +1665,10 @@
       },
       {
         "id": "25",
-        "title": "번들·정답지: 심은 번들 전체 구성 검사 (F-B07 전체)",
-        "description": "번들 6개, 난이도마다 2개, 난이도마다 범주 8개, bench 전체에 서비스 꼴 키 없음",
-        "details": "영역: 번들·정답지\n목적: 번들 하나의 우연이 결과를 좌우하지 않게, 난이도마다 번들 2개와 범주 전부를 갖췄는지 기계가 확인한다 (요구사항 R3)\n읽을 문서: 기능명세 F-B07, 설계 실험구조 2.7 'F-B07 검사', 4절 ⑶\n고칠 파일: bench/tests/bundles/test_f_b07_suite.py\n계약: answers.schema.json\n\n크기: 예시 약 5 · 파일 1 · 하위 작업 3. 근거: 여섯 번들이 다 있어야 돌 수 있는 검사라 앞 태스크에 넣으면 그 태스크가 끝날 수 없다\nT22 검증 넘김: verify `_check_fake_values`가 토큰 서명 끝 글자(F-B02 4ⓑ, 표준 꼴 `AEIMQUYcgkosw048`)도 보게 하고 명세 예시 '끝 글자 J → 실패(F-B07 10)' 시험. F-B02 6 '예약 이름은 한 번들 안에서 정답·미끼 한쪽에만 쓰지 않음'을 번들 전체 공통 검사로(지금은 easy 시험에만).\nT23 검증 넘김(설계 먼저): 압축기 이름 줄이기(normal·hard에서 이름이 단서), 사실상 맞힐 수 없는 위치(그 파일에 닻이 없고 줄 허용이 파일을 덮음), 숨긴 방법마다 그 방법을 거치는 미끼 검사, 줄로 못 가르는 위치의 긴 값은 고유 조각을 닻으로, 16진 미끼·정답 길이 단서.\nT24 넘김(설계): 미끼에도 decoded_anchor 칸을 둘지, obfuscate.py가 minify.py 밑줄 상수를 가져다 쓰는 것을 공개 이름으로 바꿀지.",
-        "testStrategy": "test_F_B07_심은번들_6개 / test_F_B07_난이도마다_2개 / test_F_B07_난이도마다_범주8개 / test_F_B07_정답지마다_지문이_번들과같음 / test_F_B07_bench전체_서비스꼴키없음. 화면 없음",
+        "title": "번들·정답지: 번들 고침과 심은 번들 전체 구성 검사 (F-B01·B02·B03 고침, F-B07 전체)",
+        "description": "normal·hard 이름 줄이기, 위치 닻·미끼 hiding·decoded_anchor 채움, 같은 방법·같은 길이 미끼, 64자 닻, 다시 빌드한 여섯 번들로 F-B07 전체 검사",
+        "details": "영역: 번들·정답지\n목적: 첫 실험 전에 정답·미끼를 겉모양으로 가를 단서와 맞힐 수 없는 위치를 없애고, 여섯 번들이 구성·공정성 규칙을 지키는지 기계가 확인한다 (요구사항 R3, 3절 실패 ①, D-035)\n읽을 문서: 기능명세 F-B01·F-B02·F-B03·F-B07, 설계 실험구조 2.2, 2.7, 8.4\n고칠 파일: bench/sources/**, bench/bundles/**, bench/answers/**, bench/tests/bundles/**\n계약: answers.schema.json(8.4: 위치 anchor, 미끼 hiding·decoded_anchor), bench.common.lines\n\n쌍 아님: 쌍 A의 결과물(T23·T24 번들)을 고친다 (실험구조 8.3, 8.4 '쌍 A와의 관계'). 쌍 A 독립 검토는 고치기 전 병합 커밋(T23 f6e5aad, T24 c23d5bb)에서 하므로 쌍 쪽이 돌지 않을 때 같이 돌려도 된다 (8.1 ⑧, 8.3 '차례')\n선행(설계): design/replan-1124 병합 — 계약 커밋 037b2e8(locations[].anchor, 미끼 hiding·decoded_anchor 선택 칸) (8.4 2·3·6 '지금 고침', 8.7 총괄)\n선행(문서): 기능명세 F-B01·F-B02·F-B03·F-B07 고침 (8.7 문서 역할 표)\n크기: 예시 약 15 · 손으로 고칠 파일 약 12 (+ 명령 answers <id>로 다시 만드는 번들 4·정답지 6) · 하위 작업 6\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤). 번들이면 정답·미끼를 겉모양(이름·길이·낱말·꼴 깨짐)으로 가를 수 있는지도\n고칠 것(8.4에서 T25로 정한 것): ① normal·hard 빌드의 '줄일 이름 표'(선언한 이름만 짧게, 속성·window. 전역·문자열·export 이름은 그대로, 표에 없는 2자 넘는 선언 이름이면 빌드 멈춤, 구조 분해 선언 금지, easy는 그대로) ② 줄로 못 가르는 위치마다 정답 닻이나 위치 닻이 그 파일에 글자 그대로 ③ 난이도마다 정답이 쓰는 숨긴 방법마다 그 방법을 거친 미끼 하나 이상 — easy 미끼 하나를 주석으로, normal 미끼 하나를 나눠 쓴 값으로, 심은 번들 미끼는 hiding 필수 ④ 줄로 못 가르는 위치가 있는 정답·미끼의 닻은 64자 이하, 더 길면 앞에서부터 번들 안에서 고유한 가장 짧은 조각(16자 이상) ⑤ 같은 번들에 같은 인코딩 정답·미끼가 있으면 미끼 하나는 정답 길이의 1.5배 안(normal-1·2 미끼 하나씩) ⑥ 미끼 decoded_anchor 채움(normal·hard) ⑦ verify _check_fake_values가 토큰 서명 끝 글자(표준 꼴 AEIMQUYcgkosw048)도 봄(옛 T22 넘김) ⑧ 예약 이름(.example·.test·.invalid)을 정답·미끼 한쪽에만 쓰지 않음을 여섯 번들 공통 검사로, 찾으면 그 번들을 고침 ⑨ minify.py의 _REGEX_AFTER_PUNCT·_REGEX_AFTER_WORDS·_WORD를 공개 이름으로 바꾸고 __all__에, obfuscate.py가 그것을 씀(결과 바이트 같음)\n잰 것(8.4, 설계 2026-11-24): 정답 위치 101곳 중 줄로 못 가르는 곳 67곳, 그 파일에 닻이 없는 곳 8곳(N1-07 courier-*.js·.map, N1-09 .map, N2-01·N2-03·N2-06 index-*.js, H1-09 .map, H2-09 .map). 64자 넘는 닻·풀어낸 값 8개(E1-02, E2-02, N2-03, H1-04, H1-05, H1-08, H2-02 풀어낸 값, H2-06)\n고치지 않는 것(R1 한계): 속성 이름·값 길이처럼 실제 앱에도 있는 겉모양 단서 (8.4 '한계')",
+        "testStrategy": "test_F_B07_심은번들_6개 / test_F_B07_난이도마다_2개 / test_F_B07_난이도마다_범주8개 / test_F_B07_정답지마다_지문이_번들과같음 / test_F_B07_bench전체_서비스꼴키없음 / test_F_B07_줄로못가르는위치_닻없으면_실패 / test_F_B07_숨긴방법마다_같은방법미끼 / test_F_B07_줄로못가르는위치_닻64자넘으면_실패 / test_F_B07_같은인코딩_미끼정답_길이비1_5넘으면_실패 / test_F_B07_토큰끝글자J_실패 / test_F_B07_예약이름_한쪽만_실패 / test_F_B07_미끼hiding_빠지면_실패 / test_F_B01_선언이름_표밖이면_빌드실패 / test_F_B01_줄인이름_결과물에없음 / test_F_B01_같은원본_두번빌드_바이트같음(normal·hard). 화면 없음",
         "status": "pending",
         "dependencies": [
           "22",
@@ -1679,8 +1679,8 @@
         "subtasks": [
           {
             "id": 1,
-            "title": "계약 확인",
-            "description": "계약 확인",
+            "title": "계약 확인(answers.schema 위치 anchor·미끼 hiding·decoded_anchor, bench.common.lines)",
+            "description": "계약 확인(answers.schema 위치 anchor·미끼 hiding·decoded_anchor, bench.common.lines)",
             "details": "",
             "status": "pending",
             "dependencies": [],
@@ -1697,8 +1697,35 @@
           },
           {
             "id": 3,
-            "title": "검사",
-            "description": "검사",
+            "title": "빌드 고침: 줄일 이름 표·구조 분해 금지·minify 공개 이름 (8.4 1·9)",
+            "description": "빌드 고침: 줄일 이름 표·구조 분해 금지·minify 공개 이름 (8.4 1·9)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [],
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "번들 고침과 다시 빌드: 주석·나눠 쓴 미끼, 같은 길이 미끼 (8.4 3·5)",
+            "description": "번들 고침과 다시 빌드: 주석·나눠 쓴 미끼, 같은 길이 미끼 (8.4 3·5)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [],
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "정답지 다시 만들기: 위치 닻·미끼 hiding·decoded_anchor·64자 앞 조각 (8.4 2·4·6)",
+            "description": "정답지 다시 만들기: 위치 닻·미끼 hiding·decoded_anchor·64자 앞 조각 (8.4 2·4·6)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [],
+            "parentId": "undefined"
+          },
+          {
+            "id": 6,
+            "title": "전체 구성 검사(F-B07, 토큰 끝 글자·예약 이름)와 검사",
+            "description": "전체 구성 검사(F-B07, 토큰 끝 글자·예약 이름)와 검사",
             "details": "",
             "status": "pending",
             "dependencies": [],
@@ -1709,9 +1736,9 @@
       {
         "id": "26",
         "title": "채점·측정: 결과 읽기와 맞춤 판정 (F-G01, F-G02)",
-        "description": "findings 계약 검증·형식 실패·시간 초과, 후보 짝(범주·파일·줄 T·닻), 최대 1:1 짝, 동점 차례, 중복·other·미끼",
-        "details": "영역: 채점·측정\n목적: 결과와 정답을 사람 판단 없이 같게 짝지어 '더 많이·더 정확히 찾는가'를 가른다 (요구사항 R5, 4절 재현율·정밀도)\n읽을 문서: 기능명세 F-G01·F-G02, 설계 실험구조 2.3, 2.5 전체, 7절\n고칠 파일: bench/score/__init__.py, bench/score/read.py, bench/score/match.py, bench/tests/score/fixtures/g01_g02/**, bench/tests/score/test_f_g01.py, bench/tests/score/test_f_g02.py\n계약: findings.schema.json, answers.schema.json, bench.common 경로 정규화(T20)\n\n선행(사람): 사용자 확인 7절(T, 닻 맞춤, 경로 비교, 중복, other, 형식 실패, 결과 수 상한)\n크기: 예시 약 20 · 파일 약 8 · 하위 작업 6",
-        "testStrategy": "test_F_G01_계약맞음_통과 / test_F_G01_계약틀림_format_failure / test_F_G01_결과101개_format_failure / test_F_G01_timeout_결과없이_상태만 / test_F_G02_정답범주밖_짝아님 / test_F_G02_둘째범주도_맞음 / test_F_G02_대소문자다른파일_짝아님 / test_F_G02_역슬래시·점슬래시_정규화 / test_F_G02_line_end더하기2_맞음 / test_F_G02_line_end더하기3_틀림 / test_F_G02_줄틀려도_닻있으면_맞음 / test_F_G02_닻null·줄null_짝아님 / test_F_G02_결과하나가_정답둘_하나만 / test_F_G02_최대짝이_욕심짝보다_많음 / test_F_G02_동점_닻먼저_줄가까운것 / test_F_G02_같은정답_두번_중복은틀림 / test_F_G02_other_분모밖 / test_F_G02_미끼위치_헛짚음 / test_F_G02_map위치로도_맞음 / test_F_G02_결과차례바꿔도_같은짝. 화면 없음",
+        "description": "findings 계약 검증·형식 실패·시간 초과, 후보 짝(범주·파일·줄 T·닻·그 위치의 위치 닻), 최대 1:1 짝, 동점 차례, 중복·other·미끼(풀어낸 값 포함)",
+        "details": "영역: 채점·측정\n목적: 결과와 정답을 사람 판단 없이 같게 짝지어 '더 많이·더 정확히 찾는가'를 가른다 (요구사항 R5, 4절)\n읽을 문서: 기능명세 F-G01·F-G02, 설계 실험구조 2.3, 2.5 전체, 7절, 8.4 ②·⑥\n고칠 파일: bench/score/__init__.py, bench/score/read.py, bench/score/match.py, bench/tests/score/fixtures/g01_g02/**, bench/tests/score/test_f_g01.py, bench/tests/score/test_f_g02.py\n계약: findings.schema.json, answers.schema.json(위치 anchor, 미끼 decoded_anchor), bench.common 경로 정규화·lines\n\n작업 쌍: B 한 세션 쪽 (solo-bench, 병합 전 검토 없음 — 사용자 확인 8절 12. 독립 검토는 보정 배치 전 — 실험구조 8.1 ⑦)\n선행(사람): 사용자 확인 7절(T, 닻 맞춤, 경로 비교, 중복, other, 형식 실패, 결과 수 상한)\n선행(설계·문서): design/replan-1124 병합(계약 커밋 037b2e8), 기능명세 F-G02 고침 — 규칙의 닻 맞춤에 '그 위치의 위치 닻', 미끼 헛짚음에 미끼 decoded_anchor·위치 닻 (8.4 2·6, 8.7)\n크기: 예시 약 23 · 파일 약 8 · 하위 작업 6\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤)\n8.4에서 넘어온 것: 2.5 ㉯에 '그 위치의 위치 닻'을 더한다 — 다른 위치의 위치 닻으로는 그 위치가 맞지 않음(8.4 2). 숨긴 미끼를 풀어낸 값(decoded_anchor)으로 가리킨 결과는 '미끼 헛짚음'(8.4 6). 위치 닻은 '설계 해석 — 사용자 확인 전'(7절)이라 다시 채점으로 바꿀 수 있게 둔다",
+        "testStrategy": "test_F_G01_계약맞음_통과 / test_F_G01_계약틀림_format_failure / test_F_G01_결과101개_format_failure / test_F_G01_timeout_결과없이_상태만 / test_F_G02_정답범주밖_짝아님 / test_F_G02_둘째범주도_맞음 / test_F_G02_대소문자다른파일_짝아님 / test_F_G02_역슬래시·점슬래시_정규화 / test_F_G02_line_end더하기2_맞음 / test_F_G02_line_end더하기3_틀림 / test_F_G02_줄틀려도_닻있으면_맞음 / test_F_G02_닻null·줄null_짝아님 / test_F_G02_결과하나가_정답둘_하나만 / test_F_G02_최대짝이_욕심짝보다_많음 / test_F_G02_동점_닻먼저_줄가까운것 / test_F_G02_같은정답_두번_중복은틀림 / test_F_G02_other_분모밖 / test_F_G02_미끼위치_헛짚음 / test_F_G02_map위치로도_맞음 / test_F_G02_결과차례바꿔도_같은짝 / test_F_G02_위치닻으로_맞음 / test_F_G02_다른위치의_위치닻은_짝아님 / test_F_G02_미끼풀어낸값_헛짚음. 화면 없음",
         "status": "pending",
         "dependencies": [
           "20"
@@ -1720,8 +1747,8 @@
         "subtasks": [
           {
             "id": 1,
-            "title": "계약 확인",
-            "description": "계약 확인",
+            "title": "계약 확인(findings·answers 위치 anchor·미끼 decoded_anchor)",
+            "description": "계약 확인(findings·answers 위치 anchor·미끼 decoded_anchor)",
             "details": "",
             "status": "pending",
             "dependencies": [],
@@ -1747,8 +1774,8 @@
           },
           {
             "id": 4,
-            "title": "후보 짝·최대 1:1 짝",
-            "description": "후보 짝·최대 1:1 짝",
+            "title": "후보 짝(위치 닻 포함)·최대 1:1 짝",
+            "description": "후보 짝(위치 닻 포함)·최대 1:1 짝",
             "details": "",
             "status": "pending",
             "dependencies": [],
@@ -1756,8 +1783,8 @@
           },
           {
             "id": 5,
-            "title": "동점 차례·중복·other·미끼",
-            "description": "동점 차례·중복·other·미끼",
+            "title": "동점 차례·중복·other·미끼(풀어낸 값)",
+            "description": "동점 차례·중복·other·미끼(풀어낸 값)",
             "details": "",
             "status": "pending",
             "dependencies": [],
@@ -1776,10 +1803,10 @@
       },
       {
         "id": "27",
-        "title": "채점·측정: 지표와 다시 계산 (F-G03, F-G05)",
-        "description": "재현율·정밀도·위치 정확도, 난이도·범주별, N번 최소·가운데·최대, 조건 전체 모으기, N을 늘리는 기준, score 명령, 보고서 표 대조",
-        "details": "영역: 채점·측정\n목적: 같은 원자료면 늘 같은 숫자가 나오고, 보고서 숫자를 원자료에서 다시 계산해 확인할 수 있게 한다 (요구사항 R5, R1 '다 됐다의 기준', 3절 실패 ②)\n읽을 문서: 기능명세 F-G03·F-G05, 요구사항 4절 재현율·정밀도 예시, 설계 실험구조 2.5 '재현율'~'N을 늘리는 기준', 2.6, 3.9\n고칠 파일: bench/score/metrics.py, bench/score/aggregate.py, bench/score/recompute.py, bench/score/__main__.py, bench/tests/score/fixtures/g03_g05/**, bench/tests/score/test_f_g03.py, bench/tests/score/test_f_g05.py\n계약: run.schema.json 상태 값, T26 맞춤 결과(레인 안), 보고서 표식 <!-- 표:<이름> --> … <!-- /표 -->\n\n작업 쌍: B 한 세션 쪽 (solo-bench)\n선행(사람): 사용자 확인 7절(모으기, Juice Shop 정밀도, N을 늘리는 기준)\n크기: 예시 약 15 · 파일 약 7 · 하위 작업 6",
-        "testStrategy": "test_F_G03_정답6_결과5_맞음4_재현율66_7_정밀도80_0 (요구사항 4절 예시) / test_F_G03_other빼고_정밀도 / test_F_G03_위치정확도_T없이 / test_F_G03_형식실패_재현율0_정밀도없음 / test_F_G03_condition_mismatch_빼고_다시돌릴목록 / test_F_G03_난이도별·범주별 / test_F_G03_N3_최소가운데최대 / test_F_G03_조건전체_반복차례마다_짝합나누기정답합 / test_F_G03_juice_정밀도_하한 / test_F_G03_범위20_1p면_N5권고 / test_F_G03_범위20p는_그대로 / test_F_G05_파일차례바꿔도_같은숫자 / test_F_G05_보고서표_글자같으면_통과 / test_F_G05_한글자다르면_실패 / test_F_G05_표식없으면_실패. 화면 없음",
+        "title": "채점·측정: 지표·다시 계산·표·그림·사례 후보 (F-G03~F-G06)",
+        "description": "재현율·정밀도·위치 정확도, 난이도·범주별, N=2 최소·가운데·최대와 셋째 권고, score 명령·보고서 표 대조, Markdown 표·SVG 2~3장, B만·A만 찾은 것·B 미끼 헛짚음 목록",
+        "details": "영역: 채점·측정\n목적: 같은 원자료면 늘 같은 숫자·표·그림이 나오고, 보고서 숫자와 'REA가 있어야만 찾은 것' 사례 후보를 원자료에서 다시 만든다 (요구사항 R5, R1, 2절 3·4)\n읽을 문서: 기능명세 F-G03~F-G06, 요구사항 4절 예시, 설계 실험구조 2.5 '재현율'~'N을 늘리는 기준', 2.6, 3.8, 3.9, 8.2\n고칠 파일: bench/score/metrics.py, bench/score/aggregate.py, bench/score/recompute.py, bench/score/tables.py, bench/score/svg.py, bench/score/cases.py, bench/score/__main__.py, bench/tests/score/fixtures/g03_g06/**, bench/tests/score/test_f_g03.py, bench/tests/score/test_f_g04.py, bench/tests/score/test_f_g05.py, bench/tests/score/test_f_g06.py, docs/보고서/그림/**\n계약: run.schema.json 상태 값, T26 맞춤 결과(레인 안), 보고서 표식 <!-- 표:<이름> --> … <!-- /표 -->, stream-json 대화 기록(3.8)\n\n작업 쌍: D 한 세션 쪽 (solo-bench, 병합 전 검토 없음 — 사용자 확인 8절 12. 독립 검토는 보정 배치 전 — 실험구조 8.1 ⑦)\n합친 것: 옛 T27(F-G03·G05) + 옛 T28(F-G04·G06) — 둘 다 'T26의 짝 → 숫자·표'이고 같은 __main__.py·같은 원자료 꼴을 쓴다 (실험구조 8.3)\n선행(사람): 사용자 확인 7절(모으기, Juice Shop 정밀도)\n선행(문서): 기능명세 F-G03 10의 N 기준을 8.2로 — 두 차례 재현율 차이가 20%p를 넘으면 그 난이도 셋째 권고 (8.7)\n크기: 예시 약 25 · 파일 약 13 · 하위 작업 6\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤)\nN 기준(8.2): 재현율은 그 난이도 번들 둘을 합친 짝 합 ÷ 정답 합. 어느 한 조건이라도 두 차례 차이가 20%p를 넘으면 그 난이도의 번들 둘을 A·B 모두 셋째로 권고. 셋째 뒤에도 범위가 20%p를 넘으면 더 권고하지 않고, A·B 범위가 겹치면 '차이를 말할 수 없음'",
+        "testStrategy": "test_F_G03_정답6_결과5_맞음4_재현율66_7_정밀도80_0 (요구사항 4절 예시) / test_F_G03_other빼고_정밀도 / test_F_G03_위치정확도_T없이 / test_F_G03_형식실패_재현율0_정밀도없음 / test_F_G03_condition_mismatch_빼고_다시돌릴목록 / test_F_G03_난이도별·범주별 / test_F_G03_N2_최소가운데최대 / test_F_G03_조건전체_반복차례마다_짝합나누기정답합 / test_F_G03_juice_정밀도_하한 / test_F_G03_두차례차이20_1p면_셋째권고 / test_F_G03_범위20p는_그대로 / test_F_G05_파일차례바꿔도_같은숫자 / test_F_G05_보고서표_글자같으면_통과 / test_F_G05_한글자다르면_실패 / test_F_G05_표식없으면_실패 / test_F_G04_표_같은입력_같은글 / test_F_G04_백분율_소수한자리 / test_F_G04_SVG_같은입력_같은바이트 / test_F_G04_SVG_빈칸_빈막대 / test_F_G04_그림3장_이름 / test_F_G06_B만찾음_B1번이상_A0번 / test_F_G06_A만찾음 / test_F_G06_B미끼헛짚음_실행ID·대화줄 / test_F_G06_대화기록이_저장소밖이면_sha256만 / test_F_G06_목록차례_고정. 확인할 화면: 만든 SVG를 브라우저로 열어 1360·390px에서 글자가 겹치지 않는지",
         "status": "pending",
         "dependencies": [
           "26"
@@ -1806,8 +1833,8 @@
           },
           {
             "id": 3,
-            "title": "실행 하나 지표",
-            "description": "실행 하나 지표",
+            "title": "실행 하나 지표·조건·난이도 모으기·N 기준(G03, 8.2)",
+            "description": "실행 하나 지표·조건·난이도 모으기·N 기준(G03, 8.2)",
             "details": "",
             "status": "pending",
             "dependencies": [],
@@ -1815,8 +1842,8 @@
           },
           {
             "id": 4,
-            "title": "조건·난이도 모으기·N 기준",
-            "description": "조건·난이도 모으기·N 기준",
+            "title": "다시 계산·보고서 표 대조·score 명령(G05)",
+            "description": "다시 계산·보고서 표 대조·score 명령(G05)",
             "details": "",
             "status": "pending",
             "dependencies": [],
@@ -1824,8 +1851,8 @@
           },
           {
             "id": 5,
-            "title": "다시 계산·보고서 표 대조·score 명령",
-            "description": "다시 계산·보고서 표 대조·score 명령",
+            "title": "Markdown 표·SVG 그림·사례 후보(G04·G06)",
+            "description": "Markdown 표·SVG 그림·사례 후보(G04·G06)",
             "details": "",
             "status": "pending",
             "dependencies": [],
@@ -1846,9 +1873,9 @@
         "id": "28",
         "title": "채점·측정: 표·그림과 사례 후보 (F-G04, F-G06)",
         "description": "Markdown 표, 표준 라이브러리 SVG 2~3장, B만 찾은 것·A만 찾은 것·B 미끼 헛짚음 목록(실행 ID·대화 위치)",
-        "details": "영역: 채점·측정\n목적: 보고서에 조건별 숫자·그림과 'REA가 있어야만 찾은 것·헛짚은 것' 사례 후보를 원자료에서 그대로 싣는다 (요구사항 2절 3·4, R1)\n읽을 문서: 기능명세 F-G04·F-G06, 요구사항 2절, 설계 실험구조 2.1 F-G04·F-G06 줄, 2.6, 3.8\n고칠 파일: bench/score/tables.py, bench/score/svg.py, bench/score/cases.py, bench/score/__main__.py, bench/tests/score/fixtures/g04_g06/**, bench/tests/score/test_f_g04.py, bench/tests/score/test_f_g06.py, docs/보고서/그림/**\n계약: run.json·transcript.jsonl(stream-json, 3.8), T27 모은 지표(레인 안), 보고서 표식\n\n작업 쌍: C 한 세션 쪽 (solo-bench)\n크기: 예시 약 10 · 파일 약 6(+ 그림 출력) · 하위 작업 6",
+        "details": "영역: 채점·측정\n목적: 보고서에 조건별 숫자·그림과 'REA가 있어야만 찾은 것·헛짚은 것' 사례 후보를 원자료에서 그대로 싣는다 (요구사항 2절 3·4, R1)\n읽을 문서: 기능명세 F-G04·F-G06, 요구사항 2절, 설계 실험구조 2.1 F-G04·F-G06 줄, 2.6, 3.8\n고칠 파일: bench/score/tables.py, bench/score/svg.py, bench/score/cases.py, bench/score/__main__.py, bench/tests/score/fixtures/g04_g06/**, bench/tests/score/test_f_g04.py, bench/tests/score/test_f_g06.py, docs/보고서/그림/**\n계약: run.json·transcript.jsonl(stream-json, 3.8), T27 모은 지표(레인 안), 보고서 표식\n\n작업 쌍: C 한 세션 쪽 (solo-bench)\n크기: 예시 약 10 · 파일 약 6(+ 그림 출력) · 하위 작업 6\n취소(2026-11-24): 실험구조 8.3에서 T27에 합침 (같은 __main__.py·같은 원자료 꼴)",
         "testStrategy": "test_F_G04_표_같은입력_같은글 / test_F_G04_백분율_소수한자리 / test_F_G04_SVG_같은입력_같은바이트 / test_F_G04_SVG_빈칸_빈막대 / test_F_G04_그림3장_이름 / test_F_G06_B만찾음_B1번이상_A0번 / test_F_G06_A만찾음 / test_F_G06_B미끼헛짚음_실행ID·대화줄 / test_F_G06_대화기록이_저장소밖이면_sha256만 / test_F_G06_목록차례_고정. 확인할 화면: 만든 SVG를 브라우저로 열어 1360·390px에서 글자가 겹치지 않는지",
-        "status": "pending",
+        "status": "cancelled",
         "dependencies": [
           "27"
         ],
@@ -1913,9 +1940,9 @@
       {
         "id": "29",
         "title": "채점·측정: 작업 기록·작업 쌍 표·남은 결함 (F-M01~M04)",
-        "description": "측정.csv의 늘린 칸·커밋 시각·세션 기록 토큰 합, 쌍 비교 표(3쌍 미만이면 표 없음), 같은 검토인지 확인하고 심각도별로 세기, README 5분 시험 기록",
-        "details": "영역: 채점·측정\n목적: 병렬 방식과 한 세션의 시간·사용량·반려·결함을 같은 자로 비교한 표를 원자료에서 다시 계산할 수 있게 한다 (요구사항 R2, 5.2 '기록'·'남은 결함')\n읽을 문서: 기능명세 F-M01~F-M04, 요구사항 4절 R2·R6, 5.2, 설계 실험구조 2.1 F-M 줄, 2.8\n고칠 파일: bench/measure/**, bench/tests/measure/**\n계약: ops/측정.csv 늘린 칸(문서), ops/검증/*.md 심각도 표기(총괄), Claude Code 세션 jsonl의 usage(추정 — 첫 하위 작업에서 실제 파일로 확인)\n\n작업 쌍: B 병렬 쪽 (lane-score + 검토 + 총괄)\n세션 기록은 usage 칸만 읽고 메시지 본문은 출력·저장하지 않는다(CLAUDE.md '비밀값을 옮기지 않는다').\n선행(문서): 문서가 `ops/측정.csv` 칸을 늘림(요구사항 5.2 '기록')\n크기: 예시 약 13 · 파일 약 10 · 하위 작업 6",
-        "testStrategy": "test_F_M01_측정csv_늘린칸_읽음 / test_F_M01_칸없으면_오류 / test_F_M01_커밋시각_처음·끝 / test_F_M01_세션jsonl_usage합 / test_F_M01_총괄몫은_병렬쪽 / test_F_M02_3쌍_표 / test_F_M02_2쌍_표없음_모자람알림 / test_F_M02_다시한일_칸 / test_F_M03_심각도별_셈 / test_F_M03_검토정의sha256_다르면_쌍뺌 / test_F_M03_모델·노력·지시문같음_포함 / test_F_M04_5분이하_기록 / test_F_M04_막힌곳_기록. 화면 없음",
+        "description": "측정.csv의 늘린 칸(검토방식 포함)·커밋 시각·세션 기록 토큰 합, 쌍 비교 표(검토 방식 칸, 3쌍 미만이면 표 없음), 같은 검토인지 확인하고 심각도별로 세기, README 5분 시험 기록",
+        "details": "영역: 채점·측정\n목적: 병렬 방식과 한 세션의 시간·사용량·반려·결함을 같은 자로 비교한 표를 원자료에서 다시 계산할 수 있게 한다 (요구사항 R2, 5.2 '기록'·'남은 결함')\n읽을 문서: 기능명세 F-M01~F-M04, 요구사항 4절 R2·R6, 5.2, 설계 실험구조 2.1 F-M 줄, 2.8, 8.1 '질문 2에 주는 영향'\n고칠 파일: bench/measure/**, bench/tests/measure/**\n계약: ops/측정.csv 칸(문서, 8.7 '검토방식' 칸), ops/검증/*.md 등급 표기(8.1 ②), Claude Code 세션 jsonl의 usage(추정 — 첫 하위 작업에서 실제 파일로 확인)\n\n작업 쌍: C 병렬 쪽 (lane-score + task-reviewer 하나 + 총괄, 병합 전 검토 방식 하나·새 — 실험구조 8.1 ①~⑤)\n세션 기록은 usage 칸만 읽고 메시지 본문은 출력·저장하지 않는다(CLAUDE.md '비밀값을 옮기지 않는다'). 본문을 시험 자료로 옮기지 않는다 — 공개 저장소로 샌다 (8.3 '어느 쪽을 병렬로')\n선행(문서): 문서가 ops/측정.csv 칸을 늘림(요구사항 5.2 '기록') + 칸 '검토방식'(둘·옛 / 하나·새), 기능명세 F-M02·F-M03 고침 — 쌍 표에 '병합 전 검토 방식' 칸, 독립 검토는 task-reviewer 하나(정의 sha256) (8.7)\n크기: 예시 약 14 · 파일 약 10 · 하위 작업 6\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤)\n쌍 A는 따로(8.1 '질문 2에 주는 영향'): 방향 판정(D-037 '세 번 같은 방향인가')은 같은 방식의 쌍 B·C·D로, 쌍 A는 '병합 전 검토: 둘(옛 방식)'으로 따로 한 줄 + 'A를 넣어도 방향이 같은가' 한 줄. 쌍 D를 못 하면 A·B·C로 판정하고 한계에 적는다",
+        "testStrategy": "test_F_M01_측정csv_늘린칸_읽음 / test_F_M01_칸없으면_오류 / test_F_M01_커밋시각_처음·끝 / test_F_M01_세션jsonl_usage합 / test_F_M01_총괄몫은_병렬쪽 / test_F_M02_3쌍_표 / test_F_M02_2쌍_표없음_모자람알림 / test_F_M02_다시한일_칸 / test_F_M03_심각도별_셈 / test_F_M03_검토정의sha256_다르면_쌍뺌 / test_F_M03_모델·노력·지시문같음_포함 / test_F_M04_5분이하_기록 / test_F_M04_막힌곳_기록 / test_F_M02_검토방식칸_둘·옛_하나·새. 화면 없음",
         "status": "pending",
         "dependencies": [
           "20"
@@ -1924,8 +1951,8 @@
         "subtasks": [
           {
             "id": 1,
-            "title": "계약 확인(측정.csv 칸·검증 꼴·세션 jsonl 꼴)",
-            "description": "계약 확인(측정.csv 칸·검증 꼴·세션 jsonl 꼴)",
+            "title": "계약 확인(측정.csv 칸·검토방식 칸·검증 등급 꼴·세션 jsonl 꼴)",
+            "description": "계약 확인(측정.csv 칸·검토방식 칸·검증 등급 꼴·세션 jsonl 꼴)",
             "details": "",
             "status": "pending",
             "dependencies": [],
@@ -1951,8 +1978,8 @@
           },
           {
             "id": 4,
-            "title": "쌍 표·남은 결함(M02·M03)",
-            "description": "쌍 표·남은 결함(M02·M03)",
+            "title": "쌍 표·검토 방식 칸·남은 결함(M02·M03)",
+            "description": "쌍 표·검토 방식 칸·남은 결함(M02·M03)",
             "details": "",
             "status": "pending",
             "dependencies": [],
@@ -1981,9 +2008,9 @@
       {
         "id": "30",
         "title": "실행기: 실행 계획·실행 폴더·원자료 저장 (F-R01, F-R02, F-R06)",
-        "description": "시드로 섞은 차례, 저장소 밖 실행 폴더·대상 복사·위쪽 CLAUDE.md 확인·settings.json 거절 규칙·허용 목록 환경, run.json·findings·transcript 저장, mine은 저장소 밖에만",
-        "details": "영역: 실행기\n목적: 명령 하나로 다시 돌릴 수 있고 실행마다 원자료가 남게 하며, 내 앱 원자료는 저장소에 들어가지 않게 한다 (요구사항 R4, 6절)\n읽을 문서: 기능명세 F-R01·F-R02·F-R06, 설계 실험구조 2.4, 3.1, 3.2(문지기 빼고), 3.6, 3.8, 4절\n고칠 파일: bench/run/__init__.py, bench/run/plan.py, bench/run/workdir.py, bench/run/env.py, bench/run/store.py, bench/run/mcp-A.json, bench/tests/run/test_f_r01.py, bench/tests/run/test_f_r02.py, bench/tests/run/test_f_r06.py\n계약: run.schema.json, 실행 ID 꼴(2.4), bench.common 지문·경로 정규화(T20)\n\n크기: 예시 약 18 · 파일 약 9 · 하위 작업 6\nT20 넘김: 빈·문지기 실행 원자료의 target_id·저장 위치(지금 계약은 target_id 필수, check_bench는 targets.json에 있어야 통과) — 이 태스크 전에 설계가 계약·검사를 맞춘다. run_kind(target·empty·gate) 칸이 생겼다.",
-        "testStrategy": "test_F_R01_같은시드_같은차례 / test_F_R01_다른시드_다른차례 / test_F_R01_없는대상ID_거절 / test_F_R01_계획sha256_기록 / test_F_R02_실행폴더_저장소밖 / test_F_R02_복사본지문_다르면_멈춤 / test_F_R02_위쪽에_CLAUDE_md있으면_멈춤 / test_F_R02_실행뒤_target지움 / test_F_R02_settings_거절7곳·훅없음 / test_F_R02_환경_허용목록만·PATH_System32 / test_F_R06_run_json_계약통과 / test_F_R06_findings경로_상대로 / test_F_R06_대화기록_절대경로_RUN으로가림 / test_F_R06_대화기록_2MB넘으면_밖에·sha256 / test_F_R06_2MB는_그대로 / test_F_R06_mine_저장소밖 / test_F_R06_mine에_저장소경로_거절 / test_F_R06_실행ID_80자넘으면_거절. 화면 없음",
+        "description": "시드로 섞은 차례, 저장소 밖 실행 폴더·대상 복사·위쪽 CLAUDE.md 확인·settings.json 거절 규칙·허용 목록 환경, run.json·findings·transcript 저장, mine·빈·문지기 실행은 저장소 밖에만",
+        "details": "영역: 실행기\n목적: 명령 하나로 다시 돌릴 수 있고 실행마다 원자료가 남게 하며, 내 앱 원자료는 저장소에 들어가지 않게 한다 (요구사항 R4, 6절)\n읽을 문서: 기능명세 F-R01·F-R02·F-R06, 설계 실험구조 2.4, 3.1, 3.2(문지기 빼고), 3.6, 3.8, 4절, 8.5\n고칠 파일: bench/run/__init__.py, bench/run/plan.py, bench/run/workdir.py, bench/run/env.py, bench/run/store.py, bench/run/mcp-A.json, bench/tests/run/test_f_r01.py, bench/tests/run/test_f_r02.py, bench/tests/run/test_f_r06.py\n계약: run.schema.json, 실행 ID 꼴(2.4), bench.common 지문·경로 정규화(T20), 8.5 빈·문지기 원자료 자리\n\n작업 쌍: B 병렬 쪽 (lane-run + task-reviewer 하나 + 총괄, 병합 전 검토 방식 하나·새 — 실험구조 8.1 ①~⑤)\n선행(문서): 기능명세 F-R06 고침 — 빈·문지기 원자료는 저장소 밖, target_id 예약 ID (8.7)\n크기: 예시 약 19 · 파일 약 9 · 하위 작업 6\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤)\nT20 넘김(빈·문지기 실행의 target_id·저장 위치)은 설계 8.5가 정함: 원자료는 저장소에 넣지 않고 %LOCALAPPDATA%\\SelfAudit-bench-archive\\<배치 ID>\\<실행 ID>\\에 둔다. run_kind가 empty·gate이면 저장소 안 경로를 주면 거절(mine과 같은 꼴). run.json은 target_id = run_kind와 같은 예약 ID empty·gate(대상 목록에 넣지 않음), target_kind = planted, bundle_manifest_sha256 = 빈 실행은 format_manifest([])의 sha256, 문지기는 실행기가 만든 target 폴더의 지문. check_bench.py는 고치지 않는다",
+        "testStrategy": "test_F_R01_같은시드_같은차례 / test_F_R01_다른시드_다른차례 / test_F_R01_없는대상ID_거절 / test_F_R01_계획sha256_기록 / test_F_R02_실행폴더_저장소밖 / test_F_R02_복사본지문_다르면_멈춤 / test_F_R02_위쪽에_CLAUDE_md있으면_멈춤 / test_F_R02_실행뒤_target지움 / test_F_R02_settings_거절7곳·훅없음 / test_F_R02_환경_허용목록만·PATH_System32 / test_F_R06_run_json_계약통과 / test_F_R06_findings경로_상대로 / test_F_R06_대화기록_절대경로_RUN으로가림 / test_F_R06_대화기록_2MB넘으면_밖에·sha256 / test_F_R06_2MB는_그대로 / test_F_R06_mine_저장소밖 / test_F_R06_mine에_저장소경로_거절 / test_F_R06_실행ID_80자넘으면_거절 / test_F_R06_빈·문지기실행_저장소밖_보관. 화면 없음",
         "status": "pending",
         "dependencies": [
           "20"
@@ -1992,8 +2019,8 @@
         "subtasks": [
           {
             "id": 1,
-            "title": "계약 확인",
-            "description": "계약 확인",
+            "title": "계약 확인(run.schema, 8.5 예약 ID·지문)",
+            "description": "계약 확인(run.schema, 8.5 예약 ID·지문)",
             "details": "",
             "status": "pending",
             "dependencies": [],
@@ -2028,8 +2055,8 @@
           },
           {
             "id": 5,
-            "title": "원자료 저장·mine 막기(R06)",
-            "description": "원자료 저장·mine 막기(R06)",
+            "title": "원자료 저장·mine·빈·문지기 저장소 밖(R06)",
+            "description": "원자료 저장·mine·빈·문지기 저장소 밖(R06)",
             "details": "",
             "status": "pending",
             "dependencies": [],
@@ -2116,10 +2143,10 @@
       },
       {
         "id": "32",
-        "title": "실행기: Claude Code 실행과 조건 확인 (F-R03, F-R05)",
-        "description": "A·B 명령줄(MCP 설정 파일만 다름), 셸 없이, 시간 상한이면 프로세스 나무째 끝내기, 비용 상한, init 줄로 조건 확인",
-        "details": "영역: 실행기\n목적: A·B 명령줄이 MCP 설정 파일 하나만 다르고, 조건이 다른 실행은 기계가 버리게 한다 (요구사항 3절 실패 ①, 5.1)\n읽을 문서: 기능명세 F-R03·F-R05, 설계 실험구조 2.3 '형식 강제', 3.1, 3.3, 3.4\n고칠 파일: bench/run/claude_cmd.py, bench/run/condition.py, bench/run/prompt.md, bench/tests/run/fake_claude/**, bench/tests/run/test_f_r03.py, bench/tests/run/test_f_r05.py\n계약: Claude Code 2.1.119 명령줄(3.3), stream-json init·result 줄(3.4·3.5, 필드 이름은 보정에서 확인), findings.schema.json\n\nprompt.md의 본문은 설계가 정한다(요구사항 8절 4). 레인은 설계 3.1 '꼭 넣을 문장' ①~④가 있는지 시험만 둔다(공통 요청)\n선행(사람): 사용자 확인 7절(조건 A 도구, 모델·노력)\n크기: 예시 약 13 · 파일 약 6 · 하위 작업 5",
-        "testStrategy": "test_F_R03_AB명령줄_mcp설정만다름 / test_F_R03_모델별칭_거절 / test_F_R03_셸없이_claude_exe / test_F_R03_시간상한_자식까지_끝냄_timeout / test_F_R03_비용상한_budget_exceeded / test_F_R03_스키마_안받는키워드_뺀사본 / test_F_R03_claude버전바뀌면_배치멈춤 / test_F_R05_A에_도구더있으면_mismatch / test_F_R05_B_rea_연결안됨_mismatch / test_F_R05_모델다르면_mismatch / test_F_R05_권한모드다르면_mismatch / test_F_R05_모두맞으면_ok / test_F_R03_지시문_꼭넣을문장4개. 화면 없음",
+        "title": "실행기: Claude Code 실행·조건 확인·네트워크 기록·문지기 (F-R03, F-R05, F-R07, F-R10)",
+        "description": "A·B 명령줄(MCP 설정 파일만 다름)·셸 없이·시간·비용 상한, init 줄로 조건 확인, ㉡ REA 프로세스 나무 연결 기록·방화벽 상태, 작업 폴더 밖 표식으로 두 조건 모두 막히는지 본 뒤에만 배치",
+        "details": "영역: 실행기\n목적: A·B 명령줄이 MCP 설정 파일 하나만 다르고, 조건이 다른 실행은 버리며, 작업 폴더 밖 읽기·바깥 연결이 막혔는지 배치마다 확인한다 (요구사항 3절 실패 ①, 5.1, 6절)\n읽을 문서: 기능명세 F-R03·F-R05·F-R07·F-R10, 설계 실험구조 2.3 '형식 강제', 3.1~3.4, 3.7, 3.10, 8.6, 설계 REA환경 4절\n고칠 파일: bench/run/claude_cmd.py, bench/run/condition.py, bench/run/netwatch.py, bench/run/gate.py, bench/run/prompt.md, bench/run/prompt-gate.md, bench/tests/run/fake_claude/**, bench/tests/run/test_f_r03.py, bench/tests/run/test_f_r05.py, bench/tests/run/test_f_r07.py, bench/tests/run/test_f_r10.py\n계약: Claude Code 2.1.119 명령줄(3.3), stream-json init·result 줄(3.4·3.5, 필드 이름은 보정에서 확인), findings.schema.json, escape_cases.json(T31), 8.6 지시문 본문, rea_netguard.cjs 기록 꼴·netguard.jsonl·netstat.json(3.8), run.json settings.firewall_rule·네트워크 기록 수\n\n작업 쌍: D 병렬 쪽 (lane-run + task-reviewer 하나 + 총괄, 병합 전 검토 방식 하나·새 — 실험구조 8.1 ①~⑤)\n합친 것: 옛 T32(F-R03·R05) + 옛 T33(F-R07·R10) — 문지기는 실행·조건 확인으로 짧은 실행을 띄우는 것이라 같은 가짜 claude.exe·같은 시험 틀을 쓴다 (실험구조 8.3)\n지시문: prompt.md 본문은 설계 8.6을 그대로 옮긴다(초안 — 보정 배치 뒤 확정, 사용자 확인 8절 4). prompt-gate.md는 3.10 표의 꼴마다 읽어 보라는 글과 8.6 '지킬 것' 첫째·셋째 줄 — '작업 폴더 밖은 보지 않는다'는 넣지 않는다(막는 것은 권한 층, 8.6 표)\n선행(사람): 사용자 확인 7절(조건 A 도구, 모델·노력)\n선행(문서): 기능명세 F-R03이 지시문 본문(8.6)을 가리키는 줄, F-R10 문지기 원자료는 저장소 밖(8.5) (8.7)\n크기: 예시 약 22 · 파일 약 11 · 하위 작업 6\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤)\n총괄 판단(T31 넘김, 옛 T33): B 문지기에서는 target 안 정션(#12)을 두지 않고 #12는 A에서만 잰다. 근거: 거르개가 target 아래 재분석 지점이 있으면 REA를 띄우지 않아(두 층) B에 정션을 두면 늘 'MCP 연결 안 됨'이 되고, #12가 재는 것은 두 조건에 같은 Claude Code Read 권한이다. REA 쪽은 거르개의 띄우기 전 훑기가 막는다. 자리 표시(<P_DEVICE>·<P_NODRIVE> 등)는 T31 시험의 layout 픽스처를 본보기로 채운다.\n문지기 원자료는 저장소 밖(8.5): 문지기 실행의 run.json·대화 기록은 T30의 저장소 밖 보관 폴더로. 통과·실패는 대상 실행의 run.json settings.deny_rule_forms(2.10)에 남는다",
+        "testStrategy": "test_F_R03_AB명령줄_mcp설정만다름 / test_F_R03_모델별칭_거절 / test_F_R03_셸없이_claude_exe / test_F_R03_시간상한_자식까지_끝냄_timeout / test_F_R03_비용상한_budget_exceeded / test_F_R03_스키마_안받는키워드_뺀사본 / test_F_R03_claude버전바뀌면_배치멈춤 / test_F_R05_A에_도구더있으면_mismatch / test_F_R05_B_rea_연결안됨_mismatch / test_F_R05_모델다르면_mismatch / test_F_R05_권한모드다르면_mismatch / test_F_R05_모두맞으면_ok / test_F_R03_지시문_꼭넣을문장4개(8.6 본문) / test_F_R07_tools_node만_본다 / test_F_R07_조건A_기록0 / test_F_R07_기록있으면_배치멈춤 / test_F_R07_방화벽상태_기록 / test_F_R10_표식4곳_모두막힘_통과 / test_F_R10_대화기록에_표식있으면_배치안함 / test_F_R10_거절흔적없는시도_실패 / test_F_R10_B_REA밖경로_거르개오류필요 / test_F_R10_끄는옵션없음. 화면 없음",
         "status": "pending",
         "dependencies": [
           "30",
@@ -2129,8 +2156,8 @@
         "subtasks": [
           {
             "id": 1,
-            "title": "계약 확인",
-            "description": "계약 확인",
+            "title": "계약 확인(명령줄·stream-json·escape_cases.json·netguard 기록 꼴)",
+            "description": "계약 확인(명령줄·stream-json·escape_cases.json·netguard 기록 꼴)",
             "details": "",
             "status": "pending",
             "dependencies": [],
@@ -2147,8 +2174,8 @@
           },
           {
             "id": 3,
-            "title": "명령줄·끝내기(R03)",
-            "description": "명령줄·끝내기(R03)",
+            "title": "명령줄·끝내기·지시문(R03, 8.6)",
+            "description": "명령줄·끝내기·지시문(R03, 8.6)",
             "details": "",
             "status": "pending",
             "dependencies": [],
@@ -2165,6 +2192,15 @@
           },
           {
             "id": 5,
+            "title": "네트워크 기록·문지기(R07·R10)",
+            "description": "네트워크 기록·문지기(R07·R10)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [],
+            "parentId": "undefined"
+          },
+          {
+            "id": 6,
             "title": "검사",
             "description": "검사",
             "details": "",
@@ -2178,9 +2214,9 @@
         "id": "33",
         "title": "실행기: 네트워크 기록과 문지기 실행 (F-R07, F-R10)",
         "description": "㉡ REA 프로세스 나무 연결 보기(A는 0이어야 함), 기록이 있으면 배치 멈춤, 방화벽 상태, 작업 폴더 밖 표식 파일을 두고 두 조건 모두 막히는지 본 뒤에만 배치 시작",
-        "details": "영역: 실행기\n목적: 작업 폴더 밖 읽기와 바깥 연결이 막혔는지 배치마다 확인해, 정답지·로그인 정보가 대상 에이전트에게 새지 않게 한다 (요구사항 6절, 3절 실패 ①)\n읽을 문서: 기능명세 F-R07·F-R10, 설계 실험구조 3.2 '문지기 실행', 3.7, 설계 REA환경 4절\n고칠 파일: bench/run/netwatch.py, bench/run/gate.py, bench/run/prompt-gate.md, bench/tests/run/test_f_r07.py, bench/tests/run/test_f_r10.py\n계약: run.json settings.firewall_rule·네트워크 기록 수, netguard.jsonl·netstat.json(3.8), rea_netguard.cjs 기록 꼴\n\n크기: 예시 약 9 · 파일 약 5 · 하위 작업 5. 쌍에 넣지 않은 근거: 크기는 T28·T34와 비슷하지만 작업 폴더 밖 읽기를 막는 경계라 한 세션 쪽(병합 전 검토 없음)으로 두지 않는다\n총괄 판단(T31 넘김): B 문지기에서는 target 안 정션(#12)을 두지 않고 #12는 A에서만 잰다. 근거: 거르개가 target 아래 재분석 지점이 있으면 REA를 띄우지 않아(두 층) B에 정션을 두면 늘 'MCP 연결 안 됨'이 되고, #12가 재는 것은 두 조건에 같은 Claude Code Read 권한이다. REA 쪽은 거르개의 띄우기 전 훑기가 막는다. 자리 표시(`<P_DEVICE>`·`<P_NODRIVE>` 등)는 T31 시험의 layout 픽스처를 본보기로 채운다.",
+        "details": "영역: 실행기\n목적: 작업 폴더 밖 읽기와 바깥 연결이 막혔는지 배치마다 확인해, 정답지·로그인 정보가 대상 에이전트에게 새지 않게 한다 (요구사항 6절, 3절 실패 ①)\n읽을 문서: 기능명세 F-R07·F-R10, 설계 실험구조 3.2 '문지기 실행', 3.7, 설계 REA환경 4절\n고칠 파일: bench/run/netwatch.py, bench/run/gate.py, bench/run/prompt-gate.md, bench/tests/run/test_f_r07.py, bench/tests/run/test_f_r10.py\n계약: run.json settings.firewall_rule·네트워크 기록 수, netguard.jsonl·netstat.json(3.8), rea_netguard.cjs 기록 꼴\n\n크기: 예시 약 9 · 파일 약 5 · 하위 작업 5. 쌍에 넣지 않은 근거: 크기는 T28·T34와 비슷하지만 작업 폴더 밖 읽기를 막는 경계라 한 세션 쪽(병합 전 검토 없음)으로 두지 않는다\n총괄 판단(T31 넘김): B 문지기에서는 target 안 정션(#12)을 두지 않고 #12는 A에서만 잰다. 근거: 거르개가 target 아래 재분석 지점이 있으면 REA를 띄우지 않아(두 층) B에 정션을 두면 늘 'MCP 연결 안 됨'이 되고, #12가 재는 것은 두 조건에 같은 Claude Code Read 권한이다. REA 쪽은 거르개의 띄우기 전 훑기가 막는다. 자리 표시(`<P_DEVICE>`·`<P_NODRIVE>` 등)는 T31 시험의 layout 픽스처를 본보기로 채운다.\n취소(2026-11-24): 실험구조 8.3에서 T32에 합침 (같은 가짜 claude.exe·같은 시험 틀)",
         "testStrategy": "test_F_R07_tools_node만_본다 / test_F_R07_조건A_기록0 / test_F_R07_기록있으면_배치멈춤 / test_F_R07_방화벽상태_기록 / test_F_R10_표식4곳_모두막힘_통과 / test_F_R10_대화기록에_표식있으면_배치안함 / test_F_R10_거절흔적없는시도_실패 / test_F_R10_B_REA밖경로_거르개오류필요 / test_F_R10_끄는옵션없음. 화면 없음",
-        "status": "pending",
+        "status": "cancelled",
         "dependencies": [
           "32"
         ],
@@ -2235,21 +2271,21 @@
       },
       {
         "id": "34",
-        "title": "실행기: 1번 비용 재기와 명령 하나로 다시 돌림 (F-R08, F-R09)",
-        "description": "보정 계획(빈·문지기·대상 2~3), result 줄을 run.json 지표로 옮기기, 36번 사용량 추정·상한 제안, `python -m run batch --plan`, 가짜 claude로 두 번 돌려 같은 숫자",
-        "details": "영역: 실행기\n목적: 처음 2~3번으로 1번 비용을 재서 36번이 하룻밤에 드는지 정하고, 명령 하나로 다시 돌릴 수 있게 한다 (요구사항 5.1 '첫 실험', R4)\n읽을 문서: 기능명세 F-R08·F-R09, 설계 실험구조 3.5, 3.9\n고칠 파일: bench/run/batch.py, bench/run/calibrate.py, bench/run/__main__.py, bench/run/plans/calibration.json, bench/run/prompt-empty.md, bench/tests/run/test_f_r08.py, bench/tests/run/test_f_r09.py\n계약: run.schema.json 지표 칸, 계획 파일 꼴(3.9), score 명령(T27)\n\n작업 쌍: C 병렬 쪽 (lane-run + 검토 + 총괄)\n크기: 예시 약 9 · 파일 약 8 · 하위 작업 5",
-        "testStrategy": "test_F_R08_result줄_비용·토큰4종·시간·턴 / test_F_R08_36번추정_평균x18x2 / test_F_R08_시간상한_최대4분10초_13분 / test_F_R08_시간상한_최대2분_10분 / test_F_R08_비용상한_3배 / test_F_R09_계획하나로_문지기뒤_섞은차례 / test_F_R09_계획sha256_run_json에 / test_F_R09_가짜claude_두번_같은채점숫자 / test_F_R09_다시채점_모델호출없음(소켓 막힘). 화면 없음",
+        "title": "실행기: 보정·배치 명령·계획 만들기 (F-R08, F-R09, F-R01 계획)",
+        "description": "보정 계획(빈·문지기·대상 2~3), result 줄을 run.json 지표로, 24번 사용량 추정·상한 제안, python -m run batch --plan, 첫 실험 계획·덧붙임 계획을 만드는 plan 명령, 가짜 claude로 두 번 같은 숫자",
+        "details": "영역: 실행기\n목적: 처음 몇 번으로 1번 비용을 재 상한을 정하고, 명령 하나로 배치·다시 채점·첫 실험 계획과 덧붙임 계획을 만든다 (요구사항 5.1 '첫 실험', R4)\n읽을 문서: 기능명세 F-R08·F-R09·F-R01, 설계 실험구조 3.5, 3.9, 8.2, 8.3 'T34'\n고칠 파일: bench/run/batch.py, bench/run/calibrate.py, bench/run/plan_cmd.py, bench/run/__main__.py, bench/run/plans/calibration.json, bench/run/prompt-empty.md, bench/tests/run/test_f_r08.py, bench/tests/run/test_f_r09.py\n계약: run.schema.json 지표 칸, 계획 파일 꼴(3.9), score 명령(T27)\n\n작업 쌍: C 한 세션 쪽 (solo-bench, 병합 전 검토 없음 — 사용자 확인 8절 12. 독립 검토는 보정 배치 전 — 실험구조 8.1 ⑦)\n합친 것: 옛 T34(F-R08·R09) + 옛 T35(첫 실험 계획 파일) — 계획은 보정 숫자에서 계산되는 값이라 명령 python -m run plan first --calibration <배치 ID> --model … --effort …(F-R08 상한 계산을 씀)으로 만든다. 같은 보정이면 같은 계획 바이트 (실험구조 8.3, R4)\n만들지 않는 것: bench/run/plans/first-*.json·덧붙임 계획 파일은 이 태스크가 커밋하지 않는다 — 보정 뒤 총괄이 사용자 확인 값(요구사항 8절 4·6, 옛 T35 선행)으로 명령을 돌려 나온 파일을 커밋 (8.3, 8.7 설계)\n실제 실행 없음: 시험은 가짜 claude.exe(T32의 bench/tests/run/fake_claude/**, 읽기만)로만. 실제 보정 배치는 T32 문지기를 지나야 하고 한 세션 쪽 독립 검토 뒤에 총괄이 돌린다 (8.3 '어느 쪽을 병렬로', 8.1 ⑦)\nN(8.2): 첫 실험 = 번들 6 × A·B × 2 = 24번. 덧붙임 계획 = 그 난이도 번들 둘 × A·B × 반복 차례 3, 새 순서 시드. 꼴은 3.9와 같다\nF-R01 계획 시험(test_F_R01_first_…)은 test_f_r09.py에 둔다 — test_f_r01.py는 T30 파일 (8.3 고칠 파일 칸에 test_f_r08·r09만 있음)\n선행(문서): 기능명세 F-R01·F-R09 계획 만들기 명령·같은 보정이면 같은 계획 바이트, F-R08 보정 요약은 총괄 커밋(8.5 3) (8.7)\n크기: 예시 약 12 · 파일 약 8 · 하위 작업 6\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤)",
+        "testStrategy": "test_F_R08_result줄_비용·토큰4종·시간·턴 / test_F_R08_24번추정_평균x6x2x2 / test_F_R08_시간상한_최대4분10초_13분 / test_F_R08_시간상한_최대2분_10분 / test_F_R08_비용상한_3배 / test_F_R09_계획하나로_문지기뒤_섞은차례 / test_F_R09_계획sha256_run_json에 / test_F_R09_가짜claude_두번_같은채점숫자 / test_F_R09_다시채점_모델호출없음(소켓 막힘) / test_F_R01_first_계획_24번·AB같은상한 / test_F_R09_덧붙임계획_그난이도번들둘_AB / test_F_R09_같은보정_같은계획바이트. 화면 없음",
         "status": "pending",
         "dependencies": [
-          "33",
+          "32",
           "27"
         ],
         "priority": "high",
         "subtasks": [
           {
             "id": 1,
-            "title": "계약 확인",
-            "description": "계약 확인",
+            "title": "계약 확인(run.schema 지표 칸·계획 꼴 3.9·score 명령)",
+            "description": "계약 확인(run.schema 지표 칸·계획 꼴 3.9·score 명령)",
             "details": "",
             "status": "pending",
             "dependencies": [],
@@ -2284,6 +2320,15 @@
           },
           {
             "id": 5,
+            "title": "계획 만들기 명령: 첫 실험·덧붙임(R01·R09, 8.2)",
+            "description": "계획 만들기 명령: 첫 실험·덧붙임(R01·R09, 8.2)",
+            "details": "",
+            "status": "pending",
+            "dependencies": [],
+            "parentId": "undefined"
+          },
+          {
+            "id": 6,
             "title": "검사",
             "description": "검사",
             "details": "",
@@ -2297,9 +2342,9 @@
         "id": "35",
         "title": "실행기: 첫 실험 계획 파일 (F-R01·F-R09 적용)",
         "description": "번들 6 × A·B × N 3 = 36번 계획(모델·노력·상한·시드), 보정 뒤 사용자가 확인한 값으로",
-        "details": "영역: 실행기\n목적: 첫 실험 36번을 계획 파일 하나로 돌리고 그 sha256을 원자료에 남긴다 (요구사항 R4, 5.1 '첫 실험')\n읽을 문서: 기능명세 F-R01·F-R09, 설계 실험구조 3.5 5번(상한), 3.9, 요구사항 5.1 '반복'·'첫 실험'\n고칠 파일: bench/run/plans/first-36.json, bench/tests/run/test_plan_first36.py\n계약: 계획 파일 꼴(3.9)\n\n선행(사람): 보정 배치 결과와 상한 사용자 확인(요구사항 8절 4·6)\n크기: 예시 약 3 · 파일 2 · 하위 작업 3",
+        "details": "영역: 실행기\n목적: 첫 실험 36번을 계획 파일 하나로 돌리고 그 sha256을 원자료에 남긴다 (요구사항 R4, 5.1 '첫 실험')\n읽을 문서: 기능명세 F-R01·F-R09, 설계 실험구조 3.5 5번(상한), 3.9, 요구사항 5.1 '반복'·'첫 실험'\n고칠 파일: bench/run/plans/first-36.json, bench/tests/run/test_plan_first36.py\n계약: 계획 파일 꼴(3.9)\n\n선행(사람): 보정 배치 결과와 상한 사용자 확인(요구사항 8절 4·6)\n크기: 예시 약 3 · 파일 2 · 하위 작업 3\n취소(2026-11-24): 실험구조 8.3에서 T34에 합침 (계획 파일을 plan 명령으로)",
         "testStrategy": "test_F_R01_first36_실행수36 / test_F_R01_first36_AB같은상한·모델 / test_F_R09_first36_계획검증통과. 화면 없음",
-        "status": "pending",
+        "status": "cancelled",
         "dependencies": [
           "34"
         ],
@@ -2336,9 +2381,9 @@
       },
       {
         "id": "36",
-        "title": "번들·정답지: Juice Shop 정답지 (F-B06)",
+        "title": "번들·정답지: Juice Shop 정답지 (F-B06) — 첫 실험 뒤",
         "description": "공식 배포본을 버전·sha256으로 고정하고(실행하지 않음), 화면 번들에 흔적이 있는 과제만 정답지 꼴로(complete false, 별→난이도 바꾸기)",
-        "details": "영역: 번들·정답지\n목적: 우리가 만들지 않은 바깥 정답지로 '내가 만든 번들이 REA에 유리하다'는 의심을 줄인다 (요구사항 R3, 5.1 대상 ②)\n읽을 문서: 기능명세 F-B06, 설계 실험구조 2.2 'complete'·'origin', 2.5 'Juice Shop', 2.7 'Juice Shop 정답지'\n고칠 파일: bench/sources/juice-shop/**, bench/answers/juice-shop.json, bench/targets.json, bench/tests/bundles/test_f_b06.py, 공통 요청: ops/scripts/setup_juiceshop.py(받기 스크립트, setup_rea.py 꼴)\n계약: answers.schema.json (origin practice, complete false)\n\n선행(사람·설계): 첫 실험 뒤(요구사항 4절 차례 '넓히기(Juice Shop, N 늘리기)'), 받기 스크립트(설계), 사용자 확인 7절(Juice Shop 난이도)\n크기: 예시 약 7 · 파일 약 4(정답지 하나가 큼) · 하위 작업 5\nT20 넘김: Juice Shop 화면 번들도 bench/bundles/<id>에 둔다. 크기가 크면 git에 넣을지 이 태스크가 근거와 함께 정한다.",
+        "details": "영역: 번들·정답지\n목적: 우리가 만들지 않은 바깥 정답지로 '내가 만든 번들이 REA에 유리하다'는 의심을 줄인다 (요구사항 R3, 5.1 대상 ②)\n읽을 문서: 기능명세 F-B06, 설계 실험구조 2.2 'complete'·'origin', 2.5 'Juice Shop', 2.7 'Juice Shop 정답지'\n고칠 파일: bench/sources/juice-shop/**, bench/answers/juice-shop.json, bench/targets.json, bench/tests/bundles/test_f_b06.py, 공통 요청: ops/scripts/setup_juiceshop.py(받기 스크립트, setup_rea.py 꼴)\n계약: answers.schema.json (origin practice, complete false)\n\n쌍 아님 (실험구조 8.3 — 첫 실험 뒤)\n선행(사람·설계): 첫 실험 뒤(요구사항 4절 차례 '넓히기(Juice Shop, N 늘리기)'), 받기 스크립트(설계), 사용자 확인 7절(Juice Shop 난이도)\n크기: 예시 약 7 · 파일 약 4(정답지 하나가 큼) · 하위 작업 5\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤)\nT20 넘김: Juice Shop 화면 번들도 bench/bundles/<id>에 둔다. 크기가 크면 git에 넣을지 이 태스크가 근거와 함께 정한다.\n설계 넘김(8.4 1 추정 확인): 받은 화면 번들에서 지역 이름 길이를 세어 '실제 빌드 도구의 기본 압축은 지역·모듈 이름을 줄이고 속성 이름은 남긴다'는 추정을 확인한다. 잰 숫자는 보고서 '잰 것'에",
         "testStrategy": "test_F_B06_sha256다르면_멈춤 / test_F_B06_complete_false·origin_practice / test_F_B06_별2_easy / test_F_B06_별3_normal / test_F_B06_별4_normal / test_F_B06_별5_hard / test_F_B06_정답마다_위치·닻·출처. 화면 없음",
         "status": "pending",
         "dependencies": [
