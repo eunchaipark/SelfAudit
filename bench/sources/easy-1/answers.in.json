@@ -146,6 +146,7 @@
   "decoys": [
     {
       "id": "E1-D1",
+      "hiding": "config",
       "anchor": "YOUR_API_KEY",
       "at": [
         {"file": "assets/index.js", "marker": "supportChatKey"},
@@ -155,15 +156,17 @@
     },
     {
       "id": "E1-D2",
+      "hiding": "plain",
       "anchor": "PBA-2048-WEB",
       "at": [
-        {"file": "assets/index.js", "marker": "analyticsId"},
+        {"file": "assets/index.js", "marker": "const ANALYTICS_ID"},
         {"file": "assets/index.js", "map": true}
       ],
-      "why": "방문 통계 측정 ID. 페이지에 늘 공개되는 식별자라 비밀값이 아니다"
+      "why": "분석 도구의 공개 측정 ID다. trackView()가 화면 이름과 함께 /api/analytics로 보내는 값이고, 키처럼 보여도 브라우저에 실어 보내라고 만든 값이라 비밀이 아니다"
     },
     {
       "id": "E1-D3",
+      "hiding": "config",
       "anchor": "https://res.cloudinary.com/pagebird/image/upload/covers/",
       "at": [
         {"file": "assets/index.js", "marker": "coverCdn: "},

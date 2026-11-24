@@ -22,7 +22,7 @@ from common.fingerprint import bundle_manifest_sha256
 from common.lines import count_lines
 from sources.build_tools import encode, fake
 from sources.build_tools.build import BUNDLES_DIR, SOURCES_DIR, build
-from sources.build_tools.locate import write_answers
+from sources.build_tools.locate import SHORT_MIN, write_answers
 from sources.build_tools.verify import (
     HIDING_BY_DIFFICULTY,
     REPO_ROOT,
@@ -102,6 +102,17 @@ def _generated(bundle_id: str) -> set[str]:
     """심기 계획(plan.json values)으로 만든 가짜 값."""
     plan = json.loads((SOURCES_DIR / bundle_id / "plan.json").read_text(encoding="utf-8"))
     return {fake.make_value(bundle_id, eid, spec) for eid, spec in plan["values"].items()}
+
+
+def _full_value(generated: set[str], anchor: Json) -> str | None:
+    """닻이 만든 값이거나 그 앞 조각(F-B03 5 — 64자 넘는 값은 앞에서부터 16자 이상)이면 그 값."""
+    if not isinstance(anchor, str):
+        return None
+    if anchor in generated:
+        return anchor
+    if len(anchor) < SHORT_MIN:
+        return None
+    return next((v for v in generated if v.startswith(anchor)), None)
 
 
 def _is_base64(anchor: str, decoded: str) -> bool:
@@ -322,7 +333,8 @@ def test_F_B03_normal_planted에_가짜생성(bundle_id: str) -> None:
     generated = _generated(bundle_id)
     used: set[str] = set()
     for item in _items(bundle_id):
-        values = {item["anchor"], item["decoded_anchor"]} & generated
+        values = {_full_value(generated, v) for v in (item["anchor"], item["decoded_anchor"])}
+        values.discard(None)
         used |= {str(v) for v in values}
         assert ("가짜(생성)" in str(item["planted"])) == bool(values), item["id"]
     assert used == generated  # 만든 값은 모두 정답에 쓰인다
@@ -366,7 +378,8 @@ def test_F_B02_normal_가짜주소(bundle_id: str) -> None:
     호스트는 그 IP나 정해 둔 공개 CDN뿐이고, 예약 이름은 쓰지 않는다.
     """
     texts = list(_texts(bundle_id).values())
-    texts += [str(i["decoded_anchor"]) for i in _items(bundle_id) if i["decoded_anchor"]]
+    entries = _items(bundle_id) + _entries(_answers(bundle_id), "decoys")
+    texts += [str(e["decoded_anchor"]) for e in entries if e.get("decoded_anchor")]
     ips: set[str] = set()
     for text in texts:
         assert not any(s in text for s in RESERVED_SUFFIXES)
@@ -374,7 +387,9 @@ def test_F_B02_normal_가짜주소(bundle_id: str) -> None:
             ips.add(ip)
             assert any(ipaddress.ip_address(ip) in net for net in PRIVATE_NETWORKS), ip
         for host in URL_HOST.findall(text):
-            assert IPV4.fullmatch(host) or host in PUBLIC_HOSTS, host
+            # 나눠 쓴 미끼(N1-D3)의 앞 조각은 공개 CDN 호스트의 앞부분이다
+            public = any(h.startswith(host) for h in PUBLIC_HOSTS)
+            assert IPV4.fullmatch(host) or public, host
     assert ips  # 내부 주소 정답이 번들마다 있다
 
 

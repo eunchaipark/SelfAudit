@@ -1,12 +1,44 @@
 // Pagebird 책방 화면 (주문·결제·책 목록)
 window.__APP_CONFIG__ = {
   apiBase: "/api",
-  coverCdn: "https://res.cloudinary.com/pagebird/image/upload/covers/",
-  analyticsId: "PBA-2048-WEB",
-  supportChatKey: "YOUR_API_KEY",
   sessionToken: "{{v:E1-02}}",
-  enableDebugTools: true
+  enableDebugTools: true,
+  locale: "ko-KR",
+  currency: "KRW",
+  pageSize: 24,
+  freeShippingOver: 30000,
+  shippingFee: 3000,
+  carriers: ["cj", "hanjin", "lotte", "post"],
+  sortOptions: ["newest", "bestseller", "priceLow", "priceHigh"],
+  theme: { primary: "#3b5bdb", accent: "#f59f00", radius: 6, font: "Pretendard" },
+  banner: { text: "이번 주 새로 들어온 책을 만나 보세요", until: "2026-12-31" },
+  supportChatKey: "YOUR_API_KEY",
+  coverCdn: "https://res.cloudinary.com/pagebird/image/upload/covers/"
 };
+
+const ANALYTICS_ID = "PBA-2048-WEB";
+
+function formatPrice(won) {
+  return won.toLocaleString("ko-KR") + "원";
+}
+
+function shippingNote(total, settings) {
+  if (total >= settings.freeShippingOver) {
+    return "무료 배송";
+  }
+  return "배송비 " + formatPrice(settings.shippingFee) + " (" + formatPrice(settings.freeShippingOver) + " 이상 무료)";
+}
+
+function trackView(page) {
+  navigator.sendBeacon("/api/analytics", JSON.stringify({ id: ANALYTICS_ID, page: page }));
+}
+
+function emptyShelf() {
+  const note = document.createElement("p");
+  note.className = "empty-shelf";
+  note.textContent = "찾는 책이 아직 없습니다. 다른 낱말로 찾아 보세요";
+  return note;
+}
 
 const config = window.__APP_CONFIG__;
 const PAYMENTS_KEY = "{{v:E1-01}}";
@@ -26,9 +58,14 @@ async function api(path, options = {}) {
 }
 
 async function renderBooks() {
+  trackView("books");
   const books = await api("/books");
   const app = document.getElementById("app");
   app.replaceChildren();
+  if (books.length === 0) {
+    app.append(emptyShelf());
+    return;
+  }
   const list = document.createElement("div");
   list.className = "book-list";
   for (const book of books) {
@@ -36,15 +73,16 @@ async function renderBooks() {
     item.className = "book";
     const img = document.createElement("img");
     img.src = config.coverCdn + book.cover;
-    item.append(img, book.title);
+    item.append(img, book.title, " " + formatPrice(book.price));
     list.append(item);
   }
   app.append(list);
 }
 
 async function renderCart() {
+  trackView("cart");
   const cart = await api("/cart");
-  document.getElementById("app").textContent = cart.items.length + "권";
+  document.getElementById("app").textContent = cart.items.length + "권 · " + shippingNote(cart.total, config);
 }
 
 async function checkout(cart) {

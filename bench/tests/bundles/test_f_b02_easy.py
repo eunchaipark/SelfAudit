@@ -18,7 +18,7 @@ from common.fingerprint import bundle_manifest_sha256
 from common.lines import count_lines
 from sources.build_tools import fake
 from sources.build_tools.build import BUNDLES_DIR, SOURCES_DIR, build
-from sources.build_tools.locate import write_answers
+from sources.build_tools.locate import SHORT_MIN, write_answers
 from sources.build_tools.verify import (
     HIDING_BY_DIFFICULTY,
     REPO_ROOT,
@@ -91,6 +91,15 @@ def _generated(bundle_id: str) -> dict[str, str]:
     }
 
 
+def _generated_form(generated: dict[str, str], anchor: str) -> str | None:
+    """닻이 만든 값이거나 그 앞 조각(F-B03 5 — 64자 넘는 값은 앞에서부터 16자 이상)이면 그 꼴."""
+    if anchor in generated:
+        return generated[anchor]
+    if len(anchor) < SHORT_MIN:
+        return None
+    return next((form for value, form in generated.items() if value.startswith(anchor)), None)
+
+
 @pytest.mark.parametrize("bundle_id", EASY)
 def test_F_B03_easy_planted에_가짜생성(bundle_id: str) -> None:
     """F-B02 7: 규칙 4로 만든 값(키·토큰·비밀번호)이 든 정답은 planted에 '가짜(생성)'.
@@ -100,7 +109,7 @@ def test_F_B03_easy_planted에_가짜생성(bundle_id: str) -> None:
     generated = _generated(bundle_id)
     forms: set[str] = set()
     for item in _entries(_answers(bundle_id), "items"):
-        form = generated.get(str(item["anchor"]))
+        form = _generated_form(generated, str(item["anchor"]))
         assert ("가짜(생성)" in str(item["planted"])) == (form is not None), item["id"]
         if form is not None:
             forms.add(form)
@@ -155,10 +164,15 @@ def test_F_B07_쉬움_두번들합쳐_범주8개() -> None:
 
 
 def test_F_B02_easy1_명세예시값() -> None:
-    """F-B02 예시의 시드(`easy-1/E1-01`·`E1-02`·`E1-07`)로 만든 값이 easy-1 정답의 닻이다."""
+    """F-B02 예시의 시드(`easy-1/E1-01`·`E1-02`·`E1-07`)로 만든 값이 easy-1 정답의 닻이다.
+
+    E1-02 토큰(147자)은 맵 위치가 줄로 가를 수 없어 닻이 앞 16자다(F-B03 5 예시 — CR-008).
+    """
+    generated = _generated("easy-1")
+    assert {SPEC_KEY, SPEC_TOKEN, SPEC_PASSWORD} <= set(generated)
     anchors = {str(i["id"]): i["anchor"] for i in _entries(_answers("easy-1"), "items")}
     assert anchors["E1-01"] == SPEC_KEY
-    assert anchors["E1-02"] == SPEC_TOKEN
+    assert anchors["E1-02"] == SPEC_TOKEN[:SHORT_MIN] == "eyJhbGciOiJIUzI1"
     assert anchors["E1-07"] == SPEC_PASSWORD
 
 
