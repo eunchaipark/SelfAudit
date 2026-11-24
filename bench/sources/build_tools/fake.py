@@ -42,6 +42,7 @@ __all__ = [
     "service_shape_names",
     "split_piece",
     "split_value",
+    "token_problems",
 ]
 
 # F-B02 규칙 4: 본문·비밀번호는 base62(`0-9A-Za-z`), 서명은 base64url 글자.
@@ -215,6 +216,16 @@ def fake_value_problems(value: str) -> list[str]:
     if has_decoy_word(value):
         problems.append("㉰ 미끼 신호 낱말")
     return problems
+
+
+def token_problems(value: str) -> list[str]:
+    """F-B02 4ⓑ: 토큰 꼴 값의 서명 끝 글자가 표준 꼴(쓰지 않는 끝 2비트가 0)인지.
+
+    토큰 꼴이 아닌 값(앞 조각 닻 등)은 보지 않는다 — 끝 글자가 서명 끝이 아니다.
+    """
+    if TOKEN_FORM.fullmatch(value) and value[-1] not in SIGNATURE_LAST_CHARS:
+        return ["4ⓑ 토큰 서명 끝 글자가 표준 꼴이 아님"]
+    return []
 
 
 def check_prefix(prefix: str) -> None:

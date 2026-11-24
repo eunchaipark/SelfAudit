@@ -75,7 +75,8 @@ def test_F_B07_손으로만든_작은번들_통과(mini_bundle: Mini) -> None:
 
 
 def test_F_B07_닻이_미끼위치에도있으면_실패(mini_bundle: Mini) -> None:
-    _edit_app(mini_bundle, 'docsKey: "YOUR_API_KEY"', f'docsKey: "YOUR_API_KEY", k: "{KEY}"')
+    # 미끼 줄(7줄)의 끝, 미끼 닻에서 300자 넘게 떨어진 곳에 넣는다(가까우면 규칙 20도 걸린다)
+    _edit_app(mini_bundle, 'lastNote: "end"', f'lastNote: "end", k: "{KEY}"')
     assert _rules(mini_bundle) == [("6㉯", "M-01")]
 
 
