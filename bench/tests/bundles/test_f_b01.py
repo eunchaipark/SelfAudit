@@ -46,6 +46,8 @@ VALUES: dict[str, Json] = {
     "X1-01": {"form": "key", "prefix": "zelto_"},
     "X1-02": {"form": "password"},
 }
+# APP_JS에서 선언한 2자 넘는 이름(F-B01 6 — 압축 모드는 이 표 없이는 멈춘다)
+RENAME = ("PAY_KEY", "PARTS", "total")
 FILES: dict[str, str | bytes] = {
     "index.html": INDEX_HTML,
     "assets/app.js": APP_JS,
@@ -110,7 +112,8 @@ def test_F_B01_빌드기록_도구버전(write_source: WriteSource, dirs: Dirs) 
 
 
 def test_F_B01_압축모드_한줄_해시이름(write_source: WriteSource, dirs: Dirs) -> None:
-    write_source("normal-1", _plan("normal-1", mode="minified"), FILES)
+    plan = _plan("normal-1", mode="minified", rename=list(RENAME))
+    write_source("normal-1", plan, FILES)
     result = build("normal-1", dirs.sources, dirs.bundles)
     js_rel = result.files["assets/app.js"]
     assert re.fullmatch(r"assets/app-[0-9a-f]{8}\.js", js_rel)

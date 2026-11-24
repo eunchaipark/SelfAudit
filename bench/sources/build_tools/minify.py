@@ -9,7 +9,9 @@
 - 글(`'…'`·`"…"`·`` `…` ``)과 정규식 글에 줄바꿈을 두지 않는다.
   템플릿 글의 `${…}` 안에 `` ` ``를 두지 않는다.
 - `/*! … */`(라이선스·버전 배너)는 남기고 한 줄이어야 한다. 그 밖의 주석은 지운다.
-이름 바꾸기·식 줄이기는 하지 않는다(심은 글이 그대로 남아야 닻이 번들에 있다).
+식 줄이기는 하지 않는다(심은 글이 그대로 남아야 닻이 번들에 있다). 이름 줄이기는 빌드가
+압축 전에 `rename.py`로 한다(F-B01 6).
+토큰 상수 `WORD`·`REGEX_AFTER_*`는 `rename`·`obfuscate`도 쓴다(공개 이름, 설계 8.4 9).
 """
 
 from __future__ import annotations
@@ -19,17 +21,24 @@ import string
 from dataclasses import dataclass
 from typing import Final
 
-__all__ = ["Minified", "MinifyError", "minify_js"]
+__all__ = [
+    "REGEX_AFTER_PUNCT",
+    "REGEX_AFTER_WORDS",
+    "WORD",
+    "Minified",
+    "MinifyError",
+    "minify_js",
+]
 
-_WORD: Final = frozenset(string.ascii_letters + string.digits + "_$")
+WORD: Final = frozenset(string.ascii_letters + string.digits + "_$")
 _SPACE: Final = frozenset(" \t" + chr(0x0A))
 _LF: Final = chr(0x0A)
 _QUOTES: Final = frozenset("'\"")
 _BACKTICK: Final = "`"
 _BACKSLASH: Final = "\\"
 # 앞 토큰이 이것이면 `/`는 나눗셈이 아니라 정규식 글의 시작이다
-_REGEX_AFTER_PUNCT: Final = frozenset("(,=:[!&|?{};+-*%<>~^")
-_REGEX_AFTER_WORDS: Final = frozenset(
+REGEX_AFTER_PUNCT: Final = frozenset("(,=:[!&|?{};+-*%<>~^")
+REGEX_AFTER_WORDS: Final = frozenset(
     {"return", "typeof", "case", "do", "else", "in", "instanceof", "new", "delete", "void"}
     | {"throw", "yield", "await", "of"}
 )
@@ -70,7 +79,7 @@ def minify_js(source: str) -> Minified:
 
 
 def _needs_space(left: str, right: str) -> bool:
-    if left[-1] in _WORD and right[0] in _WORD:
+    if left[-1] in WORD and right[0] in WORD:
         return True
     return left[-1] in "+-" and right[0] == left[-1]  # `a + +b`, `a - -b`
 
@@ -126,8 +135,8 @@ class _Scanner:
         if prev is None:
             return True
         if prev.kind == "punct":
-            return prev.text in _REGEX_AFTER_PUNCT
-        return prev.kind == "word" and prev.text in _REGEX_AFTER_WORDS
+            return prev.text in REGEX_AFTER_PUNCT
+        return prev.kind == "word" and prev.text in REGEX_AFTER_WORDS
 
     def run(self) -> Minified:
         while self.pos < len(self.src):
@@ -142,7 +151,7 @@ class _Scanner:
                 self.quoted(ch, "str")
             elif ch == "/" and self.regex_allowed():
                 self.regex()
-            elif ch in _WORD:
+            elif ch in WORD:
                 self.word()
             else:
                 self.emit(ch, "punct", self.line)
@@ -217,6 +226,6 @@ class _Scanner:
 
     def word(self) -> None:
         start = self.pos
-        while self.pos < len(self.src) and self.src[self.pos] in _WORD:
+        while self.pos < len(self.src) and self.src[self.pos] in WORD:
             self.pos += 1
         self.emit(self.src[start : self.pos], "word", self.line)
