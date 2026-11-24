@@ -27,6 +27,7 @@ __all__ = [
     "CONTRACTS_DIR",
     "CONTRACT_NAMES",
     "MAX_JSON_BYTES",
+    "RESERVED_TARGET_IDS",
     "ContractError",
     "ContractJsonError",
     "ContractName",
@@ -55,6 +56,9 @@ _HIDDEN_KINDS: Final = frozenset({"split", "encoded", "obfuscated"})
 # 서너 곳이다. 100은 그 30배쯤의 울타리이고, 닻 겹침 검사(둘씩 비교)의 일을 묶는다.
 MAX_LOCATION_ANCHORS: Final = 100
 _REPO_KINDS: Final = frozenset({"planted", "practice"})
+# 빈·문지기 실행의 `run.json` `target_id`(F-R06 2, 실험구조 8.5 2). 대상 목록에 같은 ID가 있으면
+# 그 대상의 실행 ID(`empty-a-1-…`)가 빈·문지기 실행과 같은 꼴이 되어 이름만으로 가를 수 없다(8.8 5)
+RESERVED_TARGET_IDS: Final = frozenset({"empty", "gate"})
 _ANSWERS_DIR: Final = "bench/answers"
 _BUNDLES_DIR: Final = "bench/bundles"
 _DRIVE: Final = re.compile("[A-Za-z]:")
@@ -290,14 +294,17 @@ def _check_decoded(item: Mapping[str, Json], where: str, errors: list[ContractEr
 def check_targets_semantics(
     targets: Mapping[str, Json], repo_root: Path = REPO_ROOT
 ) -> list[ContractError]:
-    """대상 목록 뜻 규칙(2.9·2.10, F-B05): ID 고유, 저장소 대상은 `bench/bundles/<id>`·
-    `bench/answers/<id>.json`, 내 앱은 드라이브 절대 경로이고 풀어 본 뒤에도 저장소 밖."""
+    """대상 목록 뜻 규칙(2.9·2.10·8.8 5, F-B05): ID 고유, 예약 ID(`empty`·`gate`) 아님, 저장소
+    대상은 `bench/bundles/<id>`·`bench/answers/<id>.json`, 내 앱은 드라이브 절대 경로이고 풀어 본
+    뒤에도 저장소 밖."""
     errors: list[ContractError] = []
     seen: set[str] = set()
     for i, entry in enumerate(_objects(targets.get("targets"))):
         where = f"$.targets[{i}]"
         target_id = entry.get("id")
         if isinstance(target_id, str):
+            if target_id in RESERVED_TARGET_IDS:
+                errors.append(ContractError(f"{where}.id", "예약 ID(empty·gate)"))
             if target_id in seen:
                 errors.append(ContractError(f"{where}.id", "id 겹침"))
             seen.add(target_id)
