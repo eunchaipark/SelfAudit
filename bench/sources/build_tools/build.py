@@ -7,8 +7,15 @@
   `{{asset:<src 안 경로>}}` 그 파일의 결과물 경로.
 - `build.json` — 빌드 기록(F-B01 2). 빌드가 쓴다. 번들 폴더 밖이다.
 
-한 파일의 차례: 가짜 값 채우기 → 경로 채우기 → 더한 변환(`steps`) → 압축(JS, `mode: minified`)
-→ 해시 이름(`hash_names`) → 소스맵(`sourcemaps`, 맵의 `sourcesContent`는 변환·압축 전 글).
+한 파일의 차례: 가짜 값 채우기 → 경로 채우기 → 이름 줄이기(JS, `mode: minified`, `rename.py`)
+→ 더한 변환(`steps`) → 압축(JS, `mode: minified`) → 해시 이름(`hash_names`)
+→ 소스맵(`sourcemaps`, 맵의 `sourcesContent`는 이름 줄이기·변환·압축 전 글 —
+실제 빌드처럼 원래 이름).
+
+**이름 줄이기**(F-B01 6, normal·hard): `plan.json` `rename`(줄일 이름 표, 글 목록)의 이름을
+JS 파일마다 짧은 이름으로 바꾼다. 압축 모드에서는 늘 돈다(표가 비면 2자 넘는 선언에서 멈춘다).
+펼침 모드(easy)에 표가 있으면 멈춘다. 표의 이름이 어느 JS 파일에도 이름으로 나오지 않으면 멈춘다
+(지난 원본의 이름이 남은 표는 무엇을 줄였는지 거짓으로 말한다).
 
 **더하는 변환**(T23 `encode.py`, T24 `obfuscate.py`): 이 폴더에 모듈을 더하고
 `plan.json` `plugins`에 이름을 적는다. 모듈은 `FILTERS: Mapping[str, Filter]`
@@ -34,6 +41,7 @@ from common.fingerprint import bundle_manifest_sha256
 from common.paths import is_bundle_relpath, resolve_in_bundle
 from sources.build_tools import fake, sourcemap
 from sources.build_tools.minify import MinifyError, minify_js
+from sources.build_tools.rename import RenameError, check_table, rename_js
 
 __all__ = [
     "BUILD_DIR",
@@ -102,7 +110,9 @@ _CR: Final = chr(0x0D)
 _BUILTIN_FILTERS: Final[Mapping[str, Callable[[str, Sequence[str]], str]]] = {
     "split": fake.split_piece,
 }
-_CORE_MODULES: Final = frozenset({"build", "fake", "locate", "minify", "sourcemap", "verify"})
+_CORE_MODULES: Final = frozenset(
+    {"build", "fake", "locate", "minify", "rename", "sourcemap", "verify"}
+)
 _BUILDING_SUFFIX: Final = ".building"  # 쓰는 동안의 임시 폴더 `bench/bundles/.<id>.building`
 _OLD_SUFFIX: Final = ".old"  # 바꿔 넣는 동안 옛 결과물을 잠깐 두는 곳 `bench/bundles/.<id>.old`
 _PACKAGE: Final = __name__.rpartition(".")[0]
@@ -149,6 +159,7 @@ class _Plan:
     values: Mapping[str, Mapping[str, Json]]
     plugins: tuple[str, ...]
     steps: tuple[_StepUse, ...]
+    rename: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -249,6 +260,7 @@ def _read_plan(path: Path, bundle_id: str) -> _Plan:
         values=_values(raw, bundle_id),
         plugins=tuple(_str_list(raw, "plugins", bundle_id)),
         steps=_steps(raw, bundle_id),
+        rename=frozenset(_str_list(raw, "rename", bundle_id)),
     )
 
 
@@ -356,6 +368,7 @@ class _Builder:
         self.texts: dict[str, str] = {}
         self.names: dict[str, str] = {}
         self.outputs: dict[str, bytes] = {}
+        self.renamed: set[str] = set()
         self._check_plan()
 
     def _check_plan(self) -> None:
@@ -374,6 +387,12 @@ class _Builder:
                 raise BuildError(f"{bid}: 변환 {use.name}의 파일이 src에 없음: {sorted(missing)}")
             if any(not _is_text(rel) for rel in use.files):
                 raise BuildError(f"{bid}: 변환 {use.name}은 글 파일만")
+        if self.plan.rename and self.plan.mode != "minified":
+            raise BuildError(f"{bid}: 펼침 모드(easy)는 이름을 줄이지 않음(rename을 비운다)")
+        try:
+            check_table(self.plan.rename)
+        except RenameError as e:
+            raise BuildError(f"{bid}: {e}") from None
 
     def run(self) -> tuple[dict[str, bytes], dict[str, str], dict[str, str]]:
         for rel, data in self.files.items():
@@ -381,6 +400,11 @@ class _Builder:
                 self.texts[rel] = self._fill_values(rel, _decode(rel, data))
         for rel in self._order():
             self._emit(rel)
+        unused = self.plan.rename - self.renamed
+        if unused:
+            raise BuildError(
+                f"{self.plan.bundle_id}: 줄일 이름 표의 이름이 JS에 나오지 않음: {sorted(unused)}"
+            )
         return self.outputs, self.names, self.values
 
     def _order(self) -> list[str]:
@@ -467,14 +491,15 @@ class _Builder:
             self._put(rel, rel, self.files[rel])
             return
         source = self._fill_assets(rel, text)
-        code = source
+        is_js = PurePosixPath(rel).suffix in JS_SUFFIXES
+        # 이름 줄이기는 줄바꿈을 그대로 두어 압축의 줄 조각(소스맵)이 원본 줄을 그대로 가리킨다
+        code = self._rename(rel, source) if is_js else source
         stepped = False
         for use in self.plan.steps:
             if rel in use.files:
                 ctx = StepContext(self.plan.bundle_id, rel, use.options)
                 code = self.step_table[use.name](code, ctx)
                 stepped = True
-        is_js = PurePosixPath(rel).suffix in JS_SUFFIXES
         segments: tuple[tuple[int, int], ...] = ()
         if is_js and self.plan.mode == "minified":
             try:
@@ -488,6 +513,17 @@ class _Builder:
             mappings = self._mappings(source, segments, stepped)
             code = self._add_map(rel, out_rel, source, code, mappings)
         self._put(rel, out_rel, code.encode("utf-8"))
+
+    def _rename(self, rel: str, source: str) -> str:
+        """F-B01 6: 압축 모드의 JS는 늘 이름 줄이기를 거친다(표가 비어도 선언 검사는 돈다)."""
+        if self.plan.mode != "minified":
+            return source
+        try:
+            renamed = rename_js(source, self.plan.rename, rel)
+        except RenameError as e:
+            raise BuildError(f"{self.plan.bundle_id}: {e}") from None
+        self.renamed |= renamed.used
+        return renamed.code
 
     def _hashed(self, rel: str, code: str) -> str:
         if rel not in self.plan.hash_names:

@@ -3,7 +3,7 @@
   "bundle_id": "easy-1",
   "origin": "planted",
   "difficulty": "easy",
-  "bundle_manifest_sha256": "524649841621a313de4cef2dcbd1f0ce9c8c10d5ea928da35d7f200e90231f2b",
+  "bundle_manifest_sha256": "b73dfecdfbd3dec7c43656a065d67ab4ce4a95c119c4720e0b25c2f775f5186e",
   "complete": true,
   "items": [
     {
@@ -15,19 +15,19 @@
       "hiding": "plain",
       "locations": [
         {
-          "file": "assets/index-0aa4566d.js",
-          "line_start": 12,
-          "line_end": 12,
-          "file_lines": 73
+          "file": "assets/index-a216b437.js",
+          "line_start": 44,
+          "line_end": 44,
+          "file_lines": 111
         },
         {
-          "file": "assets/index-0aa4566d.js",
-          "line_start": 53,
-          "line_end": 53,
-          "file_lines": 73
+          "file": "assets/index-a216b437.js",
+          "line_start": 91,
+          "line_end": 91,
+          "file_lines": 111
         },
         {
-          "file": "assets/index-0aa4566d.js.map",
+          "file": "assets/index-a216b437.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -47,25 +47,25 @@
       "hiding": "config",
       "locations": [
         {
-          "file": "assets/index-0aa4566d.js",
-          "line_start": 7,
-          "line_end": 7,
-          "file_lines": 73
+          "file": "assets/index-a216b437.js",
+          "line_start": 4,
+          "line_end": 4,
+          "file_lines": 111
         },
         {
-          "file": "assets/index-0aa4566d.js",
-          "line_start": 23,
-          "line_end": 23,
-          "file_lines": 73
+          "file": "assets/index-a216b437.js",
+          "line_start": 55,
+          "line_end": 55,
+          "file_lines": 111
         },
         {
-          "file": "assets/index-0aa4566d.js.map",
+          "file": "assets/index-a216b437.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
         }
       ],
-      "anchor": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1LTQ4MjEzIiwicm9sZSI6InN0YWZmIiwiaWF0IjoxNzYzNjAwMDAwfQ.CIGvPrG9Eh50XRQy_a-fJJhyPFfaSLRAkpSPO61n8TI",
+      "anchor": "eyJhbGciOiJIUzI1",
       "decoded_anchor": null,
       "planted": "가짜(생성). 설정 객체 window.__APP_CONFIG__의 sessionToken에 직원 역할 JWT 꼴 토큰을 박아 둠, api()가 모든 요청의 Bearer로 보냄",
       "why": "설정 객체 자리의 토큰을 찾는가(easy 줄 config)"
@@ -80,13 +80,13 @@
       "hiding": "comment",
       "locations": [
         {
-          "file": "assets/index-0aa4566d.js",
-          "line_start": 13,
-          "line_end": 13,
-          "file_lines": 73
+          "file": "assets/index-a216b437.js",
+          "line_start": 45,
+          "line_end": 45,
+          "file_lines": 111
         },
         {
-          "file": "assets/index-0aa4566d.js.map",
+          "file": "assets/index-a216b437.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -107,13 +107,13 @@
       "hiding": "plain",
       "locations": [
         {
-          "file": "assets/index-0aa4566d.js",
-          "line_start": 19,
-          "line_end": 19,
-          "file_lines": 73
+          "file": "assets/index-a216b437.js",
+          "line_start": 51,
+          "line_end": 51,
+          "file_lines": 111
         },
         {
-          "file": "assets/index-0aa4566d.js.map",
+          "file": "assets/index-a216b437.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -165,25 +165,25 @@
       "hiding": "config",
       "locations": [
         {
-          "file": "assets/index-0aa4566d.js",
-          "line_start": 8,
-          "line_end": 8,
-          "file_lines": 73
+          "file": "assets/index-a216b437.js",
+          "line_start": 5,
+          "line_end": 5,
+          "file_lines": 111
         },
         {
-          "file": "assets/index-0aa4566d.js",
-          "line_start": 62,
-          "line_end": 62,
-          "file_lines": 73
+          "file": "assets/index-a216b437.js",
+          "line_start": 100,
+          "line_end": 100,
+          "file_lines": 111
         },
         {
-          "file": "assets/index-0aa4566d.js",
-          "line_start": 63,
-          "line_end": 63,
-          "file_lines": 73
+          "file": "assets/index-a216b437.js",
+          "line_start": 101,
+          "line_end": 101,
+          "file_lines": 111
         },
         {
-          "file": "assets/index-0aa4566d.js.map",
+          "file": "assets/index-a216b437.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -203,19 +203,19 @@
       "hiding": "plain",
       "locations": [
         {
-          "file": "assets/index-0aa4566d.js",
-          "line_start": 58,
-          "line_end": 58,
-          "file_lines": 73
+          "file": "assets/index-a216b437.js",
+          "line_start": 96,
+          "line_end": 96,
+          "file_lines": 111
         },
         {
-          "file": "assets/index-0aa4566d.js",
-          "line_start": 59,
-          "line_end": 59,
-          "file_lines": 73
+          "file": "assets/index-a216b437.js",
+          "line_start": 97,
+          "line_end": 97,
+          "file_lines": 111
         },
         {
-          "file": "assets/index-0aa4566d.js.map",
+          "file": "assets/index-a216b437.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -235,13 +235,13 @@
       "hiding": "none",
       "locations": [
         {
-          "file": "assets/index-0aa4566d.js",
-          "line_start": 73,
-          "line_end": 73,
-          "file_lines": 73
+          "file": "assets/index-a216b437.js",
+          "line_start": 111,
+          "line_end": 111,
+          "file_lines": 111
         },
         {
-          "file": "assets/index-0aa4566d.js.map",
+          "file": "assets/index-a216b437.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -273,13 +273,13 @@
       "hiding": "comment",
       "locations": [
         {
-          "file": "assets/index-0aa4566d.js",
-          "line_start": 14,
-          "line_end": 14,
-          "file_lines": 73
+          "file": "assets/index-a216b437.js",
+          "line_start": 46,
+          "line_end": 46,
+          "file_lines": 111
         },
         {
-          "file": "assets/index-0aa4566d.js.map",
+          "file": "assets/index-a216b437.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -299,13 +299,13 @@
       "hiding": "plain",
       "locations": [
         {
-          "file": "assets/index-0aa4566d.js",
-          "line_start": 59,
-          "line_end": 59,
-          "file_lines": 73
+          "file": "assets/index-a216b437.js",
+          "line_start": 97,
+          "line_end": 97,
+          "file_lines": 111
         },
         {
-          "file": "assets/index-0aa4566d.js.map",
+          "file": "assets/index-a216b437.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -322,57 +322,60 @@
       "id": "E1-D1",
       "locations": [
         {
-          "file": "assets/index-0aa4566d.js",
-          "line_start": 6,
-          "line_end": 6,
-          "file_lines": 73
+          "file": "assets/index-a216b437.js",
+          "line_start": 15,
+          "line_end": 15,
+          "file_lines": 111
         },
         {
-          "file": "assets/index-0aa4566d.js.map",
+          "file": "assets/index-a216b437.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
         }
       ],
       "anchor": "YOUR_API_KEY",
+      "hiding": "config",
       "why": "자리표시값. 채워 넣지 않은 상담 위젯 키 자리라 비밀값이 아니다"
     },
     {
       "id": "E1-D2",
       "locations": [
         {
-          "file": "assets/index-0aa4566d.js",
-          "line_start": 5,
-          "line_end": 5,
-          "file_lines": 73
+          "file": "assets/index-a216b437.js",
+          "line_start": 19,
+          "line_end": 19,
+          "file_lines": 111
         },
         {
-          "file": "assets/index-0aa4566d.js.map",
+          "file": "assets/index-a216b437.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
         }
       ],
       "anchor": "PBA-2048-WEB",
-      "why": "방문 통계 측정 ID. 페이지에 늘 공개되는 식별자라 비밀값이 아니다"
+      "hiding": "plain",
+      "why": "분석 도구의 공개 측정 ID다. trackView()가 화면 이름과 함께 /api/analytics로 보내는 값이고, 키처럼 보여도 브라우저에 실어 보내라고 만든 값이라 비밀이 아니다"
     },
     {
       "id": "E1-D3",
       "locations": [
         {
-          "file": "assets/index-0aa4566d.js",
-          "line_start": 4,
-          "line_end": 4,
-          "file_lines": 73
+          "file": "assets/index-a216b437.js",
+          "line_start": 16,
+          "line_end": 16,
+          "file_lines": 111
         },
         {
-          "file": "assets/index-0aa4566d.js.map",
+          "file": "assets/index-a216b437.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
         }
       ],
       "anchor": "https://res.cloudinary.com/pagebird/image/upload/covers/",
+      "hiding": "config",
       "why": "공개 이미지 CDN의 책 표지 주소. 누구나 받는 바깥 주소라 내부 주소도 비밀도 아니다"
     }
   ]

@@ -29,6 +29,7 @@ from sources.build_tools.verify import (
     check_target,
     repo_target,
 )
+from tests.bundles.conftest import bundle_texts, short_or_none
 
 NORMAL = ("normal-1", "normal-2")
 ALL_CATEGORIES = 8
@@ -48,6 +49,8 @@ PRIVATE_NETWORKS = tuple(
 RESERVED_SUFFIXES = (".test", ".example", ".invalid", ".localhost")
 # 번들 글에 나오는 바깥 호스트: 미끼(공개 CDN)뿐
 PUBLIC_HOSTS = frozenset({"d2q7m4x9k1w8ze.cloudfront.net", "res.cloudinary.com"})
+# 나눠 쓴 미끼 N1-D3의 앞 조각 `https://d2q7m4x9k1w8ze`가 주소 꼴로 읽히는 호스트(이으면 위 CDN)
+SPLIT_HOST_PIECES = frozenset({"d2q7m4x9k1w8ze"})
 IPV4 = re.compile(r"(?<![0-9.])(?:[0-9]{1,3}\.){3}[0-9]{1,3}(?![0-9.])")
 URL_HOST = re.compile(r"(?:https?|wss?)://([A-Za-z0-9.-]+)")
 # 코드가 실행 중에 푸는 자리(압축 꼴, 빈칸 없음). 닻이 바로 뒤에 온다
@@ -318,13 +321,27 @@ def test_F_B03_normal_숨긴정답만_풀어낸값(bundle_id: str) -> None:
 
 @pytest.mark.parametrize("bundle_id", NORMAL)
 def test_F_B03_normal_planted에_가짜생성(bundle_id: str) -> None:
-    """F-B02 7: 규칙 4로 만든 값이 닻이나 풀어낸 값인 정답만 planted에 '가짜(생성)'."""
+    """F-B02 7: 규칙 4로 만든 값이 닻이나 풀어낸 값인 정답만 planted에 '가짜(생성)'.
+
+    그 값은 닻이나 풀어낸 값과 같다 — 64자를 넘고 줄로 가를 수 없는 위치가 있을 때만
+    F-B03 5의 앞 조각(`expected_short`)과 같다.
+    """
     generated = _generated(bundle_id)
+    answers = _answers(bundle_id)
+    texts = bundle_texts(BUNDLES_DIR / bundle_id)
     used: set[str] = set()
     for item in _items(bundle_id):
-        values = {item["anchor"], item["decoded_anchor"]} & generated
-        used |= {str(v) for v in values}
-        assert ("가짜(생성)" in str(item["planted"])) == bool(values), item["id"]
+        entry_id = str(item["id"])
+        found = {
+            value
+            for value in generated
+            for key in ("anchor", "decoded_anchor")
+            if item[key] is not None
+            and item[key]
+            == short_or_none(value, item, answers, texts, decoded=key == "decoded_anchor")
+        }
+        used |= found
+        assert ("가짜(생성)" in str(item["planted"])) == bool(found), entry_id
     assert used == generated  # 만든 값은 모두 정답에 쓰인다
 
 
@@ -366,7 +383,8 @@ def test_F_B02_normal_가짜주소(bundle_id: str) -> None:
     호스트는 그 IP나 정해 둔 공개 CDN뿐이고, 예약 이름은 쓰지 않는다.
     """
     texts = list(_texts(bundle_id).values())
-    texts += [str(i["decoded_anchor"]) for i in _items(bundle_id) if i["decoded_anchor"]]
+    entries = _items(bundle_id) + _entries(_answers(bundle_id), "decoys")
+    texts += [str(e["decoded_anchor"]) for e in entries if e.get("decoded_anchor")]
     ips: set[str] = set()
     for text in texts:
         assert not any(s in text for s in RESERVED_SUFFIXES)
@@ -374,7 +392,7 @@ def test_F_B02_normal_가짜주소(bundle_id: str) -> None:
             ips.add(ip)
             assert any(ipaddress.ip_address(ip) in net for net in PRIVATE_NETWORKS), ip
         for host in URL_HOST.findall(text):
-            assert IPV4.fullmatch(host) or host in PUBLIC_HOSTS, host
+            assert IPV4.fullmatch(host) or host in PUBLIC_HOSTS | SPLIT_HOST_PIECES, host
     assert ips  # 내부 주소 정답이 번들마다 있다
 
 

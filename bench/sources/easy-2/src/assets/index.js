@@ -2,10 +2,38 @@
 window.__APP_CONFIG__ = {
   apiBase: "/api",
   smsGatewayKey: "{{v:E2-01}}",
-  pushServerKey: "CHANGE_ME",
   showDevPanel: true,
-  debugOverlay: false
+  locale: "ko-KR",
+  timezone: "Asia/Seoul",
+  classesPerRow: 3,
+  cancelHours: 12,
+  waitlist: { enabled: true, maxPerClass: 5 },
+  levels: ["입문", "초급", "중급", "상급"],
+  rooms: { A: "1층 요가실", B: "2층 사이클실", C: "2층 근력실" },
+  theme: { primary: "#0c8599", accent: "#e8590c", radius: 8 },
+  pushServerKey: "CHANGE_ME"
 };
+
+// debugOverlay: true 로 두면 수업 카드에 배치 격자를 그린다.
+
+function levelName(level, settings) {
+  return settings.levels[level] || "모든 수준";
+}
+
+function roomName(code, settings) {
+  return settings.rooms[code] || "장소 미정";
+}
+
+function cancelNote(settings) {
+  return "수업 시작 " + settings.cancelHours + "시간 전까지 취소할 수 있습니다";
+}
+
+function emptyNote() {
+  const note = document.createElement("p");
+  note.className = "empty";
+  note.textContent = "이번 주에 열린 수업이 없습니다. 다음 주 시간표는 금요일에 열립니다";
+  return note;
+}
 
 const settings = window.__APP_CONFIG__;
 const SERVICE_TOKEN = "{{v:E2-02}}";
@@ -23,13 +51,18 @@ async function listClasses() {
   const classes = await request("/classes");
   const root = document.getElementById("root");
   root.replaceChildren();
-  for (const group of window._.chunk(classes, 3)) {
+  if (classes.length === 0) {
+    root.append(emptyNote());
+    return;
+  }
+  for (const group of window._.chunk(classes, settings.classesPerRow)) {
     for (const item of group) {
       const card = document.createElement("section");
       card.className = "class-card";
-      card.textContent = item.title + " " + item.startsAt;
+      card.textContent = item.title + " " + item.startsAt + " · " + levelName(item.level, settings) + " · " + roomName(item.room, settings);
       const button = document.createElement("button");
       button.textContent = "예약";
+      button.title = cancelNote(settings);
       button.addEventListener("click", () => book(item.id));
       card.append(button);
       root.append(card);

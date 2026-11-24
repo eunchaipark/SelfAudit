@@ -18,13 +18,14 @@ from common.fingerprint import bundle_manifest_sha256
 from common.lines import count_lines
 from sources.build_tools import fake
 from sources.build_tools.build import BUNDLES_DIR, SOURCES_DIR, build
-from sources.build_tools.locate import write_answers
+from sources.build_tools.locate import SHORT_MIN, write_answers
 from sources.build_tools.verify import (
     HIDING_BY_DIFFICULTY,
     REPO_ROOT,
     check_target,
     repo_target,
 )
+from tests.bundles.conftest import bundle_texts, expected_short
 
 EASY = ("easy-1", "easy-2")
 ALL_CATEGORIES = 8
@@ -95,15 +96,25 @@ def _generated(bundle_id: str) -> dict[str, str]:
 def test_F_B03_easy_planted에_가짜생성(bundle_id: str) -> None:
     """F-B02 7: 규칙 4로 만든 값(키·토큰·비밀번호)이 든 정답은 planted에 '가짜(생성)'.
 
-    그 밖의 정답에는 없다.
+    그 밖의 정답에는 없다. 규칙 4로 만든 값이 든 정답의 닻은 그 값과 같다 — 값이 64자를 넘고
+    줄로 가를 수 없는 위치가 있을 때만 F-B03 5의 앞 조각(`expected_short`)과 같다.
     """
+    plan = json.loads((SOURCES_DIR / bundle_id / "plan.json").read_text(encoding="utf-8"))
+    answers = _answers(bundle_id)
+    texts = bundle_texts(BUNDLES_DIR / bundle_id)
     generated = _generated(bundle_id)
     forms: set[str] = set()
-    for item in _entries(_answers(bundle_id), "items"):
-        form = generated.get(str(item["anchor"]))
-        assert ("가짜(생성)" in str(item["planted"])) == (form is not None), item["id"]
-        if form is not None:
-            forms.add(form)
+    for item in _entries(answers, "items"):
+        entry_id = str(item["id"])
+        spec = plan["values"].get(entry_id)
+        assert ("가짜(생성)" in str(item["planted"])) == (spec is not None), entry_id
+        if spec is None:
+            assert item["anchor"] not in generated, entry_id
+            continue
+        value = fake.make_value(bundle_id, entry_id, spec)
+        expected = expected_short(value, item, answers, texts, decoded=False)
+        assert item["anchor"] == expected, entry_id
+        forms.add(str(spec["form"]))
     assert forms == {"key", "token", "password"}
 
 
@@ -155,10 +166,15 @@ def test_F_B07_쉬움_두번들합쳐_범주8개() -> None:
 
 
 def test_F_B02_easy1_명세예시값() -> None:
-    """F-B02 예시의 시드(`easy-1/E1-01`·`E1-02`·`E1-07`)로 만든 값이 easy-1 정답의 닻이다."""
+    """F-B02 예시의 시드(`easy-1/E1-01`·`E1-02`·`E1-07`)로 만든 값이 easy-1 정답의 닻이다.
+
+    E1-02 토큰(147자)은 맵 위치가 줄로 가를 수 없어 닻이 앞 16자다(F-B03 5 예시 — CR-008).
+    """
+    generated = _generated("easy-1")
+    assert {SPEC_KEY, SPEC_TOKEN, SPEC_PASSWORD} <= set(generated)
     anchors = {str(i["id"]): i["anchor"] for i in _entries(_answers("easy-1"), "items")}
     assert anchors["E1-01"] == SPEC_KEY
-    assert anchors["E1-02"] == SPEC_TOKEN
+    assert anchors["E1-02"] == SPEC_TOKEN[:SHORT_MIN] == "eyJhbGciOiJIUzI1"
     assert anchors["E1-07"] == SPEC_PASSWORD
 
 

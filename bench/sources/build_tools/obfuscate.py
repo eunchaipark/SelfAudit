@@ -14,7 +14,8 @@
    k번 해 되돌린다. 적힌 차례로 세면 찾기 번호와 글이 어긋난다.
 3. **글자 코드**: 배열의 글은 글자마다 16진 글자 코드(`\\x7a`, 0xff 위는 `\\uXXXX`, BMP 밖은
    UTF-16 두 칸)로 적는다. 그래서 옮긴 글은 결과물에 글 그대로 없다.
-이름(변수·함수)은 바꾸지 않는다 — 명세의 세 방법 밖이고, 바꾸어도 숨긴 값은 같다.
+이름(변수·함수)은 여기서 바꾸지 않는다 — 명세의 세 방법 밖이다. 이름 줄이기(F-B01 6)는 빌드가
+이 변환 전에 `rename.py`로 한다.
 
 받는 원본이 좁다(시험 번들 원본은 우리가 쓰므로 이 꼴에 맞춰 쓴다. 밖이면 멈추고 원본 줄을 알린다):
 템플릿 글(`` `…` ``), 정적 `import … from "…"`·`export … from "…"`(그 자리의 글은 식이 될 수 없다),
@@ -34,7 +35,7 @@ from dataclasses import dataclass
 from typing import Final
 
 from sources.build_tools.build import Filter, Step, StepContext
-from sources.build_tools.minify import _REGEX_AFTER_PUNCT, _REGEX_AFTER_WORDS, _WORD
+from sources.build_tools.minify import REGEX_AFTER_PUNCT, REGEX_AFTER_WORDS, WORD
 
 __all__ = [
     "FILTERS",
@@ -367,8 +368,8 @@ class _Scanner:
         if ch == "/" and self.regex_allowed():
             self.regex()
             return "regex"
-        if ch in _WORD:
-            while self.pos < len(self.src) and self.src[self.pos] in _WORD:
+        if ch in WORD:
+            while self.pos < len(self.src) and self.src[self.pos] in WORD:
                 self.pos += 1
             return "word"
         self.pos += 1
@@ -386,8 +387,8 @@ class _Scanner:
         if prev is None:
             return True
         if prev.kind == "punct":
-            return prev.text in _REGEX_AFTER_PUNCT
-        return prev.kind == "word" and prev.text in _REGEX_AFTER_WORDS
+            return prev.text in REGEX_AFTER_PUNCT
+        return prev.kind == "word" and prev.text in REGEX_AFTER_WORDS
 
     def block_comment(self) -> None:
         end = self.src.find("*/", self.pos + 2)

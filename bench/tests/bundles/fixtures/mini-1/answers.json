@@ -3,7 +3,7 @@
   "bundle_id": "mini-1",
   "origin": "planted",
   "difficulty": "easy",
-  "bundle_manifest_sha256": "b7a8de51c478506b89b96596c43541f761dd4e2b0243ecf0338f130f4a00b5d5",
+  "bundle_manifest_sha256": "e8f5616fa43c7d46e5734edf84ad95bda8d9edadd0ff063e2021b1b26aaccb04",
   "complete": true,
   "items": [
     {
@@ -90,7 +90,7 @@
       "hiding": "none",
       "locations": [
         {"file": "assets/app.js", "line_start": 20, "line_end": 20, "file_lines": 20},
-        {"file": "assets/app.js.map", "line_start": 1, "line_end": 1, "file_lines": 1}
+        {"file": "assets/app.js.map", "line_start": 1, "line_end": 1, "file_lines": 1, "anchor": "src/app.js"}
       ],
       "anchor": "sourceMappingURL=app.js.map",
       "decoded_anchor": null,
@@ -125,13 +125,15 @@
       "id": "M-D1",
       "locations": [{"file": "assets/app.js", "line_start": 7, "line_end": 7, "file_lines": 20}],
       "anchor": "YOUR_API_KEY",
+      "hiding": "config",
       "why": "자리표시값. 비밀값이 아니다"
     },
     {
       "id": "M-D2",
-      "locations": [{"file": "assets/app.js", "line_start": 12, "line_end": 12, "file_lines": 20}],
+      "locations": [{"file": "assets/app.js", "line_start": 7, "line_end": 7, "file_lines": 20}],
       "anchor": "http://localhost:5173",
-      "why": "개발할 때만 쓰는 로컬 주소 주석. 내부 주소 노출이 아니다"
+      "hiding": "config",
+      "why": "개발할 때만 쓰는 로컬 개발 서버 주소 설정. 내부 주소 노출이 아니다"
     }
   ]
 }

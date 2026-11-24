@@ -32,6 +32,7 @@ from sources.build_tools.verify import (
     check_target,
     repo_target,
 )
+from tests.bundles.conftest import bundle_texts, expected_short, short_or_none
 
 HARD = ("hard-1", "hard-2")
 ALL_CATEGORIES = 8
@@ -78,8 +79,9 @@ DECOY_HIDING = {
     "H2-D2": "split",
     "H2-D3": "sourcemap_only",
 }
-# 한 정답의 값을 상수에 담는 자리(압축 꼴) — 돌리기 시험이 찾기 번호를 읽는다
-CONST_SLOTS = {"hard-1": ("GEO_KEY", "H1-01"), "hard-2": ("PARTNER_KEY", "H2-01")}
+# 한 정답의 값을 상수에 담는 자리(압축 꼴 `const <짧은 이름>=<찾기>(0x…);`) — 돌리기 시험이
+# 찾기 번호를 읽는다. 상수 이름은 이름 줄이기(F-B01 6)로 짧아져 이름이 아니라 값으로 찾는다
+CONST_SLOTS = {"hard-1": "H1-01", "hard-2": "H2-01"}
 SAMPLE = (
     'const cfg = {apiBase: "/api", "dumpState": true};\n'
     'const url = cfg.apiBase + "/me";\n'
@@ -201,6 +203,14 @@ def _generated(bundle_id: str) -> dict[str, str]:
     }
 
 
+def _expected_decoded(bundle_id: str, entry: dict[str, Json], whole: str) -> str:
+    """정답지 풀어낸 값의 기대값: 값 전체 `whole`, 64자를 넘고 줄로 가를 수 없는 위치가 있으면
+    F-B03 5의 앞 조각(`expected_short`)."""
+    answers = _answers(bundle_id)
+    texts = bundle_texts(BUNDLES_DIR / bundle_id)
+    return expected_short(whole, entry, answers, texts, decoded=True)
+
+
 def _named(code: str, decoded: Decoded) -> str:
     """시험에서 읽기 쉽게 배열·찾기 함수 이름을 A·F로 바꾼 글."""
     return code.replace(decoded.array_name, "A").replace(decoded.lookup_name, "F")
@@ -231,7 +241,10 @@ def test_F_B02_hard_글자코드() -> None:
         for item in _items(bundle_id):
             if item["hiding"] not in {"obfuscated", "split"}:
                 continue
-            anchor, value = str(item["anchor"]), str(item["decoded_anchor"])
+            anchor = str(item["anchor"])
+            # 풀어낸 값 전체: 심기 계획 값이면 그 값, 아니면(경로·주소) 정답지의 값
+            value = _generated(bundle_id).get(str(item["id"]), str(item["decoded_anchor"]))
+            assert item["decoded_anchor"] == _expected_decoded(bundle_id, item, value), item["id"]
             assert CHAR_CODES.fullmatch(anchor), item["id"]
             assert anchor in code, item["id"]
             plain = _unescape(anchor)
@@ -327,15 +340,15 @@ def test_F_B02_hard_돌리기() -> None:
         assert decoded.logical != decoded.stored, bundle_id
         first_seen = list(dict.fromkeys(decoded.lookups()))
         assert first_seen == list(range(n)), bundle_id  # 처음 나온 차례 = 되돌린 배열 차례
-        name, entry_id = CONST_SLOTS[bundle_id]
-        m = re.search(
-            rf"const {name}={re.escape(decoded.lookup_name)}\((0x[0-9a-f]+)\);", decoded.body
+        value = _generated(bundle_id)[CONST_SLOTS[bundle_id]]
+        slots = re.finditer(
+            rf"const [A-Za-z]{{1,2}}={re.escape(decoded.lookup_name)}\((0x[0-9a-f]+)\);",
+            decoded.body,
         )
-        assert m is not None, bundle_id
-        index = int(m.group(1), 16)
-        value = _generated(bundle_id)[entry_id]
-        assert decoded.logical[index] == value, bundle_id
-        assert decoded.stored[index] != value, bundle_id  # 돌리지 않고 읽으면 다른 글
+        indexes = [int(m.group(1), 16) for m in slots]
+        matched = [i for i in indexes if decoded.logical[i] == value]
+        assert len(matched) == 1, bundle_id
+        assert decoded.stored[matched[0]] != value, bundle_id  # 돌리지 않고 읽으면 다른 글
 
 
 def test_F_B02_hard_sourcemap_only_값은_map에만() -> None:
@@ -379,7 +392,9 @@ def test_F_B02_hard_split() -> None:
                 pieces = _pieces_in_array(generated[entry_id], decoded.stored)
             whole = "".join(pieces)
             if "decoded_anchor" in entry:
-                assert entry["decoded_anchor"] == whole, entry_id
+                assert entry["decoded_anchor"] == _expected_decoded(bundle_id, entry, whole), (
+                    entry_id
+                )
             assert all(p in decoded.stored for p in pieces), entry_id
             assert not any(whole in t or obfuscate.char_codes(whole) in t for t in texts)
             for left, right in itertools.pairwise(pieces):
@@ -568,8 +583,19 @@ def test_F_B03_hard_planted에_가짜생성() -> None:
             entry_id = str(item["id"])
             assert ("가짜(생성)" in str(item["planted"])) == (entry_id in generated), entry_id
             if entry_id in generated:
+                # 그 값이 닻이나 풀어낸 값과 같다 — 64자를 넘고 줄로 가를 수 없는 위치가 있을 때만
+                # F-B03 5의 앞 조각(`expected_short`)과 같다
                 value = generated[entry_id]
-                assert value in {item["anchor"], item["decoded_anchor"]}, entry_id
+                answers = _answers(bundle_id)
+                texts = bundle_texts(BUNDLES_DIR / bundle_id)
+                matched = [
+                    key
+                    for key in ("anchor", "decoded_anchor")
+                    if item[key] is not None
+                    and item[key]
+                    == short_or_none(value, item, answers, texts, decoded=key == "decoded_anchor")
+                ]
+                assert matched, entry_id
 
 
 def test_F_B03_hard_두번들합쳐_키·토큰·비밀번호() -> None:

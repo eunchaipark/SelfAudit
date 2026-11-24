@@ -3,7 +3,7 @@
   "bundle_id": "easy-2",
   "origin": "planted",
   "difficulty": "easy",
-  "bundle_manifest_sha256": "e77c20af2a813d0e6496bd69f7b2fffd328a6822fc9411535e5f71f624f0aa1f",
+  "bundle_manifest_sha256": "af10e1fe83ef1b26c27753dc662ddb2777e442f2c15714f8cc45d196c5b357d6",
   "complete": true,
   "items": [
     {
@@ -15,19 +15,19 @@
       "hiding": "config",
       "locations": [
         {
-          "file": "assets/index-c6383de4.js",
+          "file": "assets/index-06497b37.js",
           "line_start": 4,
           "line_end": 4,
-          "file_lines": 75
+          "file_lines": 108
         },
         {
-          "file": "assets/index-c6383de4.js",
-          "line_start": 52,
-          "line_end": 52,
-          "file_lines": 75
+          "file": "assets/index-06497b37.js",
+          "line_start": 85,
+          "line_end": 85,
+          "file_lines": 108
         },
         {
-          "file": "assets/index-c6383de4.js.map",
+          "file": "assets/index-06497b37.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -47,25 +47,25 @@
       "hiding": "plain",
       "locations": [
         {
-          "file": "assets/index-c6383de4.js",
-          "line_start": 11,
-          "line_end": 11,
-          "file_lines": 75
+          "file": "assets/index-06497b37.js",
+          "line_start": 39,
+          "line_end": 39,
+          "file_lines": 108
         },
         {
-          "file": "assets/index-c6383de4.js",
-          "line_start": 59,
-          "line_end": 59,
-          "file_lines": 75
+          "file": "assets/index-06497b37.js",
+          "line_start": 92,
+          "line_end": 92,
+          "file_lines": 108
         },
         {
-          "file": "assets/index-c6383de4.js.map",
+          "file": "assets/index-06497b37.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
         }
       ],
-      "anchor": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzdmMtYm9va2luZyIsInJvbGUiOiJzZXJ2aWNlIiwiaWF0IjoxNzYzNjAwMDAwfQ.SNVjQLweBAlBJ2dWvhH8-7w1FyYzVmv5eAK-t4Vf2q0",
+      "anchor": "eyJhbGciOiJIUzI1",
       "decoded_anchor": null,
       "planted": "가짜(생성). 상수 SERVICE_TOKEN에 서비스 계정 JWT 꼴 토큰을 평문으로, exportMembers()가 Bearer로 보냄",
       "why": "평문 토큰을 찾는가(easy 줄 plain)"
@@ -80,13 +80,13 @@
       "hiding": "plain",
       "locations": [
         {
-          "file": "assets/index-c6383de4.js",
-          "line_start": 58,
-          "line_end": 58,
-          "file_lines": 75
+          "file": "assets/index-06497b37.js",
+          "line_start": 91,
+          "line_end": 91,
+          "file_lines": 108
         },
         {
-          "file": "assets/index-c6383de4.js.map",
+          "file": "assets/index-06497b37.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -106,13 +106,13 @@
       "hiding": "comment",
       "locations": [
         {
-          "file": "assets/index-c6383de4.js",
-          "line_start": 15,
-          "line_end": 15,
-          "file_lines": 75
+          "file": "assets/index-06497b37.js",
+          "line_start": 43,
+          "line_end": 43,
+          "file_lines": 108
         },
         {
-          "file": "assets/index-c6383de4.js.map",
+          "file": "assets/index-06497b37.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -150,10 +150,10 @@
           "file_lines": 1
         }
       ],
-      "anchor": "lodash v4.17.15",
+      "anchor": "4.17.15",
       "decoded_anchor": null,
       "planted": "vendor.js 배너와 VERSION에 lodash 4.17.15(프로토타입 오염 CVE-2020-8203은 4.17.19, CVE-2021-23337은 4.17.21에서 고침)",
-      "why": "버전 배너로 알려진 취약점이 있는 옛 라이브러리를 알아보는가"
+      "why": "버전 배너로 알려진 취약점이 있는 옛 라이브러리를 알아보는가. 판정 기준은 배너·VERSION의 버전 4.17.15다(흉내 코드라 취약한 함수 자체는 없음)"
     },
     {
       "id": "E2-06",
@@ -164,25 +164,25 @@
       "hiding": "config",
       "locations": [
         {
-          "file": "assets/index-c6383de4.js",
-          "line_start": 6,
-          "line_end": 6,
-          "file_lines": 75
+          "file": "assets/index-06497b37.js",
+          "line_start": 5,
+          "line_end": 5,
+          "file_lines": 108
         },
         {
-          "file": "assets/index-c6383de4.js",
-          "line_start": 70,
-          "line_end": 70,
-          "file_lines": 75
+          "file": "assets/index-06497b37.js",
+          "line_start": 103,
+          "line_end": 103,
+          "file_lines": 108
         },
         {
-          "file": "assets/index-c6383de4.js",
-          "line_start": 71,
-          "line_end": 71,
-          "file_lines": 75
+          "file": "assets/index-06497b37.js",
+          "line_start": 104,
+          "line_end": 104,
+          "file_lines": 108
         },
         {
-          "file": "assets/index-c6383de4.js.map",
+          "file": "assets/index-06497b37.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -202,19 +202,19 @@
       "hiding": "plain",
       "locations": [
         {
-          "file": "assets/index-c6383de4.js",
-          "line_start": 12,
-          "line_end": 12,
-          "file_lines": 75
+          "file": "assets/index-06497b37.js",
+          "line_start": 40,
+          "line_end": 40,
+          "file_lines": 108
         },
         {
-          "file": "assets/index-c6383de4.js",
-          "line_start": 64,
-          "line_end": 64,
-          "file_lines": 75
+          "file": "assets/index-06497b37.js",
+          "line_start": 97,
+          "line_end": 97,
+          "file_lines": 108
         },
         {
-          "file": "assets/index-c6383de4.js.map",
+          "file": "assets/index-06497b37.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -234,13 +234,13 @@
       "hiding": "none",
       "locations": [
         {
-          "file": "assets/index-c6383de4.js",
-          "line_start": 75,
-          "line_end": 75,
-          "file_lines": 75
+          "file": "assets/index-06497b37.js",
+          "line_start": 108,
+          "line_end": 108,
+          "file_lines": 108
         },
         {
-          "file": "assets/index-c6383de4.js.map",
+          "file": "assets/index-06497b37.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -272,19 +272,19 @@
       "hiding": "plain",
       "locations": [
         {
-          "file": "assets/index-c6383de4.js",
-          "line_start": 13,
-          "line_end": 13,
-          "file_lines": 75
+          "file": "assets/index-06497b37.js",
+          "line_start": 41,
+          "line_end": 41,
+          "file_lines": 108
         },
         {
-          "file": "assets/index-c6383de4.js",
-          "line_start": 65,
-          "line_end": 65,
-          "file_lines": 75
+          "file": "assets/index-06497b37.js",
+          "line_start": 98,
+          "line_end": 98,
+          "file_lines": 108
         },
         {
-          "file": "assets/index-c6383de4.js.map",
+          "file": "assets/index-06497b37.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
@@ -301,39 +301,41 @@
       "id": "E2-D1",
       "locations": [
         {
-          "file": "assets/index-c6383de4.js",
-          "line_start": 5,
-          "line_end": 5,
-          "file_lines": 75
+          "file": "assets/index-06497b37.js",
+          "line_start": 14,
+          "line_end": 14,
+          "file_lines": 108
         },
         {
-          "file": "assets/index-c6383de4.js.map",
+          "file": "assets/index-06497b37.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
         }
       ],
       "anchor": "CHANGE_ME",
+      "hiding": "config",
       "why": "자리표시값. 배포 때 바꿔 넣을 자리라 비밀값이 아니다"
     },
     {
       "id": "E2-D2",
       "locations": [
         {
-          "file": "assets/index-c6383de4.js",
-          "line_start": 7,
-          "line_end": 7,
-          "file_lines": 75
+          "file": "assets/index-06497b37.js",
+          "line_start": 17,
+          "line_end": 17,
+          "file_lines": 108
         },
         {
-          "file": "assets/index-c6383de4.js.map",
+          "file": "assets/index-06497b37.js.map",
           "line_start": 1,
           "line_end": 1,
           "file_lines": 1
         }
       ],
       "anchor": "debugOverlay",
-      "why": "꺼져 있는 디버그 플래그(false)이고 코드 어디에서도 읽지 않는다"
+      "hiding": "comment",
+      "why": "주석에만 있는 'debugOverlay: true 로 두면 격자를 그린다'는 메모다. 설정 객체에도 코드에도 그 플래그를 읽는 곳이 없어 켜지는 디버그 동작이 없다"
     }
   ]
 }

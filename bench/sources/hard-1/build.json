@@ -16,17 +16,18 @@
     "python": "3.13.7",
     "node": null,
     "build_scripts_sha256": {
-      "__init__.py": "1157553b746adeb67fe1d14b0fe8e2a4621469f5cc19dcc7a24b00217182dce1",
+      "__init__.py": "26d2ca082941a390c8cfbd3cf1f01391f0021fe379d76b1563521023f915711e",
       "__main__.py": "2be6591eebada1673ae0a1867c44cf4a7f26ffe8e64ab048868c9472513838ed",
-      "build.py": "c839b21825aad4bce31472874db90b89fc2fec101c1fc596936cf4ff7aa50d2d",
+      "build.py": "09602fee93aa6381a73aa84d31f21794c19ad60ada54a97b4eabe4672f4e418a",
       "encode.py": "ba8fd3e7684dc5315f01bee48f90871617e442f1538e620fc8f0ca6275edc2d8",
-      "fake.py": "fce08d75bb478e29c6ba3375259f1182effa61dd3c0a572f4aebbe7d4ebdde25",
-      "locate.py": "eb62f5796340dca2193ed63d7f53351fc04a232cde25abf3fddaf44d8b2c44c5",
-      "minify.py": "2a0b13c6d65dcc05338aea67052862b111d2b9b54e765d3c65faaeb5fcefcc27",
-      "obfuscate.py": "c2583599fc5614a045e138d908c8e4b42d0e5404cbe1a2b117f04d702b458dd8",
+      "fake.py": "41b17fe3ef33ea3390e531c6a888ea409bee1fae34255518647e770af6291315",
+      "locate.py": "4bb09288c4709a9496c57372521106c60f631fc08e5b1ef2284cfb22311880bb",
+      "minify.py": "a615257ee7e5a8956cfb173b034f005e9b0cfbd58900fc3d1a6c548f54f54fb6",
+      "obfuscate.py": "f88dd4b5c8d513f422482f0fb88b373c33a0a9203efb9297bdd03e0896dfb48b",
+      "rename.py": "f90c8ebe0f1bded7bc32477f5bd0f6c5e81ebaedf4a6d5ff738843b9a8aa90ee",
       "sourcemap.py": "a33d5a8fcb174f47f984adf537b6e167e9c55994c18db0cbef15306183a94ebf",
-      "verify.py": "400e18081b001e9687bd8dcdc9bc47bf6554610d07e7db0a301ef1c64e1ced6b"
+      "verify.py": "3eb85b808d7e4b266e569854eb043b439552b405b85d3c5405d24e4ef3d8b4dd"
     }
   },
-  "bundle_manifest_sha256": "d3c8daa16f052214bd61f932db2038113294dbdccde8c402814d43342e0e027a"
+  "bundle_manifest_sha256": "1878670f9757de867efe63eff38de1dcbf05a553b0f1919ce8b0d0310d17ba1f"
 }
