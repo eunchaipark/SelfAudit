@@ -14,6 +14,7 @@ from pathlib import Path, PureWindowsPath
 from typing import Final, Literal
 
 from common.schema import (
+    MAX_ERRORS,
     ContractError,
     Json,
     SchemaUnsupportedError,
@@ -50,6 +51,9 @@ MAX_JSON_BYTES: Final = 4 * 1024 * 1024
 _ERRORS_IN_MESSAGE: Final = 20
 
 _HIDDEN_KINDS: Final = frozenset({"split", "encoded", "obfuscated"})
+# 정답지 하나의 위치 닻 상한(8.4 2). 지금 필요한 곳은 여섯 번들을 합쳐 8곳이라 번들 하나는 많아야
+# 서너 곳이다. 100은 그 30배쯤의 울타리이고, 닻 겹침 검사(둘씩 비교)의 일을 묶는다.
+MAX_LOCATION_ANCHORS: Final = 100
 _REPO_KINDS: Final = frozenset({"planted", "practice"})
 _ANSWERS_DIR: Final = "bench/answers"
 _BUNDLES_DIR: Final = "bench/bundles"
@@ -161,7 +165,8 @@ def read_contract(name: ContractName, path: Path) -> dict[str, Json]:
 
 
 def check_answers_semantics(answers: Mapping[str, Json]) -> list[ContractError]:
-    """정답지 뜻 규칙(2.10): 줄 범위, ID 고유, 종류와 난이도·complete, 풀어낸 값."""
+    """정답지 뜻 규칙(2.10·8.4): 줄 범위, ID 고유, 종류와 난이도·complete, 풀어낸 값(정답·미끼),
+    위치 닻·풀어낸 값이 다른 닻과 겹치지 않음(8.4 '닻 겹침')."""
     errors: list[ContractError] = []
     _check_origin(answers, errors)
     seen: set[str] = set()
@@ -175,8 +180,8 @@ def check_answers_semantics(answers: Mapping[str, Json]) -> list[ContractError]:
                 seen.add(entry_id)
             for j, location in enumerate(_objects(entry.get("locations"))):
                 _check_location(location, f"{where}.locations[{j}]", errors)
-            if group == "items":
-                _check_decoded(entry, where, errors)
+            _check_decoded(entry, where, errors)
+    _check_anchor_overlaps(answers, errors)
     return errors
 
 
@@ -198,7 +203,81 @@ def _check_location(location: Mapping[str, Json], where: str, errors: list[Contr
         errors.append(ContractError(where, "line_end <= file_lines"))
 
 
+def _anchor_texts(answers: Mapping[str, Json]) -> list[tuple[str, str, str, str]]:
+    """정답지의 닻 글 모두: (주인 정답·미끼 자리, 칸 자리, 칸 종류, 글)."""
+    texts: list[tuple[str, str, str, str]] = []
+    for group in ("items", "decoys"):
+        for i, entry in enumerate(_objects(answers.get(group))):
+            owner = f"$.{group}[{i}]"
+            for key in ("anchor", "decoded_anchor"):
+                value = entry.get(key)
+                if isinstance(value, str):
+                    texts.append((owner, f"{owner}.{key}", key, value))
+            for j, location in enumerate(_objects(entry.get("locations"))):
+                value = location.get("anchor")
+                if isinstance(value, str):
+                    texts.append((owner, f"{owner}.locations[{j}].anchor", "location", value))
+    return texts
+
+
+def _overlap(a: str, b: str) -> str | None:
+    if a == b:
+        return "같음"
+    if a in b or b in a:
+        return "들어 있음"
+    return None
+
+
+def _check_anchor_overlaps(answers: Mapping[str, Json], errors: list[ContractError]) -> None:
+    """닻 겹침(8.4 2·6). 위치 닻과 풀어낸 값은 번들 안 고유성(F-B07 6)을 받지 않거나(풀어낸 값)
+    새 칸이라, 정답지 안에서 다른 닻과 '같음'·'들어 있음'(어느 쪽이 어느 쪽 안이든)을 막는다.
+
+    - 다른 정답·미끼: 위치 닻·풀어낸 값 ↔ 그쪽의 닻·풀어낸 값·위치 닻 — 같음·들어 있음 모두 오류.
+      한 결과의 evidence가 두 정답(또는 정답과 미끼)에 같이 맞게 되기 때문이다.
+    - 같은 정답·미끼: 위치 닻 ↔ 자기 닻 — 같음·들어 있음 오류(닻이 이미 그 자리를 가리키거나,
+      위치 닻이 닻이 나오는 다른 자리에도 나온다). 위치 닻 ↔ 자기 풀어낸 값 — 같음만 오류.
+      나눠 쓴 값은 조각(위치 닻)이 풀어낸 값 안에 드는 것이 정상이다(N2-01).
+      자기 위치 닻끼리는 보지 않는다(같은 정답을 가리킬 뿐이다).
+
+    비용: 둘씩 비교라 닻 글 수의 제곱이다. 위치 닻은 정답지 하나에 MAX_LOCATION_ANCHORS(100)까지,
+    닻·풀어낸 값은 정답 200 + 미끼 50의 두 칸(500)이라 많아야 600 × 350쌍, 각 글 200자 —
+    2진 글자 꼴 최악에서 0.25초쯤(2026-11-24 잼, 실험구조 8.4 '닻 겹침').
+    오류는 MAX_ERRORS에서 멈춘다.
+    """
+    texts = _anchor_texts(answers)
+    if sum(1 for _, _, kind, _ in texts if kind == "location") > MAX_LOCATION_ANCHORS:
+        errors.append(ContractError("$", f"위치 닻 {MAX_LOCATION_ANCHORS}개 넘음"))
+        return
+    found = 0
+    for i, (owner, where, kind, text) in enumerate(texts):
+        if kind == "anchor":
+            continue  # 닻끼리는 F-B07 6(번들 안 고유성)이 본다
+        for j, (other_owner, other_where, other_kind, other) in enumerate(texts):
+            if i == j or (other_kind != "anchor" and j < i):
+                continue  # 새 칸끼리는 한 번만
+            if other_owner == owner:
+                pair = {kind, other_kind}
+                if pair == {"location", "anchor"}:
+                    rule = _overlap(text, other)
+                elif pair == {"location", "decoded_anchor"}:
+                    rule = "같음" if text == other else None
+                else:
+                    continue  # 풀어낸 값 ↔ 자기 닻은 _check_decoded, 자기 위치 닻끼리는 보지 않음
+            else:
+                rule = _overlap(text, other)
+            if rule is None:
+                continue
+            if found >= MAX_ERRORS:
+                errors.append(ContractError("$", f"닻 겹침 {MAX_ERRORS}곳에서 멈춤, 나머지 생략"))
+                return
+            errors.append(ContractError(where, f"닻 겹침: {rule} ({other_where})"))
+            found += 1
+
+
 def _check_decoded(item: Mapping[str, Json], where: str, errors: list[ContractError]) -> None:
+    """풀어낸 값(정답·미끼, 8.4 6): 숨긴 방법이 split·encoded·obfuscated일 때만, anchor와 다르게.
+
+    미끼는 `hiding`이 선택 칸이라 없으면 숨긴 방법이 아닌 것으로 본다."""
     decoded = item.get("decoded_anchor")
     if decoded is None:
         return
