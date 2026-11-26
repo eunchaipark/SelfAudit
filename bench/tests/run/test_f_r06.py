@@ -375,6 +375,81 @@ def test_F_R06_JSON_슬래시이스케이프_홈꼴도_가림() -> None:
     assert got == rb"<HOME>\/.ssh"
 
 
+def _js(text: str, *, ascii_only: bool = True) -> str:
+    return json.dumps(text, ensure_ascii=ascii_only)[1:-1]
+
+
+KO_WIN = KO_HOME + "\\x"
+KO_SLASH = KO_WIN.replace("\\", "/")
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        _js(_js(KO_WIN, ascii_only=False), ascii_only=False),  # 역슬래시 넷 + 한글 그대로
+        _js(_js(KO_WIN)),  # 역슬래시 넷 + 두 겹 \\uXXXX
+        _js(_js(KO_WIN, ascii_only=False)),  # 역슬래시 넷 + 한 겹 \uXXXX
+        _js(_js(KO_SLASH)),  # / 구분 + 두 겹 \\uXXXX
+        _js(_js(KO_SLASH[2:])),  # 드라이브 없음 + 두 겹
+        _js(_js(KO_WIN[2:], ascii_only=False), ascii_only=False),  # 드라이브 없음 + 역슬래시 넷
+        _js(_js(KO_SLASH).replace("/", "\\/")),  # 두 겹 JSON의 \/ 꼴
+        _js(_js(KO_SLASH, ascii_only=False).replace("/", "\\/"), ascii_only=False),
+        KO_WIN.replace("\\", "\\\\\\"),  # 역슬래시 셋
+        "C:\\\\Users\\\\\\\\" + KO_HOME[9:] + "\\x",  # 겹이 다른 구분자가 섞임
+        "C:\\Users\\" + _js(_js(KO_HOME[9:])) + "\\x",  # 구분자 한 겹 + 이름 두 겹
+    ],
+    ids=[
+        "넷",
+        "넷_u두겹",
+        "넷_u한겹",
+        "슬래시_u두겹",
+        "드라이브없음_u두겹",
+        "드라이브없음_넷",
+        "두겹_슬래시이스케이프",
+        "두겹_슬래시이스케이프_그대로",
+        "셋",
+        "둘과넷섞임",
+        "한겹구분_두겹이름",
+    ],
+)
+def test_F_R06_두겹JSON_홈꼴도_가림(text: str) -> None:
+    """도구가 낸 JSON 글이 stream-json 줄에 다시 실리면 역슬래시가 넷이 된다(실험구조 8.10 2)."""
+    got = rs.mask_paths(text.encode(), RUN_U, KO_HOME)
+    assert b"<HOME>" in got
+    assert not rs.home_left(got, KO_HOME)
+    assert KO_HOME[9:].encode() not in got and b"c740" not in got.lower()
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        _js(_js(KO_SLASH)).replace("c740", "C740"),  # 두 겹 \\uXXXX 대문자 16진
+        _js(_js("C:\\USERS\\U\\x", ascii_only=False), ascii_only=False),  # 역슬래시 넷 + 대문자
+        "/users\\\\\\\\" + KO_HOME[9:],
+    ],
+)
+def test_F_R06_두겹JSON_대소문자다른꼴_남으면_찾음(text: str) -> None:
+    home = KO_HOME if "USERS" not in text else HOME_U
+    assert rs.home_left(rs.mask_paths(text.encode(), RUN_U, home), home)
+
+
+def test_F_R06_두겹JSON_이름뒤에_이름이어지면_가리지도_멈추지도않음() -> None:
+    text = _js(_js("/api/Users/u123", ascii_only=False), ascii_only=False) + " Users\\\\\\\\u-old"
+    got = rs.mask_paths(text.encode(), RUN_U, HOME_U)
+    assert got == text.encode()
+    assert not rs.home_left(got, HOME_U)
+
+
+def test_F_R06_두겹JSON_대화기록_홈꼴_가려져_저장(layout: Layout) -> None:
+    home = str(layout.places.user_profile)
+    inner = json.dumps({"path": home + "\\secret.txt"})  # 도구가 낸 JSON 글(한 겹)
+    extra = [{"type": "user", "content": [{"type": "tool_result", "content": inner}]}]
+    got = store(layout, stream(layout, {"findings": []}, extra))
+    text = (got.out_dir / "transcript.jsonl").read_bytes()
+    assert home.replace("\\", "\\\\\\\\").encode() not in text
+    assert b"<HOME>\\\\\\\\secret.txt" in text
+
+
 @pytest.mark.parametrize(
     "text",
     ["file:///c:/users/%ec%9d%80%ec%b1%84/x", "/USERS/" + KO_ESC.upper().replace("\\U", "\\u")],
@@ -695,6 +770,35 @@ def test_F_R06_처리량_가림_입력2배4배_한글() -> None:
 
     def work(k: int) -> None:
         rs.home_left(rs.mask_paths(data[k], run, home), home)
+
+    t1, t4 = _seconds(lambda: work(1)), _seconds(lambda: work(4))
+    assert t4 / t1 < LINEAR_RATIO_LIMIT, (t1, t4)
+    peak = _peak(lambda: work(4))
+    assert peak < 3 * len(data[4]), (peak, len(data[4]))
+
+
+def _double_escaped_lines(n: int) -> bytes:
+    """한글 이름 홈의 두 겹 JSON 꼴(역슬래시 넷·`\\\\uXXXX`)과 한글 설명이 섞인 줄."""
+    rows = (
+        json.dumps(
+            {
+                "n": i,
+                "inner": json.dumps({"p": f"{KO_HOME}\\f{i}", "q": f"/api/Users/u{i}"}),
+                "t": f"한글 설명 {i} " * 4,
+            },
+            ensure_ascii=False,
+        )
+        for i in range(n)
+    )
+    return ("\n".join(rows) + "\n").encode("utf-8")
+
+
+def test_F_R06_처리량_두겹JSON_한글_입력2배4배() -> None:
+    run = "C:\\SelfAudit-bench-runs\\b\\r"
+    data = {k: _double_escaped_lines(5_000 * k) for k in (1, 2, 4)}
+
+    def work(k: int) -> None:
+        assert not rs.home_left(rs.mask_paths(data[k], run, KO_HOME), KO_HOME)
 
     t1, t4 = _seconds(lambda: work(1)), _seconds(lambda: work(4))
     assert t4 / t1 < LINEAR_RATIO_LIMIT, (t1, t4)
