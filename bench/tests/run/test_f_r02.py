@@ -344,7 +344,8 @@ def test_F_R02_배치폴더에_지난실행_남으면_멈춤(clean_base: Path, m
     with pytest.raises(rw.BatchStop) as e:
         prepare(places, make_bundle(BUNDLE))
     assert e.value.rule == "㉣"
-    assert "easy-2-b-1-00000001" in e.value.detail
+    # 개수만 — 남은 폴더 이름(실행 ID)은 내 앱이면 대상 ID를 싣는다(T30 독립 검토 낮음)
+    assert "1개" in e.value.detail and "easy-2" not in e.value.detail
 
 
 def test_F_R02_같은실행폴더_있으면_멈춤(clean_base: Path) -> None:

@@ -146,6 +146,12 @@ def raw_dir(
         raise StoreError(f"실행 ID({MAX_RUN_ID_CHARS}자까지)·배치 ID 꼴이 아님")
     day = batch_date.isoformat()
     if run_kind in RESERVED_RUN_KINDS:
+        # 실행 ID 앞머리로 빈·문지기 실행을 가린다(F-R01 3 `<대상 ID>-…`, 대상 ID = 예약 ID) —
+        # 어긋나면 보관 폴더에서 폴더 이름만 보고 대상 실행과 섞인다
+        if not run_id.startswith(f"{run_kind}-"):
+            raise StoreError(
+                "빈·문지기 실행은 실행 ID가 empty-·gate-(run_kind와 같은 앞머리)로 시작"
+            )
         return places.archive_dir / batch_id / run_id
     # 종류 글과 실행 ID 꼴이 어긋나면 어느 쪽이 맞는지 모른다 — 저장소 쪽을 고르지 않고 멈춘다
     if (target_kind == _MINE) != run_id.startswith(_MINE_PREFIX):
@@ -211,38 +217,47 @@ def _count_tools(obj: Mapping[str, Json], seen_ids: set[str], calls: dict[str, i
         calls[key] = calls.get(key, 0) + 1
 
 
+def _json(text: str, *, ascii_only: bool = True) -> str:
+    """JSON 문자열 안의 꼴(따옴표 뺌). `ascii_only`면 ASCII 밖 글자를 `\\uXXXX`로."""
+    return json.dumps(text, ensure_ascii=ascii_only)[1:-1]
+
+
 def _variants(spelling: str) -> list[str]:
-    """한 경로 글의 꼴: `\\` 꼴, JSON 안 `\\\\` 꼴, `/` 꼴, JSON `\\uXXXX` 꼴(ASCII 밖, `\\`·`/`
-    두 구분자), JSON `\\/` 꼴, URL 인코딩 꼴(`%5C`·`%2F` — 질의 글에 실린 경로),
-    표준 `file:` 주소 꼴(구분자 `/`·`:`는 그대로, ASCII 밖만 `%XX`)."""
+    """한 경로 글의 꼴.
+
+    - 한 겹: `\\` 꼴, `/` 꼴, JSON 안 꼴(`\\\\` 구분, ASCII 밖은 그대로·`\\uXXXX` 둘), `/` 꼴의
+      JSON 꼴, JSON `\\/` 꼴.
+    - 두 겹(JSON 글이 다시 JSON 글에 실린 꼴 — 도구가 낸 JSON이 stream-json 줄에 실릴 때): 한 겹
+      JSON 꼴들을 한 번 더 JSON으로(구분 `\\\\\\\\`·`\\\\\\/`, 글자 `\\\\uXXXX`, 실험구조 8.10 2).
+    - URL 인코딩 꼴(`%5C`·`%2F` — 질의 글에 실린 경로), 표준 `file:` 주소 꼴(구분자 `/`·`:`는
+      그대로, ASCII 밖만 `%XX`).
+    """
     slash = spelling.replace("\\", "/")
-    slash_json = json.dumps(slash)[1:-1]
-    return [
-        spelling,
-        spelling.replace("\\", "\\\\"),
-        slash,
-        json.dumps(spelling)[1:-1],
-        slash_json,
-        slash_json.replace("/", "\\/"),
-        quote(spelling, safe=""),
-        quote(slash, safe=""),
-        quote(slash, safe="/:"),
-    ]
+    json_once = {
+        _json(spelling, ascii_only=False),
+        _json(spelling),
+        _json(slash),
+        _json(slash).replace("/", "\\/"),
+    }
+    json_twice = {_json(v, ascii_only=a) for v in json_once for a in (True, False)}
+    urls = {quote(spelling, safe=""), quote(slash, safe=""), quote(slash, safe="/:")}
+    return sorted({spelling, slash} | json_once | json_twice | urls)
 
 
-def _path_forms(path: str) -> tuple[list[bytes], list[bytes]]:
-    """F-R06 5 가림에 쓰는 경로 꼴들(UTF-8 바이트): (앞부분이 있는 꼴, 드라이브 없는 맨 꼬리 꼴).
+def _path_forms(path: str) -> tuple[list[bytes], list[str]]:
+    """F-R06 5 가림에 쓰는 꼴: (앞부분이 있는 꼴의 UTF-8 바이트, 드라이브 없는 맨 꼬리의 마디들).
 
     명세의 세 꼴(드라이브 절대 경로의 `\\`·`/`·JSON `\\\\` 꼴)에 더해, 같은 곳을 가리키는
     드라이브 없는 꼴도 넣는다: `//c/…`(거절 규칙 꼴, F-R02 3), `/c/…`(Git Bash 꼴),
     `\\\\localhost\\C$\\…`(관리 공유) — 여기까지가 앞부분이 있는 꼴이고 긴 꼴부터 글자 그대로
     바꾼다(짧은 꼴이 긴 꼴의 일부를 먼저 깨지 않게). 드라이브 없는 `\\Users\\…`(맨 꼬리)는 앞부분이
     없어 웹 주소(`/api/Users/u123`)와 겹치므로 뒤 경계(`_TAIL_END`)가 있을 때만 바꾼다
-    (실험구조 8.9 3).
+    (실험구조 8.9 3). 맨 꼬리는 꼴을 늘어놓지 않고 마디로 넘긴다 — `_tail_regex`가 구분자·글자의
+    꼴을 따로 고른다.
     """
     win = ntpath.normpath(path)
     spellings = [win]
-    bare: list[str] = []
+    segments: list[str] = []
     drive, tail = ntpath.splitdrive(win)
     if len(drive) == 2 and drive[1] == ":" and len(tail) > 1:
         letter, slash_tail = drive[0], tail.replace("\\", "/")
@@ -252,10 +267,13 @@ def _path_forms(path: str) -> tuple[list[bytes], list[bytes]]:
             f"//{letter.lower()}{slash_tail}",
             f"/{letter.lower()}{slash_tail}",
         ]
-        bare = [tail]
+        segments = _segments(tail)
     anchored = {v.encode("utf-8") for s in spellings for v in _variants(s)}
-    tails = {v.encode("utf-8") for s in bare for v in _variants(s)} - anchored
-    return _longest_first(anchored), _longest_first(tails)
+    return _longest_first(anchored), segments
+
+
+def _segments(path: str) -> list[str]:
+    return [s for s in path.split("\\") if s]
 
 
 def _longest_first(forms: set[bytes]) -> list[bytes]:
@@ -266,25 +284,57 @@ def _longest_first(forms: set[bytes]) -> list[bytes]:
 # 구분자·따옴표·공백·`.`·`%`(인코딩된 구분자)·ASCII 밖(한글 조사 등)·글 끝은 경계로 친다 — 경계를
 # 넓게 잡을수록 '남음'이 되어 멈추는 쪽이다(실패하면 안전한 쪽)
 _TAIL_END: Final = rb"(?![A-Za-z0-9_\-])"
+# 마디 사이 구분자: `\` 1~4개(그대로·한 겹 JSON·세 개·두 겹 JSON), `\` 0~4개 + `/`(`/` 꼴과
+# JSON `\/` 꼴의 한 겹·두 겹), URL 인코딩 `%5C`·`%2F`. 4개까지인 까닭은 실험구조 8.10 2
+_SEP: Final = rb"(?:\\{1,4}|\\{0,4}/|%5C|%2F)"
+# ASCII 밖 글자 하나의 JSON 이스케이프 앞머리: `\u`(한 겹) ~ `\` 넷 + `u`(두 겹)
+_UNIT_ESCAPE: Final = rb"\\{1,4}u"
+_PLAIN_ASCII: Final = frozenset("_.-~")  # URL 인코딩(`quote`)이 바꾸지 않는 ASCII 기호
 
 
-def _tail_pattern(forms: list[bytes], flags: int = 0) -> re.Pattern[bytes]:
-    alternatives = b"|".join(re.escape(f) for f in forms)  # 긴 꼴부터 — 같은 자리면 긴 꼴이 맞는다
-    return re.compile(b"(?:" + alternatives + b")" + _TAIL_END, flags)
+def _char_pattern(ch: str) -> bytes:
+    """이름 글자 하나의 꼴: 그대로(UTF-8)·URL 인코딩(`%XX`, UTF-8 바이트마다)·ASCII 밖이면 JSON
+    `\\uXXXX`(UTF-16 단위마다, 앞 역슬래시 1~4개)."""
+    raw = ch.encode("utf-8")
+    if ch.isascii() and (ch.isalnum() or ch in _PLAIN_ASCII):
+        return re.escape(raw)
+    alternatives = [re.escape(raw), b"".join(b"%%%02X" % byte for byte in raw)]
+    if not ch.isascii():
+        units = ch.encode("utf-16-be")
+        alternatives.append(
+            b"".join(
+                _UNIT_ESCAPE + b"%04x" % int.from_bytes(units[i : i + 2])
+                for i in range(0, len(units), 2)
+            )
+        )
+    return b"(?:" + b"|".join(alternatives) + b")"
+
+
+def _tail_regex(segments: list[str], *, leading: bool, flags: int = 0) -> re.Pattern[bytes]:
+    """드라이브 없는 꼬리(마디들)를 구분자·글자의 꼴마다 따로 골라, 뒤 경계까지 찾는 정규식.
+
+    꼴을 통째로 늘어놓지 않으므로 섞인 꼴(한 겹 구분자와 두 겹 구분자가 함께, 그대로인 한글과
+    `\\uXXXX`가 함께)도 잡는다. `leading`이면 꼬리 앞 구분자까지 맞춘다(가림 — `/api/Users/u`가
+    `/api<HOME>`). 되돌아감이 없는 꼴이다: 구분자·글자마다 고를 것이 정해진 몇 개(역슬래시 1~4개)라
+    시작 자리마다 드는 비용이 꼬리 길이에 비례하는 상수다 — 입력에 선형.
+    """
+    body = _SEP.join(b"".join(_char_pattern(c) for c in seg) for seg in segments)
+    return re.compile((_SEP if leading else b"") + body + _TAIL_END, flags)
 
 
 def mask_paths(data: bytes, run_dir: str, home: str) -> bytes:
     """F-R06 5: **먼저** 실행 폴더를 `<RUN>`으로, **그다음** 홈 폴더를 `<HOME>`으로(글자 그대로).
 
     앞부분이 있는 꼴은 뒤 경계 없이, 드라이브 없는 맨 꼬리는 뒤 경계가 있을 때만 바꾼다.
+    맨 꼬리는 대소문자를 그대로 맞춘다(대소문자만 다른 꼴은 가리지 않고 `home_left`가 찾아 멈춘다).
     바이트(UTF-8) 그대로 바꾼다 — 글로 풀면 한글이 든 기록은 글자마다 2~4바이트라 메모리가 는다.
     """
     for path, mark in ((run_dir, RUN_MARK), (home, HOME_MARK)):
-        anchored, tails = _path_forms(path)
+        anchored, segments = _path_forms(path)
         for form in anchored:
             data = data.replace(form, mark.encode())
-        if tails:
-            data = _sub_bytes(_tail_pattern(tails), mark.encode(), data)
+        if segments:
+            data = _sub_bytes(_tail_regex(segments, leading=True), mark.encode(), data)
     return data
 
 
@@ -311,20 +361,22 @@ def _sub_bytes(pattern: re.Pattern[bytes], mark: bytes, data: bytes) -> bytes:
 def _home_needle(home: str) -> re.Pattern[bytes]:
     """홈 폴더의 드라이브 없는 꼬리(`Users\\<이름>`)를 모든 꼴로, 대소문자 없이, 뒤 경계까지 찾는
     정규식."""
-    tail = ntpath.splitdrive(ntpath.normpath(home))[1].lstrip("\\")
-    target = tail or ntpath.normpath(home)
-    forms = _longest_first({v.encode("utf-8") for v in _variants(target)})
-    return _tail_pattern(forms, re.IGNORECASE)
+    win = ntpath.normpath(home)
+    segments = _segments(ntpath.splitdrive(win)[1]) or _segments(win)
+    return _tail_regex(segments, leading=False, flags=re.IGNORECASE)
 
 
 def home_left(data: bytes, home: str) -> bool:
     """F-R06 5: 가린 뒤에도 홈 폴더 경로가 (대소문자만 다른 꼴·드라이브 없는 꼴까지) 남았는가.
 
     드라이브 없는 꼬리 `Users\\<이름>`를 찾으므로 `C:`·`/c/`·`\\\\localhost\\C$` 등 어느 앞부분이든
-    걸린다. 이름 뒤에 이름이 이어지면(`Users/<이름>1`) 홈이 아닌 다른 마디라 남음으로 치지 않는다
-    (실험구조 8.9 3 — 웹 주소 `/api/Users/u123`이 배치를 멈추던 것). 사본을 만들지 않는다
-    (`casefold`는 한글 글에서 입력의 십수 배를 썼다). 대소문자는 ASCII만 맞춘다(바이트 정규식) —
-    ASCII 밖 글자의 대소문자 꼴은 잡지 못한다(한계).
+    걸린다. 구분자는 역슬래시 1~4개·`/`(앞 역슬래시 0~4개)·`%5C`·`%2F`, 이름의 ASCII 밖 글자는
+    그대로·`%XX`·`\\uXXXX`(앞 역슬래시 1~4개)를 마디·글자마다 섞어서도 찾는다(두 겹 JSON 꼴,
+    실험구조 8.10 2). 이름 뒤에 이름이 이어지면(`Users/<이름>1`) 홈이 아닌 다른 마디라 남음으로
+    치지 않는다(실험구조 8.9 3 — 웹 주소 `/api/Users/u123`이 배치를 멈추던 것). 사본을 만들지
+    않는다(`casefold`는 한글 글에서 입력의 십수 배를 썼다). 대소문자는 ASCII만 맞춘다(바이트
+    정규식) — ASCII 밖 글자의 대소문자 꼴은 잡지 못한다(한계). 역슬래시 5개 이상(세 겹 JSON)도
+    잡지 못한다(한계, 8.10 2).
     """
     return _home_needle(home).search(data) is not None
 
@@ -519,28 +571,39 @@ def store_run(
             files[FINDINGS_JSON] = findings_bytes
         if not to_archive:
             files[TRANSCRIPT] = transcript_bytes
+    # 원자료 폴더('이미 있음' 확인)를 먼저 만든다 — 보관 파일을 먼저 쓰고 멈추면 짝 없이 남는다
+    _make_raw_dir(places, facts, out)
     if to_archive:
-        _write_archive(places, transcript_path, transcript_bytes)
-    _write_raw(places, facts, out, files)
+        _write_archive(places, transcript_path, transcript_bytes, out)
+    _write_raw_files(out, files)
     if leaked:
         raise StoreError(detail, written=out)
     return StoredRun(out_dir=out, record=record, transcript_path=transcript_path)
 
 
-def _write_archive(places: BenchPlaces, path: Path, data: bytes) -> None:
-    if is_inside(path, places.repo_root):
-        raise StoreError("보관 자리가 저장소 안")
+def _write_archive(places: BenchPlaces, path: Path, data: bytes, out: Path) -> None:
+    """보관 파일을 쓴다. 못 쓰면 막 만든 빈 원자료 폴더 `out`을 지운다(다시 돌릴 때 '이미 있음'이
+    되지 않게, 짝 없는 빈 폴더가 남지 않게)."""
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("xb") as f:
-            f.write(data)
-    except FileExistsError:
-        raise StoreError("보관 파일이 이미 있음(덮어쓰지 않음)") from None
-    except OSError as e:
-        raise StoreError(f"보관 파일 쓰기 실패 ({type(e).__name__})") from None
+        if is_inside(path, places.repo_root):
+            raise StoreError("보관 자리가 저장소 안")
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("xb") as f:
+                f.write(data)
+        except FileExistsError:
+            raise StoreError("보관 파일이 이미 있음(덮어쓰지 않음)") from None
+        except OSError as e:
+            raise StoreError(f"보관 파일 쓰기 실패 ({type(e).__name__})") from None
+    except StoreError as stop:
+        try:
+            out.rmdir()
+        except OSError:
+            raise StoreError(stop.detail + ", 빈 원자료 폴더를 지우지 못함", written=out) from None
+        raise
 
 
-def _write_raw(places: BenchPlaces, facts: RunFacts, out: Path, files: Mapping[str, bytes]) -> None:
+def _make_raw_dir(places: BenchPlaces, facts: RunFacts, out: Path) -> None:
     try:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.mkdir()
@@ -552,6 +615,9 @@ def _write_raw(places: BenchPlaces, facts: RunFacts, out: Path, files: Mapping[s
     check_out_dir(
         out, run_kind=facts.run_kind, target_kind=facts.target_kind, repo_root=places.repo_root
     )
+
+
+def _write_raw_files(out: Path, files: Mapping[str, bytes]) -> None:
     try:
         for name in RAW_FILES:
             if name in files:

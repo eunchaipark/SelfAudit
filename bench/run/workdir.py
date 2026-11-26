@@ -208,6 +208,10 @@ def ensure_runs_root(root: Path) -> None:
     만들어 두거나 정션으로 바꿔 둘 수 있다. 그래서 만들 때는 물려받지 않는 권한(`mode=0o700`,
     파이썬 3.13+)으로 한 번에 만들고, 있으면 허용 꼴(`_SDDL`·`_TRUSTED_SIDS`)과 맞지 않을 때
     멈춘다(고치지 않는다).
+
+    부모(드라이브 맨 위)의 DACL은 보지 않는다 — 가정: 관리자가 아닌 살아 있는 계정에 드라이브 맨
+    위의 '아래 지우기'·모든 권한·권한 바꾸기가 없다(그 항목은 관리자만 넣을 수 있고 이 PC의 관리자는
+    사용자 자신이다, 실험구조 8.10 3).
     """
     with contextlib.suppress(FileExistsError):
         os.mkdir(root, _PRIVATE_DIR_MODE)
@@ -422,9 +426,10 @@ def check_no_claude_upward(target: Path) -> None:
 
 def check_batch_only(run: RunDir) -> None:
     """㉣ 배치 폴더 안에 이 실행의 폴더만 있다(치우지 못한 지난 실행이 남으면 멈춘다)."""
-    others = sorted(p.name for p in run.batch_dir.iterdir() if p.name != run.run_dir.name)
+    others = sum(1 for p in run.batch_dir.iterdir() if p.name != run.run_dir.name)
     if others:
-        raise BatchStop("㉣", f"배치 폴더에 다른 것이 {len(others)}개 남음: {others[:5]!r}")
+        # 개수만 싣는다 — 남은 폴더 이름은 실행 ID라 내 앱 실행이면 `mine-<대상 ID>`가 샌다
+        raise BatchStop("㉣", f"배치 폴더에 다른 것이 {others}개 남음")
 
 
 # --- settings.json (F-R02 3) ----------------------------------------------------------------
