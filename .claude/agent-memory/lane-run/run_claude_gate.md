@@ -17,6 +17,8 @@ T32(2026-11-27)에서 `bench/run/claude_cmd.py`·`condition.py`·`netwatch.py`·
   늘 멈춘다 → `gate.mark_injected`가 그 글(글자·JSON 한 겹·두 겹)을 자리 표시로 되돌린 뒤 store_run에 넘긴다.
 - B에는 정션(#12)을 두지 않는다(총괄 판단). #12는 A에서 읽혔는지만 run.json `outcome.detail`·`GatePass.junction_read`에.
 - A 문지기가 실패하면 B는 띄우지 않는다(비용). 대상 실행의 `deny_rule_forms`는 `gate.target_settings(…, GatePass, 배치 ID)`로만.
+- **반려 1(2026-11-27)**: `NetWatch` 폴링 실에서 프로세스 목록이 실패하면 실이 소리 없이 죽어 '끝점 0'이 통과로 셌다 → 한 번 보기 전체를 try로, 모든 실패를 `record.error`에, 실이 일찍 끝나도 error.
+  **How to apply:** 실·콜백 안에서 도는 감시·검사는 실패를 부르는 쪽이 볼 수 있는 칸에 남기고, '멈추는 꼴'에 실 안 실패가 어디로 가는지 적는다.
 - 끝내기는 taskkill /T /F + kill-on-close Job Object 둘 다(망가뜨려 돌리기에서 taskkill만 빼면 못 잡음 = 겹친 지킴).
 - 시험 함정: 큰 가짜 대화 기록을 `bytes +=`로 만들면 제곱이라 pytest가 몇 분 멈춘다 → 목록에 모아 `b"".join`.
   가짜 claude는 `sys._base_executable -I`로, stdout은 `sys.stdout.buffer`에 UTF-8 바이트로(코드 페이지 피함).
