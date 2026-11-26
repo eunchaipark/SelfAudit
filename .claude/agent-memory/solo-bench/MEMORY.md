@@ -1,1 +1,2 @@
 - [어려움 번들·난독화](bench-hard-obfuscation.md) — obfuscate.py 꼴·원본 제약, 맵은 난독화 밖 파일에만, 닻 charcode, 미끼 decoded 한계
+- [채점 읽기·맞춤](score-match.md) — score.read/match API, 최대 짝 차례 빠른 셈(SCC)과 글 그대로 셈 맞대기, 비용은 후보 검사
