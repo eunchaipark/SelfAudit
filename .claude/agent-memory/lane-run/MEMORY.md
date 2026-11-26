@@ -1,1 +1,2 @@
 - [거르개·공통 표 함정](filter_and_escape_cases.md) — python -I라 common import 불가, 가짜는 _base_executable, REA 참조 꼴, 루트 기준 경로 거절
+- [계획·실행 폴더·원자료 함정](run_plan_store.md) — ㉢이 홈 아래서 늘 멈춤, 시험은 C:\Temp, 계획 칸 이름, StoreError·BatchStop
