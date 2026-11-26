@@ -319,6 +319,70 @@ def test_F_R06_다른앞부분의_홈꼬리도_가림(text: str) -> None:
     assert b"<HOME>" in got and not rs.home_left(got, HOME_U)
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "fetch('/api/Users/u123')",  # 웹 주소: 이름 뒤에 이름이 이어짐(실험구조 8.9 3)
+        "fetch('/api/Users/U1')",  # 대소문자만 다른 꼴도 남음이 아님
+        "GET /api/Users/u_x",
+        r"\Users\u-old\x",
+    ],
+)
+def test_F_R06_홈꼬리_뒤에_이름이어지면_가리지도_멈추지도않음(text: str) -> None:
+    got = rs.mask_paths(text.encode(), RUN_U, HOME_U)
+    assert got == text.encode()
+    assert not rs.home_left(got, HOME_U)
+
+
+@pytest.mark.parametrize(
+    ("text", "masked"),
+    [
+        ("/api/Users/u", "/api<HOME>"),  # 글 끝은 경계 — 홈 꼬리와 글자가 같으면 가린다
+        ('"/Users/u"', '"<HOME>"'),
+        ("/Users/u.", "<HOME>."),
+        ("/Users/u%2Fx", "<HOME>%2Fx"),
+        ("/Users/u에서", "<HOME>에서"),  # 한글 조사가 붙어도 경계
+        (r"C:\Users\u2\x", r"<HOME>2\x"),  # 앞부분이 있는 꼴은 경계 없이(가림이 약해지지 않게)
+    ],
+)
+def test_F_R06_홈꼬리_경계면_가림(text: str, masked: str) -> None:
+    got = rs.mask_paths(text.encode(), RUN_U, HOME_U)
+    assert got == masked.encode()
+    assert not rs.home_left(got, HOME_U)
+
+
+KO_HOME = "C:\\Users\\" + chr(0xC740) + chr(0xCC44)  # 가짜 한글 사용자 이름
+KO_ESC = "\\uc740\\ucc44"  # 그 이름의 JSON 이스케이프 꼴
+
+
+@pytest.mark.parametrize(
+    ("text", "masked"),
+    [
+        ("C:/Users/" + KO_ESC + "/x", "<HOME>/x"),  # JSON \\uXXXX + / 구분
+        ("C:\\/Users\\/" + KO_ESC + "\\/x", "<HOME>\\/x"),  # JSON \\/ 이스케이프
+        ("file:///C:/Users/%EC%9D%80%EC%B1%84/x", "file:///<HOME>/x"),  # 표준 file URI
+        ("/Users/" + KO_ESC + "/x", "<HOME>/x"),
+    ],
+)
+def test_F_R06_한글이름_JSON슬래시·fileURI꼴도_가림(text: str, masked: str) -> None:
+    got = rs.mask_paths(text.encode(), RUN_U, KO_HOME)
+    assert got == masked.encode()
+    assert not rs.home_left(got, KO_HOME)
+
+
+def test_F_R06_JSON_슬래시이스케이프_홈꼴도_가림() -> None:
+    got = rs.mask_paths(rb"C:\/Users\/u\/.ssh", RUN_U, HOME_U)
+    assert got == rb"<HOME>\/.ssh"
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["file:///c:/users/%ec%9d%80%ec%b1%84/x", "/USERS/" + KO_ESC.upper().replace("\\U", "\\u")],
+)
+def test_F_R06_한글이름_대소문자다른꼴_남으면_찾음(text: str) -> None:
+    assert rs.home_left(rs.mask_paths(text.encode(), RUN_U, KO_HOME), KO_HOME)
+
+
 def test_F_R06_드라이브없는_홈꼴_남으면_error_배치멈춤(layout: Layout) -> None:
     tail = str(layout.places.user_profile)[2:].replace("\\", "/").upper()
     extra = [{"type": "user", "note": f"/c{tail}/x"}]
@@ -636,6 +700,26 @@ def test_F_R06_처리량_가림_입력2배4배_한글() -> None:
     assert t4 / t1 < LINEAR_RATIO_LIMIT, (t1, t4)
     peak = _peak(lambda: work(4))
     assert peak < 3 * len(data[4]), (peak, len(data[4]))
+
+
+def _tail_hits(n: int) -> bytes:
+    """뒤 경계 가림의 걸림 N: 드라이브 없는 홈 꼬리가 줄마다 다른 원문(경계 있음·없음 하나씩)."""
+    rows = (f"/api/Users/u{i} /Users/u/f{i} 한글 {i}" for i in range(n))
+    return ("\n".join(rows) + "\n").encode("utf-8")
+
+
+def test_F_R06_처리량_홈꼬리_걸림_1만_2만() -> None:
+    """뒤 경계로 바꾸는 꼬리(실험구조 8.9 3)가 걸림마다 조각을 쌓지 않는다(`re.sub`은 6배였다)."""
+    data = {n: _tail_hits(n) for n in (10_000, 20_000, 40_000)}
+
+    def work(n: int) -> None:
+        rs.home_left(rs.mask_paths(data[n], RUN_U, HOME_U), HOME_U)
+
+    t1, t4 = _seconds(lambda: work(10_000)), _seconds(lambda: work(40_000))
+    assert t4 / t1 < LINEAR_RATIO_LIMIT, (t1, t4)
+    peak = _peak(lambda: work(20_000))
+    assert peak < 3 * len(data[20_000]), (peak, len(data[20_000]))
+    assert rs.mask_paths(data[10_000], RUN_U, HOME_U).count(b"<HOME>") == 10_000
 
 
 def test_F_R06_처리량_store_run_한글기록_메모리_입력3배아래(layout: Layout) -> None:
