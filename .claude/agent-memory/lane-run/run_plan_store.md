@@ -7,8 +7,8 @@ metadata:
 
 T30(2026-11-25)에서 `bench/run/plan.py`·`workdir.py`·`env.py`·`store.py`·`mcp-A.json`을 만들었다. T32·T34가 이것을 부른다.
 
-- **㉢(위쪽 CLAUDE.md·.claude)은 이 PC에서 늘 멈춘다**: 실행 폴더가 `%LOCALAPPDATA%` 아래 = 홈 아래이고 `C:\Users\<이름>\.claude`가 있다. 명세대로 만들고 설계에 요청했다(T30 보고 요청 1). 시험은 `clean_base` 픽스처가 pytest 임시 폴더 위쪽이 더러우면 `%SystemDrive%\Temp`에 임시 폴더를 만들어 쓴다.
-  **How to apply:** 배치(T34)를 처음 돌리기 전에 설계 답을 확인한다. 실행 폴더 자리나 ㉢ 예외가 바뀌면 `workdir.check_no_claude_upward`와 `clean_base`를 같이 고친다.
+- **㉢(위쪽 CLAUDE.md·.claude)**: 홈 아래에서 늘 멈춰서 설계 8.9 1이 실행 폴더를 `%SystemDrive%\SelfAudit-bench-runs`로 옮겼다(2026-11-27). 시험 자리는 드라이브 맨 위의 새 임시 폴더 `SelfAudit-bench-test-*`(`clean_base`, T32의 `gate_base`).
+  **How to apply:** 위쪽 확인·권한을 시험할 때는 pytest tmp_path(홈 아래)를 쓰지 않는다.
 - 계획 파일 칸 이름은 T30이 정했다: `name`, `targets: [{id, n?}]`, `default_n`, `conditions`, `model`, `effort`, `timeout_s`, `max_budget_usd`, `order_seed`, `first_repeat?`, `source?`. 모르는 칸은 거절. 조건 차례는 파일 차례가 아니라 A→B 고정(같은 시드 → 같은 차례).
 - 실행 ID 8자는 `assign_run_ids(runs, targets, existing_run_names(bench/results), token)` — 지난 실행 이름의 **8자**와도 안 겹치게. 난수는 주입(시험은 세는 함수).
 - `store_run`이 배치를 멈추는 꼴은 모두 `StoreError`(쓰기 전 거절, 또는 홈 경로가 남아 run.json만 쓰고 멈춤 — `.written`에 폴더). `workdir`은 `BatchStop(rule, detail)`. 글에 홈 경로를 싣지 않는다(㉢은 '위로 N단계'만).
