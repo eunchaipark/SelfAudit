@@ -28,6 +28,7 @@ __all__ = [
     "CONTRACT_NAMES",
     "MAX_JSON_BYTES",
     "RESERVED_TARGET_IDS",
+    "TARGET_MANIFEST_KEY",
     "ContractError",
     "ContractJsonError",
     "ContractName",
@@ -59,6 +60,8 @@ _REPO_KINDS: Final = frozenset({"planted", "practice"})
 # 빈·문지기 실행의 `run.json` `target_id`(F-R06 2, 실험구조 8.5 2). 대상 목록에 같은 ID가 있으면
 # 그 대상의 실행 ID(`empty-a-1-…`)가 빈·문지기 실행과 같은 꼴이 되어 이름만으로 가를 수 없다(8.8 5)
 RESERVED_TARGET_IDS: Final = frozenset({"empty", "gate"})
+# 대상 목록의 내 앱 지문 칸(F-R02 2㉡의 기준, 실험구조 8.9 2). 정답지의 같은 이름 칸과 뜻이 같다
+TARGET_MANIFEST_KEY: Final = "bundle_manifest_sha256"
 _ANSWERS_DIR: Final = "bench/answers"
 _BUNDLES_DIR: Final = "bench/bundles"
 _DRIVE: Final = re.compile("[A-Za-z]:")
@@ -294,9 +297,9 @@ def _check_decoded(item: Mapping[str, Json], where: str, errors: list[ContractEr
 def check_targets_semantics(
     targets: Mapping[str, Json], repo_root: Path = REPO_ROOT
 ) -> list[ContractError]:
-    """대상 목록 뜻 규칙(2.9·2.10·8.8 5, F-B05): ID 고유, 예약 ID(`empty`·`gate`) 아님, 저장소
-    대상은 `bench/bundles/<id>`·`bench/answers/<id>.json`, 내 앱은 드라이브 절대 경로이고 풀어 본
-    뒤에도 저장소 밖."""
+    """대상 목록 뜻 규칙(2.9·2.10·8.8 5·8.9 2, F-B05): ID 고유, 예약 ID(`empty`·`gate`) 아님, 저장소
+    대상은 `bench/bundles/<id>`·`bench/answers/<id>.json`이고 지문 칸이 없음(정답지가 기준), 내 앱은
+    드라이브 절대 경로이고 풀어 본 뒤에도 저장소 밖이며 지문 칸 `bundle_manifest_sha256`이 있음."""
     errors: list[ContractError] = []
     seen: set[str] = set()
     for i, entry in enumerate(_objects(targets.get("targets"))):
@@ -321,6 +324,8 @@ def _check_repo_target(entry: Mapping[str, Json], where: str, errors: list[Contr
         errors.append(ContractError(f"{where}.bundle", "bench/bundles/<id>"))
     if entry.get("answers") != f"{_ANSWERS_DIR}/{target_id}.json":
         errors.append(ContractError(f"{where}.answers", "bench/answers/<id>.json"))
+    if TARGET_MANIFEST_KEY in entry:
+        errors.append(ContractError(f"{where}.{TARGET_MANIFEST_KEY}", "mine만(정답지가 기준)"))
 
 
 def _check_mine_target(
@@ -335,6 +340,8 @@ def _check_mine_target(
         errors.append(
             ContractError(f"{where}.answers", "mine은 null 또는 저장소 밖 드라이브 절대 경로")
         )
+    if TARGET_MANIFEST_KEY not in entry:
+        errors.append(ContractError(f"{where}.{TARGET_MANIFEST_KEY}", "mine은 지문 칸이 있어야 함"))
 
 
 def _is_outside_drive_path(path: str, repo_root: Path) -> bool:

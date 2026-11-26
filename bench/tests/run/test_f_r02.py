@@ -233,20 +233,42 @@ def test_F_R02_정답지지문과_맞춤(clean_base: Path, make_bundle: MakeBund
     doc["bundle_manifest_sha256"] = bundle_manifest_sha256(bundle)
     answers.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
     target = Target(id="easy-1", kind="planted", bundle=bundle, answers=answers)
-    assert rw.expected_manifest(target, bundle) == bundle_manifest_sha256(bundle)
+    assert rw.expected_manifest(target) == bundle_manifest_sha256(bundle)
     practice = Target(id="easy-1", kind="practice", bundle=bundle, answers=answers)
     with pytest.raises(rw.BatchStop, match="origin"):
-        rw.expected_manifest(practice, bundle)
-    mine = Target(id="blog", kind="mine", bundle=bundle, answers=None)
-    assert rw.expected_manifest(mine, bundle) == bundle_manifest_sha256(bundle)
+        rw.expected_manifest(practice)
+
+
+def test_F_R02_내앱_기준지문은_대상목록의_지문(clean_base: Path, make_bundle: MakeBundle) -> None:
+    """F-R02 2㉡ '내 앱은 대상 목록에 적힌 지문'(실험구조 8.9 2). 원본 폴더 지문을 쓰지 않는다."""
+    places = places_at(clean_base)
+    bundle = make_bundle(BUNDLE)
+    listed = bundle_manifest_sha256(bundle)
+    mine = Target(id="blog", kind="mine", bundle=bundle, answers=None, manifest_sha256=listed)
+    assert rw.expected_manifest(mine) == listed
+    (bundle / "assets" / "app.js").write_bytes(b"console.log('rebuilt');")  # 배치 도중 다시 빌드
+    with pytest.raises(rw.BatchStop) as e:
+        prepare(
+            places, bundle, run_id="mine-blog-a-1-0000beef", expected=rw.expected_manifest(mine)
+        )
+    assert e.value.rule == "㉡"
+    with pytest.raises(rw.BatchStop, match="지문 칸이 없음"):
+        rw.expected_manifest(Target(id="blog", kind="mine", bundle=bundle, answers=None))
+    answers = clean_base / "blog-answers.json"
+    doc = json.loads((ROOT / "bench" / "answers" / "easy-1.json").read_text("utf-8"))
+    doc["bundle_manifest_sha256"] = "b" * 64
+    answers.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
+    both = dataclasses.replace(mine, answers=answers)
+    with pytest.raises(rw.BatchStop, match="정답지의 지문이 다름"):
+        rw.expected_manifest(both)
 
 
 def test_F_R02_진짜번들_복사본지문_정답지와같음(clean_base: Path) -> None:
     places = places_at(clean_base)
     bundle = ROOT / "bench" / "bundles" / "easy-1"
     target = Target("easy-1", "planted", bundle, ROOT / "bench" / "answers" / "easy-1.json")
-    got = prepare(places, bundle, expected=rw.expected_manifest(target, bundle))
-    assert bundle_manifest_sha256(got.run.target) == rw.expected_manifest(target, bundle)
+    got = prepare(places, bundle, expected=rw.expected_manifest(target))
+    assert bundle_manifest_sha256(got.run.target) == rw.expected_manifest(target)
 
 
 def test_F_R02_복사는_파일만_정션은_따라가지않음(clean_base: Path, make_bundle: MakeBundle) -> None:

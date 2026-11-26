@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "selfaudit-bench/targets@1",
   "title": "대상 목록 (bench/targets.json, 저장소 밖 내 앱 목록 %LOCALAPPDATA%\\SelfAudit-private\\targets.json도 같은 꼴)",
-  "description": "docs/설계/실험구조.md 2.10절, 기능명세 F-B05. 뜻 규칙(ID 고유, 종류마다 경로 꼴)은 bench/common/contracts.py check_targets_semantics. 저장소 안 목록에 mine이 없는지는 검사 '실험자료'(check_bench.py)가 본다.",
+  "description": "docs/설계/실험구조.md 2.10절, 기능명세 F-B05. 뜻 규칙(ID 고유, 종류마다 경로 꼴, mine만 bundle_manifest_sha256 — 실험구조 8.9 2)은 bench/common/contracts.py check_targets_semantics. 저장소 안 목록에 mine이 없는지는 검사 '실험자료'(check_bench.py)가 본다.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "targets"],
@@ -20,7 +20,12 @@
           "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,39}$" },
           "kind": { "enum": ["planted", "practice", "mine"] },
           "bundle": { "type": "string", "minLength": 1, "maxLength": 300 },
-          "answers": { "type": ["string", "null"], "minLength": 1, "maxLength": 300 }
+          "answers": { "type": ["string", "null"], "minLength": 1, "maxLength": 300 },
+          "bundle_manifest_sha256": {
+            "description": "내 앱(mine)만, 그리고 반드시: 대상 목록에 적은 번들 지문(F-B04). 실행기 F-R02 2㉡의 기준이다. planted·practice는 정답지의 같은 칸이 기준이라 두지 않는다(뜻 규칙). 실험구조 8.9 2",
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
         }
       }
     }

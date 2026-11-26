@@ -350,21 +350,28 @@ def copy_bundle(source: Path, target: Path) -> None:
             shutil.copyfile(path, dest / name, follow_symlinks=False)
 
 
-def expected_manifest(target: Target, source: Path) -> str:
-    """F-R02 2㉡의 기준 지문: 정답지의 `bundle_manifest_sha256`.
+def expected_manifest(target: Target) -> str:
+    """F-R02 2㉡의 기준 지문.
 
-    정답지가 없는 내 앱은 복사 전 원본의 지문이다.
-
-    대상 목록 계약에 내 앱 지문 칸이 없어서 원본 폴더 지문으로 맞춘다(실험구조 3.1 '복사본의 지문을
-    원본 지문과 맞춘다'). 저장소 대상은 정답지 `origin`이 목록 종류와 같아야 한다(F-B05 4).
+    저장소 대상(planted·practice)은 정답지의 `bundle_manifest_sha256`이고 정답지 `origin`이 목록
+    종류와 같아야 한다(F-B05 4). 내 앱은 **대상 목록에 적힌 지문**이다(실험구조 8.9 2 — 복사 전
+    원본 폴더의 지문은 배치 도중 원본이 다시 빌드되어도 늘 '같음'이라 A·B가 같은 대상을 봤다는
+    보장이 안 된다). 내 앱에 정답지도 있으면 두 지문이 같아야 한다.
     """
+    listed = target.manifest_sha256
+    if target.kind not in _REPO_KINDS and listed is None:
+        raise BatchStop("㉡", "내 앱 대상 목록에 지문 칸이 없음")
     if target.answers is None:
-        return _manifest_or_stop(source, "원본")
+        if listed is None:
+            raise BatchStop("㉡", "기준 지문이 없음(정답지도 목록의 지문 칸도 없음)")
+        return listed
     answers = read_contract("answers", target.answers)
     if target.kind in _REPO_KINDS and answers.get("origin") != target.kind:
         raise BatchStop("㉡", "정답지 origin이 대상 목록 종류와 다름")
     digest = answers.get("bundle_manifest_sha256")
     assert isinstance(digest, str)  # 계약의 필수 칸
+    if listed is not None and listed != digest:
+        raise BatchStop("㉡", "대상 목록의 지문과 정답지의 지문이 다름")
     return digest
 
 
