@@ -146,6 +146,12 @@ def raw_dir(
         raise StoreError(f"실행 ID({MAX_RUN_ID_CHARS}자까지)·배치 ID 꼴이 아님")
     day = batch_date.isoformat()
     if run_kind in RESERVED_RUN_KINDS:
+        # 실행 ID 앞머리로 빈·문지기 실행을 가린다(F-R01 3 `<대상 ID>-…`, 대상 ID = 예약 ID) —
+        # 어긋나면 보관 폴더에서 폴더 이름만 보고 대상 실행과 섞인다
+        if not run_id.startswith(f"{run_kind}-"):
+            raise StoreError(
+                "빈·문지기 실행은 실행 ID가 empty-·gate-(run_kind와 같은 앞머리)로 시작"
+            )
         return places.archive_dir / batch_id / run_id
     # 종류 글과 실행 ID 꼴이 어긋나면 어느 쪽이 맞는지 모른다 — 저장소 쪽을 고르지 않고 멈춘다
     if (target_kind == _MINE) != run_id.startswith(_MINE_PREFIX):
@@ -565,28 +571,39 @@ def store_run(
             files[FINDINGS_JSON] = findings_bytes
         if not to_archive:
             files[TRANSCRIPT] = transcript_bytes
+    # 원자료 폴더('이미 있음' 확인)를 먼저 만든다 — 보관 파일을 먼저 쓰고 멈추면 짝 없이 남는다
+    _make_raw_dir(places, facts, out)
     if to_archive:
-        _write_archive(places, transcript_path, transcript_bytes)
-    _write_raw(places, facts, out, files)
+        _write_archive(places, transcript_path, transcript_bytes, out)
+    _write_raw_files(out, files)
     if leaked:
         raise StoreError(detail, written=out)
     return StoredRun(out_dir=out, record=record, transcript_path=transcript_path)
 
 
-def _write_archive(places: BenchPlaces, path: Path, data: bytes) -> None:
-    if is_inside(path, places.repo_root):
-        raise StoreError("보관 자리가 저장소 안")
+def _write_archive(places: BenchPlaces, path: Path, data: bytes, out: Path) -> None:
+    """보관 파일을 쓴다. 못 쓰면 막 만든 빈 원자료 폴더 `out`을 지운다(다시 돌릴 때 '이미 있음'이
+    되지 않게, 짝 없는 빈 폴더가 남지 않게)."""
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("xb") as f:
-            f.write(data)
-    except FileExistsError:
-        raise StoreError("보관 파일이 이미 있음(덮어쓰지 않음)") from None
-    except OSError as e:
-        raise StoreError(f"보관 파일 쓰기 실패 ({type(e).__name__})") from None
+        if is_inside(path, places.repo_root):
+            raise StoreError("보관 자리가 저장소 안")
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with path.open("xb") as f:
+                f.write(data)
+        except FileExistsError:
+            raise StoreError("보관 파일이 이미 있음(덮어쓰지 않음)") from None
+        except OSError as e:
+            raise StoreError(f"보관 파일 쓰기 실패 ({type(e).__name__})") from None
+    except StoreError as stop:
+        try:
+            out.rmdir()
+        except OSError:
+            raise StoreError(stop.detail + ", 빈 원자료 폴더를 지우지 못함", written=out) from None
+        raise
 
 
-def _write_raw(places: BenchPlaces, facts: RunFacts, out: Path, files: Mapping[str, bytes]) -> None:
+def _make_raw_dir(places: BenchPlaces, facts: RunFacts, out: Path) -> None:
     try:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.mkdir()
@@ -598,6 +615,9 @@ def _write_raw(places: BenchPlaces, facts: RunFacts, out: Path, files: Mapping[s
     check_out_dir(
         out, run_kind=facts.run_kind, target_kind=facts.target_kind, repo_root=places.repo_root
     )
+
+
+def _write_raw_files(out: Path, files: Mapping[str, bytes]) -> None:
     try:
         for name in RAW_FILES:
             if name in files:

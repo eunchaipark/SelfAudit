@@ -681,6 +681,56 @@ def test_F_R06_원자료폴더_이미있으면_멈춤(layout: Layout) -> None:
         store(layout, stream(layout, {"findings": []}))
 
 
+def test_F_R06_원자료폴더_이미있으면_보관파일도_안씀(layout: Layout) -> None:
+    """보관 파일은 원자료 폴더 '이미 있음' 확인 뒤에 쓴다(T30 독립 검토 낮음)."""
+    big = stream(layout, {"findings": []}) + b" " * rs.TRANSCRIPT_LIMIT_BYTES
+    first = store(layout, big)
+    archived = layout.places.archive_dir / f"{RUN}.jsonl"
+    assert first.transcript_path == archived
+    archived.unlink()
+    with pytest.raises(rs.StoreError, match="원자료 폴더가 이미 있음"):
+        store(layout, big)
+    assert not archived.exists()
+
+
+def test_F_R06_보관파일_이미있으면_빈원자료폴더_안남김(layout: Layout) -> None:
+    big = stream(layout, {"findings": []}) + b" " * rs.TRANSCRIPT_LIMIT_BYTES
+    archived = layout.places.archive_dir / f"{RUN}.jsonl"
+    archived.parent.mkdir(parents=True)
+    archived.write_bytes(b"old")
+    with pytest.raises(rs.StoreError, match="보관 파일이 이미 있음") as e:
+        store(layout, big)
+    assert e.value.written is None
+    assert archived.read_bytes() == b"old"
+    assert not (layout.places.repo_root / "bench" / "results" / DAY.isoformat() / RUN).exists()
+
+
+@pytest.mark.parametrize(
+    ("run_kind", "target_id", "run_id"),
+    [
+        ("empty", "empty", "gate-a-1-0000beef"),
+        ("gate", "gate", "empty-b-1-0000beef"),
+        ("empty", "empty", "easy-1-a-1-0000beef"),
+        ("gate", "gate", "gates-b-1-0000beef"),
+    ],
+    ids=["빈인데_gate", "문지기인데_empty", "빈인데_대상꼴", "문지기인데_gates"],
+)
+def test_F_R06_빈·문지기_실행ID_앞머리_어긋나면_거절(
+    layout: Layout, run_kind: str, target_id: str, run_id: str
+) -> None:
+    manifest = rw.EMPTY_MANIFEST_SHA256 if run_kind == "empty" else SHA
+    with pytest.raises(rs.StoreError, match="empty-·gate-"):
+        store(
+            layout,
+            b"",
+            run_kind=run_kind,
+            target_id=target_id,
+            run_id=run_id,
+            bundle_manifest_sha256=manifest,
+        )
+    assert not layout.places.archive_dir.exists()
+
+
 def test_F_R06_run_json_계약밖이면_안씀(layout: Layout) -> None:
     with pytest.raises(rs.StoreError, match="계약"):
         store(layout, b"", status="weird")

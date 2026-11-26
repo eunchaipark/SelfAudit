@@ -422,9 +422,10 @@ def check_no_claude_upward(target: Path) -> None:
 
 def check_batch_only(run: RunDir) -> None:
     """㉣ 배치 폴더 안에 이 실행의 폴더만 있다(치우지 못한 지난 실행이 남으면 멈춘다)."""
-    others = sorted(p.name for p in run.batch_dir.iterdir() if p.name != run.run_dir.name)
+    others = sum(1 for p in run.batch_dir.iterdir() if p.name != run.run_dir.name)
     if others:
-        raise BatchStop("㉣", f"배치 폴더에 다른 것이 {len(others)}개 남음: {others[:5]!r}")
+        # 개수만 싣는다 — 남은 폴더 이름은 실행 ID라 내 앱 실행이면 `mine-<대상 ID>`가 샌다
+        raise BatchStop("㉣", f"배치 폴더에 다른 것이 {others}개 남음")
 
 
 # --- settings.json (F-R02 3) ----------------------------------------------------------------
