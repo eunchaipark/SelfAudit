@@ -13,4 +13,5 @@ metadata:
 - 드라이브 맨 위(`C:\`)는 Authenticated Users가 폴더를 만들고 '수정'을 물려준다. 파이썬 3.13+ Windows의 `os.mkdir(p, 0o700)`은 보호 DACL(SY·BA·OW)로 한 번에 만든다 — 새 라이브러리 없이 권한 문제를 푸는 길. 이미 있으면 SDDL을 허용 꼴로만 확인하고 고치지 않는다(`workdir.ensure_runs_root`).
 - 미끼는 진짜 `SelfAudit-private`의 쌍둥이라 자리를 옮기지 않았고, escape #1은 `<LOCAL_REL>` 자리 표시로 닿게 했다 — 문지기(T32)가 채운다.
 - ㉢이 걸리는 시험은 pytest 임시 폴더(홈 아래)가 아니라 드라이브 맨 위 `mkdtemp`를 쓴다.
+- 부모 `C:\` DACL은 보지 않는다(2026-11-27 8.10 3): 이 PC `C:\`에 지워진 로컬 계정(RID 1003) 모든 권한이 남아 있어 '남의 아래 지우기면 멈춤'은 모든 배치를 막는다. 가정으로 적고 항목 지우기는 사용자 확인.
 관련: [[project-rea-env]], [[feedback-security-allowlist]]
