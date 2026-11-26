@@ -212,29 +212,37 @@ def _count_tools(obj: Mapping[str, Json], seen_ids: set[str], calls: dict[str, i
 
 
 def _variants(spelling: str) -> list[str]:
-    """한 경로 글의 꼴: `\\` 꼴, JSON 안 `\\\\` 꼴, `/` 꼴, JSON `\\uXXXX` 꼴(ASCII 밖),
-    URL 인코딩 꼴(`%5C`·`%2F` — `file:` 주소·질의 글에 실린 경로)."""
+    """한 경로 글의 꼴: `\\` 꼴, JSON 안 `\\\\` 꼴, `/` 꼴, JSON `\\uXXXX` 꼴(ASCII 밖, `\\`·`/`
+    두 구분자), JSON `\\/` 꼴, URL 인코딩 꼴(`%5C`·`%2F` — 질의 글에 실린 경로),
+    표준 `file:` 주소 꼴(구분자 `/`·`:`는 그대로, ASCII 밖만 `%XX`)."""
     slash = spelling.replace("\\", "/")
+    slash_json = json.dumps(slash)[1:-1]
     return [
         spelling,
         spelling.replace("\\", "\\\\"),
         slash,
         json.dumps(spelling)[1:-1],
+        slash_json,
+        slash_json.replace("/", "\\/"),
         quote(spelling, safe=""),
         quote(slash, safe=""),
+        quote(slash, safe="/:"),
     ]
 
 
-def _path_forms(path: str) -> list[bytes]:
-    """F-R06 5 가림에 쓰는 경로 꼴들(UTF-8 바이트), 긴 꼴부터.
+def _path_forms(path: str) -> tuple[list[bytes], list[bytes]]:
+    """F-R06 5 가림에 쓰는 경로 꼴들(UTF-8 바이트): (앞부분이 있는 꼴, 드라이브 없는 맨 꼬리 꼴).
 
     명세의 세 꼴(드라이브 절대 경로의 `\\`·`/`·JSON `\\\\` 꼴)에 더해, 같은 곳을 가리키는
     드라이브 없는 꼴도 넣는다: `//c/…`(거절 규칙 꼴, F-R02 3), `/c/…`(Git Bash 꼴),
-    `\\\\localhost\\C$\\…`(관리 공유), 드라이브 없는 `\\Users\\…`. 긴 꼴부터 바꾸므로 짧은 꼴이
-    긴 꼴의 일부를 먼저 깨지 않는다.
+    `\\\\localhost\\C$\\…`(관리 공유) — 여기까지가 앞부분이 있는 꼴이고 긴 꼴부터 글자 그대로
+    바꾼다(짧은 꼴이 긴 꼴의 일부를 먼저 깨지 않게). 드라이브 없는 `\\Users\\…`(맨 꼬리)는 앞부분이
+    없어 웹 주소(`/api/Users/u123`)와 겹치므로 뒤 경계(`_TAIL_END`)가 있을 때만 바꾼다
+    (실험구조 8.9 3).
     """
     win = ntpath.normpath(path)
     spellings = [win]
+    bare: list[str] = []
     drive, tail = ntpath.splitdrive(win)
     if len(drive) == 2 and drive[1] == ":" and len(tail) > 1:
         letter, slash_tail = drive[0], tail.replace("\\", "/")
@@ -243,37 +251,80 @@ def _path_forms(path: str) -> list[bytes]:
             f"\\\\127.0.0.1\\{letter.upper()}${tail}",
             f"//{letter.lower()}{slash_tail}",
             f"/{letter.lower()}{slash_tail}",
-            tail,
         ]
-    forms = {v.encode("utf-8") for s in spellings for v in _variants(s)}
+        bare = [tail]
+    anchored = {v.encode("utf-8") for s in spellings for v in _variants(s)}
+    tails = {v.encode("utf-8") for s in bare for v in _variants(s)} - anchored
+    return _longest_first(anchored), _longest_first(tails)
+
+
+def _longest_first(forms: set[bytes]) -> list[bytes]:
     return sorted(forms, key=lambda f: (-len(f), f))
+
+
+# 경로 한 마디(사용자 이름)가 이어지는 글자. 이것이 뒤따르면 그 마디의 끝이 아니다(`u123`·`u_x`).
+# 구분자·따옴표·공백·`.`·`%`(인코딩된 구분자)·ASCII 밖(한글 조사 등)·글 끝은 경계로 친다 — 경계를
+# 넓게 잡을수록 '남음'이 되어 멈추는 쪽이다(실패하면 안전한 쪽)
+_TAIL_END: Final = rb"(?![A-Za-z0-9_\-])"
+
+
+def _tail_pattern(forms: list[bytes], flags: int = 0) -> re.Pattern[bytes]:
+    alternatives = b"|".join(re.escape(f) for f in forms)  # 긴 꼴부터 — 같은 자리면 긴 꼴이 맞는다
+    return re.compile(b"(?:" + alternatives + b")" + _TAIL_END, flags)
 
 
 def mask_paths(data: bytes, run_dir: str, home: str) -> bytes:
     """F-R06 5: **먼저** 실행 폴더를 `<RUN>`으로, **그다음** 홈 폴더를 `<HOME>`으로(글자 그대로).
 
+    앞부분이 있는 꼴은 뒤 경계 없이, 드라이브 없는 맨 꼬리는 뒤 경계가 있을 때만 바꾼다.
     바이트(UTF-8) 그대로 바꾼다 — 글로 풀면 한글이 든 기록은 글자마다 2~4바이트라 메모리가 는다.
     """
     for path, mark in ((run_dir, RUN_MARK), (home, HOME_MARK)):
-        for form in _path_forms(path):
+        anchored, tails = _path_forms(path)
+        for form in anchored:
             data = data.replace(form, mark.encode())
+        if tails:
+            data = _sub_bytes(_tail_pattern(tails), mark.encode(), data)
     return data
 
 
+def _sub_bytes(pattern: re.Pattern[bytes], mark: bytes, data: bytes) -> bytes:
+    """`pattern.sub(mark, data)`과 같되 맞은 곳마다 조각 객체를 쌓지 않는다.
+
+    `re.sub`은 맞은 곳이 촘촘하면(번들 글의 경로마다) 조각 목록이 입력의 6배까지 컸다(잰 것,
+    실험구조 8.9 3). 쓰는 버퍼 하나에 바로 이어 쓴다 — 최고 메모리는 입력 + 결과.
+    """
+    first = pattern.search(data)
+    if first is None:
+        return data
+    out = io.BytesIO()
+    view = memoryview(data)
+    last = 0
+    for match in pattern.finditer(data, first.start()):
+        out.write(view[last : match.start()])
+        out.write(mark)
+        last = match.end()
+    out.write(view[last:])
+    return out.getvalue()
+
+
 def _home_needle(home: str) -> re.Pattern[bytes]:
-    """홈 폴더의 드라이브 없는 꼬리(`Users\\<이름>`)를 네 꼴로, 대소문자 없이 찾는 정규식."""
+    """홈 폴더의 드라이브 없는 꼬리(`Users\\<이름>`)를 모든 꼴로, 대소문자 없이, 뒤 경계까지 찾는
+    정규식."""
     tail = ntpath.splitdrive(ntpath.normpath(home))[1].lstrip("\\")
     target = tail or ntpath.normpath(home)
-    alternatives = sorted({re.escape(v.encode("utf-8")) for v in _variants(target)}, key=len)
-    return re.compile(b"|".join(reversed(alternatives)), re.IGNORECASE)
+    forms = _longest_first({v.encode("utf-8") for v in _variants(target)})
+    return _tail_pattern(forms, re.IGNORECASE)
 
 
 def home_left(data: bytes, home: str) -> bool:
     """F-R06 5: 가린 뒤에도 홈 폴더 경로가 (대소문자만 다른 꼴·드라이브 없는 꼴까지) 남았는가.
 
     드라이브 없는 꼬리 `Users\\<이름>`를 찾으므로 `C:`·`/c/`·`\\\\localhost\\C$` 등 어느 앞부분이든
-    걸린다. 사본을 만들지 않는다(`casefold`는 한글 글에서 입력의 십수 배를 썼다). 대소문자는 ASCII만
-    맞춘다(바이트 정규식) — ASCII 밖 글자의 대소문자 꼴은 잡지 못한다(한계).
+    걸린다. 이름 뒤에 이름이 이어지면(`Users/<이름>1`) 홈이 아닌 다른 마디라 남음으로 치지 않는다
+    (실험구조 8.9 3 — 웹 주소 `/api/Users/u123`이 배치를 멈추던 것). 사본을 만들지 않는다
+    (`casefold`는 한글 글에서 입력의 십수 배를 썼다). 대소문자는 ASCII만 맞춘다(바이트 정규식) —
+    ASCII 밖 글자의 대소문자 꼴은 잡지 못한다(한계).
     """
     return _home_needle(home).search(data) is not None
 

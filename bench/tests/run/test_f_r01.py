@@ -292,27 +292,41 @@ def repo_entry(tid: str, kind: str = "planted") -> dict[str, Any]:
     }
 
 
+MINE_MANIFEST = "c" * 64  # 가짜 지문(F-B04 꼴만)
+
+
+def mine_entry(tid: str, bundle: str) -> dict[str, Any]:
+    """내 앱 목록 한 줄. 지문 칸은 내 앱의 필수 칸이다(실험구조 8.9 2)."""
+    return {
+        "id": tid,
+        "kind": "mine",
+        "bundle": bundle,
+        "answers": None,
+        "bundle_manifest_sha256": MINE_MANIFEST,
+    }
+
+
 def test_F_R01_대상목록_두목록_합침(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     write_targets(repo / "bench" / "targets.json", [repo_entry("easy-1")])
     private = tmp_path / "private" / "targets.json"
-    write_targets(
-        private, [{"id": "blog", "kind": "mine", "bundle": r"D:\apps\blog\dist", "answers": None}]
-    )
+    write_targets(private, [mine_entry("blog", r"D:\apps\blog\dist")])
     got = rp.load_targets(repo, private)
     assert got["easy-1"].bundle == repo / "bench" / "bundles" / "easy-1"
     assert got["easy-1"].answers == repo / "bench" / "answers" / "easy-1.json"
+    assert got["easy-1"].manifest_sha256 is None  # 저장소 대상의 기준은 정답지
     assert (got["blog"].kind, got["blog"].bundle, got["blog"].answers) == (
         "mine",
         Path(r"D:\apps\blog\dist"),
         None,
     )
+    assert got["blog"].manifest_sha256 == MINE_MANIFEST  # 목록의 지문 칸(F-R02 2㉡, 8.9 2)
     assert set(rp.load_targets(repo, tmp_path / "없음.json")) == {"easy-1"}
 
 
 def test_F_R01_대상목록_저장소안_mine_거절(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
-    entry = {"id": "blog", "kind": "mine", "bundle": r"D:\apps\blog\dist", "answers": None}
+    entry = mine_entry("blog", r"D:\apps\blog\dist")
     write_targets(repo / "bench" / "targets.json", [repo_entry("easy-1"), entry])
     with pytest.raises(rp.PlanError, match="이 목록에 둘 수 없는 종류"):
         rp.load_targets(repo, None)
@@ -322,7 +336,7 @@ def test_F_R01_대상목록_두목록사이_겹침_거절(tmp_path: Path) -> Non
     repo = tmp_path / "repo"
     write_targets(repo / "bench" / "targets.json", [repo_entry("easy-1")])
     private = tmp_path / "private.json"
-    write_targets(private, [{"id": "easy-1", "kind": "mine", "bundle": r"D:\a", "answers": None}])
+    write_targets(private, [mine_entry("easy-1", r"D:\a")])
     with pytest.raises(rp.PlanError, match="두 목록 사이 ID 겹침"):
         rp.load_targets(repo, private)
 

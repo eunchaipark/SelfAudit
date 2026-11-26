@@ -269,11 +269,14 @@ def test_common_대상목록_예약ID_empty·gate_거절(
     else:
         bundle, answers = f"bench/bundles/{target_id}", f"bench/answers/{target_id}.json"
     entry: dict[str, Json] = {"id": target_id, "kind": kind, "bundle": bundle, "answers": answers}
+    if kind == "mine":
+        entry["bundle_manifest_sha256"] = FAKE_MANIFEST  # 내 앱의 필수 칸(8.9 2) — 판정은 같음
     data: dict[str, Json] = {"schema": "selfaudit-bench/targets@1", "targets": [entry]}
     assert validate_contract("targets", data) == expected
 
 
 BS = chr(92)
+FAKE_MANIFEST = "a" * 64  # 가짜 지문(F-B04 꼴만)
 INSIDE_REPO = str(REPO_ROOT / "bench" / "bundles" / "blog")
 SNEAK_IN = str(REPO_ROOT.parent / "zz") + BS + ".." + BS + REPO_ROOT.name + BS + "bench"
 
@@ -302,6 +305,71 @@ def test_common_대상목록_내앱은_저장소밖_드라이브경로(
         "kind": "mine",
         "bundle": bundle,
         "answers": answers,
+        "bundle_manifest_sha256": FAKE_MANIFEST,  # 내 앱의 필수 칸(8.9 2) — 판정은 같음
     }
     data: dict[str, Json] = {"schema": "selfaudit-bench/targets@1", "targets": [entry]}
     assert [e.where for e in validate_contract("targets", data)] == expected
+
+
+MINE_BUNDLE = "D:" + BS + "apps" + BS + "blog" + BS + "dist"
+
+
+@pytest.mark.parametrize(
+    ("kind", "manifest", "expected"),
+    [
+        ("mine", FAKE_MANIFEST, []),
+        (
+            "mine",
+            None,
+            [ContractError("$.targets[0].bundle_manifest_sha256", "mine은 지문 칸이 있어야 함")],
+        ),
+        (
+            "planted",
+            FAKE_MANIFEST,
+            [ContractError("$.targets[0].bundle_manifest_sha256", "mine만(정답지가 기준)")],
+        ),
+        (
+            "practice",
+            FAKE_MANIFEST,
+            [ContractError("$.targets[0].bundle_manifest_sha256", "mine만(정답지가 기준)")],
+        ),
+        ("planted", None, []),
+    ],
+)
+def test_common_대상목록_지문칸은_내앱만_반드시(
+    kind: str, manifest: str | None, expected: list[ContractError]
+) -> None:
+    """F-R02 2㉡ '내 앱은 대상 목록에 적힌 지문'의 칸(실험구조 8.9 2)."""
+    if kind == "mine":
+        entry: dict[str, Json] = {
+            "id": "blog",
+            "kind": kind,
+            "bundle": MINE_BUNDLE,
+            "answers": None,
+        }
+    else:
+        entry = {
+            "id": "easy-1",
+            "kind": kind,
+            "bundle": "bench/bundles/easy-1",
+            "answers": "bench/answers/easy-1.json",
+        }
+    if manifest is not None:
+        entry["bundle_manifest_sha256"] = manifest
+    data: dict[str, Json] = {"schema": "selfaudit-bench/targets@1", "targets": [entry]}
+    assert validate_contract("targets", data) == expected
+
+
+@pytest.mark.parametrize("bad", ["A" * 64, "a" * 63, "a" * 65, "g" * 64, 1])
+def test_common_대상목록_지문칸_꼴(bad: Json) -> None:
+    entry: dict[str, Json] = {
+        "id": "blog",
+        "kind": "mine",
+        "bundle": MINE_BUNDLE,
+        "answers": None,
+        "bundle_manifest_sha256": bad,
+    }
+    data: dict[str, Json] = {"schema": "selfaudit-bench/targets@1", "targets": [entry]}
+    assert [e.where for e in validate_contract("targets", data)] == [
+        "$.targets[0].bundle_manifest_sha256"
+    ]

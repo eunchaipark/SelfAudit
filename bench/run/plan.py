@@ -25,7 +25,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Final
 
-from common.contracts import Json, read_contract, read_json
+from common.contracts import TARGET_MANIFEST_KEY, Json, read_contract, read_json
 
 __all__ = [
     "CONDITIONS",
@@ -77,12 +77,16 @@ class PlanError(ValueError):
 
 @dataclass(frozen=True)
 class Target:
-    """대상 목록(F-B05) 한 줄. `bundle`·`answers`는 디스크 경로(저장소 대상은 저장소 기준)."""
+    """대상 목록(F-B05) 한 줄. `bundle`·`answers`는 디스크 경로(저장소 대상은 저장소 기준).
+
+    `manifest_sha256`은 내 앱만 있는 목록의 지문 칸(F-R02 2㉡의 기준, 실험구조 8.9 2).
+    """
 
     id: str
     kind: str
     bundle: Path
     answers: Path | None
+    manifest_sha256: str | None = None
 
 
 @dataclass(frozen=True)
@@ -160,6 +164,7 @@ def _merge(
     allowed = frozenset(kinds)
     for i, entry in enumerate(entries):
         tid, kind, bundle, answers = (entry.get(k) for k in ("id", "kind", "bundle", "answers"))
+        manifest = entry.get(TARGET_MANIFEST_KEY)
         # 계약을 지난 값이라 꼴은 맞다. 타입만 좁힌다
         if not (isinstance(tid, str) and isinstance(kind, str) and isinstance(bundle, str)):
             problems.append(f"{where} $.targets[{i}]: 칸 타입")
@@ -176,6 +181,7 @@ def _merge(
             kind=kind,
             bundle=_target_path(bundle, base),
             answers=_target_path(answers, base) if isinstance(answers, str) else None,
+            manifest_sha256=manifest if isinstance(manifest, str) else None,
         )
 
 

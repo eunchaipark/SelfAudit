@@ -51,6 +51,8 @@ RESPONSE_WAIT_S = 20.0
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000  # OpenProcess 권한(Win32)
 STILL_ACTIVE = 259  # GetExitCodeProcess가 아직 도는 프로세스에 돌려주는 값
 NUL = chr(0)
+# 드라이브 맨 위에서 본 %LOCALAPPDATA% 자리(가짜 사용자 u). 실제 문지기는 그 PC의 값을 넣는다
+LOCAL_REL = "Users/u/AppData/Local"
 # 선형 4N/N 약 4, 제곱 약 16의 가운데(부하 흔들림을 두 배까지 받아 줌, 코드규칙 6장 N·2N 비율)
 LINEAR_RATIO_LIMIT = 8.0
 
@@ -101,16 +103,17 @@ def dos_device(drive: str) -> str:
 def layout(make_bundle: MakeBundle, tmp_path: Path) -> Layout:
     """escape_cases.json의 layout을 tmp_path 안에 그대로 만든다.
 
-    tmp_path/Local이 %LOCALAPPDATA% 자리다: Local/SelfAudit-bench-runs/<BATCH>/<실행>/target,
-    같은 배치의 형제 실행, 앞부분만 같은 형제, Local/SelfAudit-bench-decoy/<BATCH>/p·j 미끼 폴더,
+    tmp_path가 드라이브 맨 위(%SystemDrive%\\), tmp_path/Users/u/AppData/Local이 %LOCALAPPDATA%
+    자리다(실험구조 8.9 1): SelfAudit-bench-runs/<BATCH>/<실행>/target, 같은 배치의 형제 실행,
+    앞부분만 같은 형제, Local/SelfAudit-bench-decoy/<BATCH>/p·j 미끼 폴더,
     j를 가리키는 정션. 깊이가 본 실행과 같아 상대 경로 예(#1·#17)가 그대로 닿는다(decoy_rule).
     """
     marker = MARKER.encode()
     files = {rel: text.encode() for rel, text in CASES["layout"]["inside_files"].items()}
     bundle = make_bundle({**files, "index.html": b"<html></html>\n"})
-    local = tmp_path / "Local"
+    local = tmp_path.joinpath(*LOCAL_REL.split("/"))
     batch_id = "20261123-0130-first36"
-    batch = local / "SelfAudit-bench-runs" / batch_id
+    batch = tmp_path / "SelfAudit-bench-runs" / batch_id
     run_dir = batch / "easy-1-b-1-3f2a9c10"
     run_dir.mkdir(parents=True)
     target_dir = run_dir / "target"
@@ -147,6 +150,7 @@ def layout(make_bundle: MakeBundle, tmp_path: Path) -> Layout:
         "<P_NODRIVE_POSIX>": outside[2:].replace("\\", "/"),
         "<P_DEVICE>": dos_device(outside[:2]),
         "<DRIVE>": outside[0],
+        "<LOCAL_REL>": LOCAL_REL,
         "<P>": outside,
         "<ROOT>": str(ROOT),
     }
@@ -238,7 +242,7 @@ def table_examples() -> Iterator[Any]:
 NOT_INSIDE = rmf.RULE_NOT_INSIDE
 TABLE_RULES = {
     "../../<SIB>/x": NOT_INSIDE,
-    "assets/../../../../../SelfAudit-bench-decoy/<BATCH>/p/marker.txt": NOT_INSIDE,
+    "assets/../../../../../<LOCAL_REL>/SelfAudit-bench-decoy/<BATCH>/p/marker.txt": NOT_INSIDE,
     "<P_SHORT>": NOT_INSIDE,
     "\\\\?\\<P>": NOT_INSIDE,
     "\\\\localhost\\<DRIVE>$\\<P_TAIL>": rmf.RULE_UNC,

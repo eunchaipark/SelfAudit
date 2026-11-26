@@ -71,6 +71,8 @@ def test_F_B05_mine_거절() -> None:
                 "kind": "mine",
                 "bundle": "bench/bundles/mine-blog",
                 "answers": "bench/answers/mine-blog.json",
+                # 내 앱의 필수 칸(설계 실험구조 8.9 2). 있어야 아래 두 경로 거절만 남는다
+                "bundle_manifest_sha256": "a" * 64,
             }
         ],
     }
