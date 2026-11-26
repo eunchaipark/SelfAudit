@@ -2012,7 +2012,7 @@
         "description": "시드로 섞은 차례, 저장소 밖 실행 폴더·대상 복사·위쪽 CLAUDE.md 확인·settings.json 거절 규칙·허용 목록 환경, run.json·findings·transcript 저장, mine·빈·문지기 실행은 저장소 밖에만",
         "details": "영역: 실행기\n목적: 명령 하나로 다시 돌릴 수 있고 실행마다 원자료가 남게 하며, 내 앱 원자료는 저장소에 들어가지 않게 한다 (요구사항 R4, 6절)\n읽을 문서: 기능명세 F-R01·F-R02·F-R06, 설계 실험구조 2.4, 3.1, 3.2(문지기 빼고), 3.6, 3.8, 4절, 8.5, 8.8 1(계획 칸 first_repeat·source)\n고칠 파일: bench/run/__init__.py, bench/run/plan.py, bench/run/workdir.py, bench/run/env.py, bench/run/store.py, bench/run/mcp-A.json, bench/tests/run/test_f_r01.py, bench/tests/run/test_f_r02.py, bench/tests/run/test_f_r06.py\n계약: run.schema.json, 실행 ID 꼴(2.4), bench.common 지문·경로 정규화(T20), 8.5 빈·문지기 원자료 자리\n명세 기준: e393fb7\n\n작업 쌍: B 병렬 쪽 (lane-run + task-reviewer 하나 + 총괄, 병합 전 검토 방식 하나·새 — 실험구조 8.1 ①~⑤)\n선행(문서): 기능명세 F-R06 고침 — 빈·문지기 원자료는 저장소 밖, target_id 예약 ID (8.7)\n크기: 예시 약 19 · 파일 약 9 · 하위 작업 6\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤)\nT20 넘김(빈·문지기 실행의 target_id·저장 위치)은 설계 8.5가 정함: 원자료는 저장소에 넣지 않고 %LOCALAPPDATA%\\SelfAudit-bench-archive\\<배치 ID>\\<실행 ID>\\에 둔다. run_kind가 empty·gate이면 저장소 안 경로를 주면 거절(mine과 같은 꼴). run.json은 target_id = run_kind와 같은 예약 ID empty·gate(대상 목록에 넣지 않음), target_kind = planted, bundle_manifest_sha256 = 빈 실행은 format_manifest([])의 sha256, 문지기는 실행기가 만든 target 폴더의 지문. check_bench.py는 고치지 않는다",
         "testStrategy": "test_F_R01_같은시드_같은차례 / test_F_R01_다른시드_다른차례 / test_F_R01_없는대상ID_거절 / test_F_R01_계획sha256_기록 / test_F_R02_실행폴더_저장소밖 / test_F_R02_복사본지문_다르면_멈춤 / test_F_R02_위쪽에_CLAUDE_md있으면_멈춤 / test_F_R02_실행뒤_target지움 / test_F_R02_settings_거절7곳·훅없음 / test_F_R02_환경_허용목록만·PATH_System32 / test_F_R06_run_json_계약통과 / test_F_R06_findings경로_상대로 / test_F_R06_대화기록_절대경로_RUN으로가림 / test_F_R06_대화기록_2MB넘으면_밖에·sha256 / test_F_R06_2MB는_그대로 / test_F_R06_mine_저장소밖 / test_F_R06_mine에_저장소경로_거절 / test_F_R06_실행ID_80자넘으면_거절 / test_F_R06_빈·문지기실행_저장소밖_보관. 화면 없음",
-        "status": "in-progress",
+        "status": "review",
         "dependencies": [
           "20"
         ],
@@ -2073,7 +2073,7 @@
             "parentId": "undefined"
           }
         ],
-        "updatedAt": "2026-11-24T21:26:02.474Z"
+        "updatedAt": "2026-11-26T10:04:29.005Z"
       },
       {
         "id": "31",
@@ -2444,7 +2444,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-11-24T21:26:02.477Z",
+      "lastModified": "2026-11-26T10:04:29.011Z",
       "taskCount": 36,
       "completedCount": 14,
       "tags": [
