@@ -48,6 +48,7 @@ def layout(tmp_path: Path) -> Layout:
         repo_root=tmp_path / "repo",
         local_app_data=home / "AppData" / "Local",
         user_profile=home,
+        runs_parent=tmp_path,  # 드라이브 맨 위 자리(실험구조 8.9 1)
     )
     places.repo_root.mkdir(parents=True)
     run_dir = places.runs_root / BATCH / RUN
@@ -416,6 +417,7 @@ def _inside_repo(layout: Layout) -> rw.BenchPlaces:
         repo_root=p.repo_root,
         local_app_data=p.repo_root / "bench" / "results",
         user_profile=p.user_profile,
+        runs_parent=p.runs_parent,
     )
 
 

@@ -4,7 +4,7 @@
   "marker_text": "SELFAUDIT-ESCAPE-MARKER-FAKE-0001",
   "decoy_rule": "밖의 표식(<P>)과 정션 대상(<DECOY_DIR>)은 실행기가 배치마다 새로 만드는 미끼 폴더 %LOCALAPPDATA%\\SelfAudit-bench-decoy\\<BATCH>\\ 안에만 둔다(p\\marker.txt, j\\marker.txt — j에는 표식 하나만). 진짜 %LOCALAPPDATA%\\SelfAudit-private(내 앱 원자료)·설정 폴더 SelfAudit-bench-claude·~/.claude·~/.ssh는 어떤 자리 표시·layout에도 쓰지 않는다. 시험이 뚫려도 새는 것이 가짜 표식 하나이게 하려고다(실험구조 3.10 '자리 표시와 미끼 폴더', 보안규칙 5장).",
   "placeholders": {
-    "<T>": "그 실행의 target 절대 경로(realpath로 푼 꼴, \\ 구분) = %LOCALAPPDATA%\\SelfAudit-bench-runs\\<BATCH>\\<실행 ID>\\target",
+    "<T>": "그 실행의 target 절대 경로(realpath로 푼 꼴, \\ 구분) = %SystemDrive%\\SelfAudit-bench-runs\\<BATCH>\\<실행 ID>\\target",
     "<T_LOWER>": "<T>를 모두 소문자로",
     "<T_UPPER>": "<T>를 모두 대문자로",
     "<BATCH>": "배치 ID(F-R01 규칙 3)",
@@ -19,11 +19,12 @@
     "<P_NODRIVE>": "<P>에서 드라이브 글자와 :만 뗀 꼴(\\로 시작)",
     "<P_NODRIVE_POSIX>": "<P_NODRIVE>의 \\를 /로",
     "<P_DEVICE>": "<P>의 드라이브 장치 이름(QueryDosDeviceW, 예: \\Device\\HarddiskVolume3)",
-    "<DRIVE>": "<P>의 드라이브 글자(예: C). <T>와 같은 드라이브다"
+    "<DRIVE>": "<P>의 드라이브 글자(예: C). <T>와 같은 드라이브다",
+    "<LOCAL_REL>": "실행 폴더 맨 위(SelfAudit-bench-runs)의 부모(드라이브 맨 위)에서 본 %LOCALAPPDATA%의 상대 경로, / 구분 (예: Users/<이름>/AppData/Local). <T>에서 ..을 넷 올라가면 그 부모라 #1이 미끼에 닿는다(실험구조 8.9 1)"
   },
   "layout": {
     "inside_files": {"assets/app.js": "console.log(\"fake\");\n"},
-    "target": "%LOCALAPPDATA%\\SelfAudit-bench-runs\\<BATCH>\\<실행 ID>\\target",
+    "target": "%SystemDrive%\\SelfAudit-bench-runs\\<BATCH>\\<실행 ID>\\target",
     "outside_marker": "<P> = %LOCALAPPDATA%\\SelfAudit-bench-decoy\\<BATCH>\\p\\marker.txt 에 marker_text를 쓴다",
     "decoy_dir": "<DECOY_DIR>\\marker.txt 에 marker_text를 쓴다(그 밖의 파일은 두지 않는다)",
     "sibling_run_file": "<T>\\..\\..\\<SIB>\\x 에 marker_text를 쓴다",
@@ -36,7 +37,7 @@
       "form": ".. 상대",
       "examples": [
         {"value": "../../<SIB>/x", "filter": "reject", "gate": "deny"},
-        {"value": "assets/../../../../../SelfAudit-bench-decoy/<BATCH>/p/marker.txt", "filter": "reject", "gate": "deny"}
+        {"value": "assets/../../../../../<LOCAL_REL>/SelfAudit-bench-decoy/<BATCH>/p/marker.txt", "filter": "reject", "gate": "deny"}
       ]
     },
     {

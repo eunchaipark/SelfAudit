@@ -1,11 +1,18 @@
 """F-R02 실행 폴더: 저장소 밖 폴더·대상 복사·시작 전 확인·settings·mcp.json·치우기 (실험구조 3.2).
 
+실행 폴더 맨 위는 홈 밖 `%SystemDrive%\\SelfAudit-bench-runs`다(실험구조 8.9 1 — 홈 아래면 위쪽에
+사용자의 `~/.claude`가 있어 ㉢이 늘 멈춘다). 드라이브 맨 위에 새로 만든 폴더는 다른 사용자도 고칠 수
+있게 권한을 물려받으므로, 맨 위는 이 사용자·SYSTEM·Administrators만 닿는 권한으로 만들고 이미 있으면
+그 권한을 허용 꼴과 맞춘다.
+
 이 모듈은 실험 전용 설정 폴더에서 `settings.json` 하나만 쓴다. 그 폴더의 다른 파일(로그인 정보
 `.credentials.json` 등)은 열지도, 목록을 읽지도, 옮기지도 않는다(F-R02 7).
 """
 
 from __future__ import annotations
 
+import contextlib
+import ctypes
 import hashlib
 import json
 import ntpath
@@ -14,6 +21,7 @@ import re
 import shutil
 import stat
 from collections.abc import Iterable, Mapping, Sequence
+from ctypes import wintypes
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
@@ -38,6 +46,7 @@ __all__ = [
     "create_run_dir",
     "deny_rule_forms",
     "deny_rules",
+    "ensure_runs_root",
     "expected_manifest",
     "is_inside",
     "prepare_run",
@@ -56,11 +65,22 @@ MCP_NAME: Final = "mcp.json"
 DENY_TOOLS: Final = ("Read", "Grep", "Glob")
 # F-R06 2: 빈 실행의 지문 = 빈 목록을 이은 빈 글의 sha256 (폴더를 읽지 않는다, 실험구조 8.5 2)
 EMPTY_MANIFEST_SHA256: Final = hashlib.sha256("".join(format_manifest({})).encode()).hexdigest()
-UPWARD_MARKERS: Final = ("CLAUDE.md", ".claude")  # F-R02 2㉢
+# F-R02 2㉢ — Claude Code가 작업 폴더 위쪽에서 읽는 지시·설정 파일 이름(대소문자는 NTFS가 무시)
+UPWARD_MARKERS: Final = ("CLAUDE.md", "CLAUDE.local.md", ".claude")
 TEMPLATE_DIR: Final = Path(__file__).resolve().parent
 _BATCH_ID: Final = re.compile(r"[0-9]{8}-[0-9]{4}-[a-z0-9]{4,12}")
 _RUN_ID: Final = re.compile(r"[a-z0-9][a-z0-9-]{3,79}")
 _DRIVE_ABS: Final = re.compile(r"[A-Za-z]:\\")
+_SYSTEM_DRIVE: Final = re.compile(r"[A-Za-z]:")
+# 실행 폴더 맨 위 권한의 허용 꼴(SDDL): 소유자는 이 사용자나 Administrators,
+# DACL은 물려받지 않음(P), 허용 항목은 SYSTEM·Administrators·소유자 권한(OW)·이 사용자뿐.
+# 거부 항목은 막기만 하므로 받는다
+_SDDL: Final = re.compile(r"O:(?P<owner>[^:()]+)D:(?P<flags>[A-Z]*)(?P<aces>(?:\([^()]*\))*)")
+_ACE: Final = re.compile(r"\(([^;()]*);[^()]*;([^;()]*)\)")
+_TRUSTED_SIDS: Final = frozenset({"SY", "BA", "OW"})
+_PRIVATE_DIR_MODE: Final = (
+    0o700  # 파이썬 3.13+ Windows: 이 값이면 이 사용자·관리자만 닿는 DACL로 만든다
+)
 # 권한 규칙 글에서 뜻을 갖는 글자(글롭·괄호). 경로에 있으면 규칙이 다른 곳을 가리키므로 멈춘다
 _RULE_SPECIAL: Final = frozenset("*?[]{}()!")
 _PLACEHOLDERS: Final = ("<PYTHON>", "<ROOT>", "<RUN>")
@@ -84,24 +104,34 @@ class BatchStop(RuntimeError):
 class BenchPlaces:
     """저장소 밖 맨 위 폴더들.
 
-    실행 폴더·설정·내 앱 원자료·보관이 서로 다른 맨 위 폴더다(지도 '기술').
+    실행 폴더·설정·내 앱 원자료·보관이 서로 다른 맨 위 폴더다(지도 '기술'). 실행 폴더만 홈 밖
+    `runs_parent`(실제로는 `%SystemDrive%\\`) 아래이고, 나머지는 `%LOCALAPPDATA%` 아래다.
     """
 
     repo_root: Path
     local_app_data: Path
     user_profile: Path
+    runs_parent: Path
 
     @classmethod
     def from_env(cls, env: Mapping[str, str], repo_root: Path) -> BenchPlaces:
         by_upper = {k.upper(): v for k, v in env.items()}
         local, home = by_upper.get("LOCALAPPDATA", ""), by_upper.get("USERPROFILE", "")
+        drive = by_upper.get("SYSTEMDRIVE", "")
         if not (_DRIVE_ABS.match(local) and _DRIVE_ABS.match(home)):
             raise BatchStop("환경", "LOCALAPPDATA·USERPROFILE가 드라이브 절대 경로가 아님")
-        return cls(repo_root=repo_root, local_app_data=Path(local), user_profile=Path(home))
+        if not _SYSTEM_DRIVE.fullmatch(drive):
+            raise BatchStop("환경", "SystemDrive가 드라이브 글자(C:) 꼴이 아님")
+        return cls(
+            repo_root=repo_root,
+            local_app_data=Path(local),
+            user_profile=Path(home),
+            runs_parent=Path(drive + "\\"),
+        )
 
     @property
     def runs_root(self) -> Path:
-        return self.local_app_data / RUNS_DIR_NAME
+        return self.runs_parent / RUNS_DIR_NAME
 
     @property
     def config_dir(self) -> Path:
@@ -142,21 +172,23 @@ class PreparedRun:
 
 
 def create_run_dir(places: BenchPlaces, batch_id: str, run_id: str) -> RunDir:
-    """F-R02 1: `<LOCALAPPDATA>\\SelfAudit-bench-runs\\<배치 ID>\\<실행 ID>\\target\\`를 만든다.
+    """F-R02 1: `%SystemDrive%\\SelfAudit-bench-runs\\<배치 ID>\\<실행 ID>\\target\\`를 만든다.
 
-    만든 뒤 ㉣까지 본다.
+    맨 위(권한)와 배치 폴더(재분석 지점)를 **만들기 전에** 보고, 만든 뒤 ㉣까지 본다.
     """
     if not (_BATCH_ID.fullmatch(batch_id) and _RUN_ID.fullmatch(run_id)):
         raise BatchStop("1", "배치 ID·실행 ID 꼴이 아님")
     root = places.runs_root
     if is_inside(root, places.repo_root):
         raise BatchStop("1", "실행 폴더가 저장소 안")
+    ensure_runs_root(root)
     batch_dir = root / batch_id
     run_dir = batch_dir / run_id
-    batch_dir.mkdir(parents=True, exist_ok=True)
-    for folder in (root, batch_dir):
-        if _is_reparse(folder):
-            raise BatchStop("1", f"{folder.name}가 재분석 지점(정션·링크)")
+    if os.path.lexists(batch_dir):
+        if _is_reparse(batch_dir) or not batch_dir.is_dir():
+            raise BatchStop("1", f"{batch_dir.name}가 재분석 지점(정션·링크)이거나 폴더가 아님")
+    else:
+        batch_dir.mkdir()
     try:
         run_dir.mkdir()
     except FileExistsError:
@@ -166,6 +198,132 @@ def create_run_dir(places: BenchPlaces, batch_id: str, run_id: str) -> RunDir:
     run = RunDir(batch_dir=batch_dir, run_dir=run_dir, target=target)
     check_batch_only(run)
     return run
+
+
+def ensure_runs_root(root: Path) -> None:
+    """F-R02 1: 실행 폴더 맨 위를 이 사용자만 닿는 권한으로 만들거나, 이미 있으면 그 권한을 본다.
+
+    드라이브 맨 위(`C:\\`)는 로그인한 누구나 폴더를 만들 수 있고, 거기 만든 폴더는 '로그인한
+    사용자: 수정'을 물려받는다. 그대로 두면 다른 사용자가 복사본을 바꾸거나(㉡ 뒤), 맨 위를 먼저
+    만들어 두거나 정션으로 바꿔 둘 수 있다. 그래서 만들 때는 물려받지 않는 권한(`mode=0o700`,
+    파이썬 3.13+)으로 한 번에 만들고, 있으면 허용 꼴(`_SDDL`·`_TRUSTED_SIDS`)과 맞지 않을 때
+    멈춘다(고치지 않는다).
+    """
+    with contextlib.suppress(FileExistsError):
+        os.mkdir(root, _PRIVATE_DIR_MODE)
+    if _is_reparse(root) or not root.is_dir():
+        raise BatchStop("1", f"{root.name}가 재분석 지점(정션·링크)이거나 폴더가 아님")
+    if not _owner_only_acl(_security_sddl(root), _current_user_sid()):
+        raise BatchStop(
+            "1",
+            f"{root.name} 권한이 이 사용자·SYSTEM·Administrators만이 아님"
+            " (실행기가 만든 폴더가 아니면 지우고 다시 돌린다)",
+        )
+
+
+def _owner_only_acl(sddl: str, user_sid: str) -> bool:
+    """SDDL이 허용 꼴인가.
+
+    소유자가 이 사용자·Administrators, DACL 보호(P), 허용 항목은 믿는 SID만.
+    """
+    match = _SDDL.fullmatch(sddl)
+    if match is None or "P" not in match["flags"]:
+        return False
+    trusted = _TRUSTED_SIDS | {user_sid}
+    if match["owner"] not in {user_sid, "BA"}:
+        return False
+    for kind, sid in _ACE.findall(match["aces"]):
+        if kind == "D":
+            continue
+        if kind != "A" or sid not in trusted:
+            return False
+    return True
+
+
+_OWNER_SECURITY_INFORMATION: Final = 0x1
+_DACL_SECURITY_INFORMATION: Final = 0x4
+_SE_FILE_OBJECT: Final = 1
+_SDDL_REVISION_1: Final = 1
+_TOKEN_QUERY: Final = 0x0008
+_TOKEN_USER: Final = 1
+
+
+def _security_sddl(path: Path) -> str:
+    """폴더의 소유자와 DACL을 SDDL 글로(`GetNamedSecurityInfoW`). 못 읽으면 멈춘다."""
+    advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.LocalFree.argtypes = (ctypes.c_void_p,)
+    info = _OWNER_SECURITY_INFORMATION | _DACL_SECURITY_INFORMATION
+    descriptor = ctypes.c_void_p()
+    owner, dacl = ctypes.c_void_p(), ctypes.c_void_p()
+    code = advapi32.GetNamedSecurityInfoW(
+        str(path),
+        _SE_FILE_OBJECT,
+        info,
+        ctypes.byref(owner),
+        None,
+        ctypes.byref(dacl),
+        None,
+        ctypes.byref(descriptor),
+    )
+    if code != 0:
+        raise BatchStop("1", f"실행 폴더 맨 위 권한을 읽을 수 없음 (Win32 {code})")
+    try:
+        text = wintypes.LPWSTR()
+        ok = advapi32.ConvertSecurityDescriptorToStringSecurityDescriptorW(
+            descriptor, _SDDL_REVISION_1, info, ctypes.byref(text), None
+        )
+        if not ok:
+            raise BatchStop("1", f"권한을 글로 바꿀 수 없음 (Win32 {ctypes.get_last_error()})")
+        try:
+            return str(text.value)
+        finally:
+            kernel32.LocalFree(text)
+    finally:
+        kernel32.LocalFree(descriptor)
+
+
+def _current_user_sid() -> str:
+    """이 프로세스 사용자의 SID 글(`S-1-5-21-…`). 경로·이름이 아니라 SID로 견준다."""
+    advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+    kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    kernel32.LocalFree.argtypes = (ctypes.c_void_p,)
+    advapi32.OpenProcessToken.argtypes = (
+        wintypes.HANDLE,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.HANDLE),
+    )
+    advapi32.GetTokenInformation.argtypes = (
+        wintypes.HANDLE,
+        ctypes.c_int,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.DWORD),
+    )
+    advapi32.ConvertSidToStringSidW.argtypes = (ctypes.c_void_p, ctypes.POINTER(wintypes.LPWSTR))
+    token = wintypes.HANDLE()
+    if not advapi32.OpenProcessToken(
+        kernel32.GetCurrentProcess(), _TOKEN_QUERY, ctypes.byref(token)
+    ):
+        raise BatchStop("1", "프로세스 토큰을 열 수 없음")
+    try:
+        size = wintypes.DWORD()
+        advapi32.GetTokenInformation(token, _TOKEN_USER, None, 0, ctypes.byref(size))
+        buffer = ctypes.create_string_buffer(size.value)
+        if not advapi32.GetTokenInformation(token, _TOKEN_USER, buffer, size, ctypes.byref(size)):
+            raise BatchStop("1", "사용자 SID를 읽을 수 없음")
+        sid = ctypes.cast(buffer, ctypes.POINTER(ctypes.c_void_p))[0]  # TOKEN_USER.User.Sid
+        text = wintypes.LPWSTR()
+        if not advapi32.ConvertSidToStringSidW(sid, ctypes.byref(text)):
+            raise BatchStop("1", "SID를 글로 바꿀 수 없음")
+        try:
+            return str(text.value)
+        finally:
+            kernel32.LocalFree(text)
+    finally:
+        kernel32.CloseHandle(token)
 
 
 def copy_bundle(source: Path, target: Path) -> None:
@@ -241,12 +399,18 @@ def check_manifest(target: Path, expected: str) -> None:
 
 
 def check_no_claude_upward(target: Path) -> None:
-    """㉢ `target`부터 위쪽 폴더 어디에도 `CLAUDE.md`·`.claude`가 없다(파일·폴더·깨진 링크 모두)."""
-    for depth, folder in enumerate((target, *target.parents)):
-        for name in UPWARD_MARKERS:
-            if os.path.lexists(folder / name):
-                # 홈 아래 경로에는 사용자 이름이 있다 — 몇 단계 위인지만 알린다
-                raise BatchStop("㉢", f"target에서 위로 {depth}단계 폴더에 {name}가 있음")
+    """㉢ `target`부터 위쪽 폴더 어디에도 `CLAUDE.md`·`CLAUDE.local.md`·`.claude`가 없다.
+
+    파일·폴더·깨진 링크 모두 걸린다. 적힌 경로와 realpath로 푼 경로의 위쪽을 **둘 다** 본다 — 위쪽에
+    정션이 있으면 Claude Code가 어느 쪽으로 올라가 읽는지 알 수 없어서다.
+    """
+    chains = {"": Path(os.path.abspath(target)), "푼 경로 ": Path(os.path.realpath(target))}
+    for label, start in chains.items():
+        for depth, folder in enumerate((start, *start.parents)):
+            for name in UPWARD_MARKERS:
+                if os.path.lexists(folder / name):
+                    # 홈 아래 경로에는 사용자 이름이 있다 — 몇 단계 위인지만 알린다
+                    raise BatchStop("㉢", f"target {label}위로 {depth}단계 폴더에 {name}가 있음")
 
 
 def check_batch_only(run: RunDir) -> None:

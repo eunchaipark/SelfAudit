@@ -1,13 +1,17 @@
 """F-R02 실행 폴더 (R4) 시험. 기능명세 F-R02 예시를 옮겼다(값은 가상).
 
 폴더는 시험이 만든 임시 폴더에만 만든다.
-진짜 `%LOCALAPPDATA%`·설정 폴더·`~/.claude`는 건드리지 않는다.
-㉢(위쪽 `CLAUDE.md`·`.claude`)은 위쪽까지 보므로, 위쪽이 깨끗한 임시 자리(`clean_base`)를 쓴다.
+진짜 `%LOCALAPPDATA%`·설정 폴더·`~/.claude`·진짜 `%SystemDrive%\\SelfAudit-bench-runs`는
+건드리지 않는다.
+㉢(위쪽 `CLAUDE.md`·`.claude`)은 위쪽까지 보므로, 실제 실행 폴더와 같은 자리(드라이브 맨 위)에
+시험마다 새 임시 폴더(`clean_base`)를 만든다 — 맨 위 권한(드라이브 맨 위에서 물려받는 권한)도 실제와
+같은 조건에서 시험된다(실험구조 8.9 1).
 """
 
 from __future__ import annotations
 
 import _winapi
+import dataclasses
 import json
 import os
 import shutil
@@ -40,20 +44,17 @@ def _has_marker_upward(folder: Path) -> bool:
 
 
 @pytest.fixture
-def clean_base(tmp_path: Path) -> Iterator[Path]:
-    """위쪽 폴더 어디에도 `CLAUDE.md`·`.claude`가 없는 임시 자리.
+def clean_base() -> Iterator[Path]:
+    """실제 실행 폴더의 부모(`%SystemDrive%\\`) 바로 아래의 새 임시 폴더. 끝나면 지운다.
 
-    이 PC의 pytest 임시 폴더는 홈 아래라 `~/.claude`가 위쪽에 있다(보고서 '요청' 1).
-    그러면 드라이브의
-    `Temp` 폴더에 새 임시 폴더를 만든다. 둘 다 안 되면 건너뛰지 않고 실패한다.
+    pytest 임시 폴더는 홈 아래라 위쪽에 `~/.claude`가 있어 ㉢ 시험이 늘 멈춘다. 이름이 시험마다 달라
+    여러 worktree가 함께 돌아도 겹치지 않는다(`mkdtemp`, 파이썬 3.13+는 이 사용자만 닿는 권한).
+    드라이브 맨 위에 표식이 있으면 건너뛰지 않고 실패한다.
     """
-    if not _has_marker_upward(tmp_path):
-        yield tmp_path
-        return
-    drive_temp = Path(os.environ.get("SYSTEMDRIVE", "C:") + "\\") / "Temp"
-    if not drive_temp.is_dir() or _has_marker_upward(drive_temp):
-        pytest.fail("위쪽이 깨끗한 임시 자리를 찾지 못함(㉢ 시험 불가)")
-    base = Path(tempfile.mkdtemp(prefix="sa-t30-", dir=drive_temp))
+    drive = Path(os.environ.get("SYSTEMDRIVE", "C:") + "\\")
+    if _has_marker_upward(drive):
+        pytest.fail("드라이브 맨 위에 CLAUDE.md·.claude가 있음(㉢ 시험 불가, 실제 배치도 멈춤)")
+    base = Path(tempfile.mkdtemp(prefix="SelfAudit-bench-test-", dir=drive))
     try:
         yield base
     finally:
@@ -61,9 +62,12 @@ def clean_base(tmp_path: Path) -> Iterator[Path]:
 
 
 def places_at(base: Path) -> rw.BenchPlaces:
+    """`base` = 드라이브 맨 위 자리(실행 폴더의 부모). 저장소·`Local`·홈도 그 안의 가짜 폴더다."""
     repo = base / "repo"
     repo.mkdir(exist_ok=True)
-    return rw.BenchPlaces(repo_root=repo, local_app_data=base / "Local", user_profile=base / "home")
+    return rw.BenchPlaces(
+        repo_root=repo, local_app_data=base / "Local", user_profile=base / "home", runs_parent=base
+    )
 
 
 def prepare(
@@ -88,20 +92,31 @@ def prepare(
 # --- 예시 ------------------------------------------------------------------------------------
 
 
+SPEC_ENV = {
+    "SystemDrive": "C:",
+    "LOCALAPPDATA": r"C:\Users\u\AppData\Local",
+    "USERPROFILE": r"C:\Users\u",
+}
+
+
 def test_F_R02_작업폴더_자리() -> None:
-    places = rw.BenchPlaces(
-        repo_root=Path(r"C:\project\SelfAudit"),
-        local_app_data=Path(r"C:\Users\u\AppData\Local"),
-        user_profile=Path(r"C:\Users\u"),
-    )
-    want = (
-        r"C:\Users\u\AppData\Local\SelfAudit-bench-runs"
-        r"\20261123-0130-first24\easy-1-a-1-3f2a9c10\target"
-    )
+    # 기대값 변경(실험구조 8.9 1, 총괄 대리 결정): 명세 F-R02 예시의 옛 자리
+    # `C:\Users\u\AppData\Local\SelfAudit-bench-runs\…`는 위쪽에 홈(`~/.claude`)이 있어
+    # ㉢이 늘 멈춘다
+    places = rw.BenchPlaces.from_env(SPEC_ENV, Path(r"C:\project\SelfAudit"))
+    want = r"C:\SelfAudit-bench-runs\20261123-0130-first24\easy-1-a-1-3f2a9c10\target"
     assert str(places.runs_root / BATCH / RUN / rw.TARGET_DIR_NAME) == want
-    assert places.config_dir.name == "SelfAudit-bench-claude"
-    assert places.private_dir.name == "SelfAudit-private"
-    assert places.archive_dir.name == "SelfAudit-bench-archive"
+    assert str(places.config_dir) == r"C:\Users\u\AppData\Local\SelfAudit-bench-claude"
+    assert str(places.private_dir) == r"C:\Users\u\AppData\Local\SelfAudit-private"
+    assert str(places.archive_dir) == r"C:\Users\u\AppData\Local\SelfAudit-bench-archive"
+    home = places.user_profile
+    assert home not in places.runs_root.parents  # 위쪽에 홈이 없다
+
+
+@pytest.mark.parametrize("drive", ["", "C:\\", "C", r"\\server\share", "CD:"])
+def test_F_R02_SystemDrive_꼴아니면_멈춤(drive: str) -> None:
+    with pytest.raises(rw.BatchStop, match="SystemDrive"):
+        rw.BenchPlaces.from_env({**SPEC_ENV, "SystemDrive": drive}, Path(r"C:\project\SelfAudit"))
 
 
 def test_F_R02_실행폴더_저장소밖(clean_base: Path, make_bundle: MakeBundle) -> None:
@@ -110,13 +125,80 @@ def test_F_R02_실행폴더_저장소밖(clean_base: Path, make_bundle: MakeBund
     assert not rw.is_inside(got.run.run_dir, places.repo_root)
     assert got.run.target == places.runs_root / BATCH / RUN / "target"
     assert bundle_manifest_sha256(got.run.target) == got.manifest_sha256
-    inside = rw.BenchPlaces(
-        repo_root=places.repo_root,
-        local_app_data=places.repo_root / "bench" / "Local",
-        user_profile=places.user_profile,
-    )
+    inside = dataclasses.replace(places, runs_parent=places.repo_root / "bench")
     with pytest.raises(rw.BatchStop, match="저장소 안"):
         rw.create_run_dir(inside, BATCH, RUN)
+
+
+# --- 실행 폴더 맨 위 권한 (드라이브 맨 위, 실험구조 8.9 1) -------------------------------------
+
+
+def test_F_R02_맨위_이사용자만_닿는권한으로_만듦(clean_base: Path, make_bundle: MakeBundle) -> None:
+    places = places_at(clean_base)
+    got = prepare(places, make_bundle(BUNDLE))
+    me = rw._current_user_sid()
+    root_sddl = rw._security_sddl(places.runs_root)
+    assert rw._owner_only_acl(root_sddl, me), "맨 위가 허용 꼴이 아님"
+    assert "AU" not in root_sddl and "BU" not in root_sddl  # 로그인한 사용자·Users 항목 없음
+    # 복사한 파일은 맨 위의 권한을 물려받는다(드라이브 맨 위의 '로그인한 사용자: 수정'이 아니라)
+    copied = rw._security_sddl(got.run.target / "assets" / "app.js")
+    assert "AU" not in copied and "BU" not in copied
+    rw.ensure_runs_root(places.runs_root)  # 이미 있으면 확인만(두 번째 배치)
+
+
+def test_F_R02_맨위가_물려받은권한이면_멈춤(clean_base: Path) -> None:
+    places = places_at(clean_base)
+    places.runs_root.mkdir()  # 보통 mkdir = 부모의 권한을 물려받음(보호 P 없음)
+    with pytest.raises(rw.BatchStop, match="권한") as e:
+        rw.create_run_dir(places, BATCH, RUN)
+    assert e.value.rule == "1"
+    assert not (places.runs_root / BATCH).exists()  # 맨 위를 보기 전에 배치 폴더를 만들지 않음
+
+
+def test_F_R02_맨위가_정션이면_멈춤(clean_base: Path) -> None:
+    places = places_at(clean_base)
+    elsewhere = clean_base / "elsewhere"
+    elsewhere.mkdir()
+    _winapi.CreateJunction(str(elsewhere), str(places.runs_root))
+    with pytest.raises(rw.BatchStop, match="재분석"):
+        rw.create_run_dir(places, BATCH, RUN)
+    assert list(elsewhere.iterdir()) == []
+
+
+def test_F_R02_배치폴더가_정션이면_멈춤(clean_base: Path) -> None:
+    places = places_at(clean_base)
+    rw.ensure_runs_root(places.runs_root)
+    elsewhere = clean_base / "elsewhere"
+    elsewhere.mkdir()
+    _winapi.CreateJunction(str(elsewhere), str(places.runs_root / BATCH))
+    with pytest.raises(rw.BatchStop, match="재분석"):
+        rw.create_run_dir(places, BATCH, RUN)
+    assert list(elsewhere.iterdir()) == []
+
+
+ME = "S-1-5-21-1-2-3-1001"
+
+
+@pytest.mark.parametrize(
+    ("sddl", "ok"),
+    [
+        (f"O:{ME}D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FA;;;OW)", True),  # mkdir 0o700 꼴
+        (f"O:{ME}D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FA;;;{ME})", True),
+        ("O:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)", True),  # 관리자 권한으로 만든 폴더
+        (f"O:{ME}D:P(D;OICI;FA;;;WD)(A;OICI;FA;;;SY)", True),  # 거부 항목은 막기만 함
+        (f"O:{ME}D:(A;OICIID;FA;;;SY)(A;OICIID;FA;;;{ME})", False),  # 물려받음(P 없음)
+        (f"O:{ME}D:P(A;OICI;FA;;;SY)(A;OICIIO;0x1301bf;;;AU)", False),  # 로그인한 사용자: 수정
+        (f"O:{ME}D:P(A;OICI;0x1200a9;;;BU)", False),  # Users: 읽기도 안 됨(내 앱 복사본)
+        ("O:S-1-5-21-9-9-9-1002D:P(A;OICI;FA;;;SY)", False),  # 다른 사용자가 먼저 만듦
+        (f"O:{ME}D:P(A;OICI;FA;;;S-1-5-21-9-9-9-1002)", False),
+        (f"O:{ME}D:P(XA;OICI;FA;;;WD;(Member_of {{SID(BA)}}))", False),  # 조건 항목은 모름
+        (f"O:{ME}D:P(OA;;CC;0;;WD)", False),  # 개체 항목은 모름
+        (f"O:{ME}D:NO_ACCESS_CONTROL", False),  # DACL 없음 = 누구나
+        ("", False),
+    ],
+)
+def test_F_R02_맨위권한_허용꼴만(sddl: str, ok: bool) -> None:
+    assert rw._owner_only_acl(sddl, ME) is ok
 
 
 def test_F_R02_실행폴더_정션으로_저장소안이면_거절(clean_base: Path) -> None:
@@ -195,12 +277,12 @@ def test_F_R02_target안_정션이면_멈춤(clean_base: Path) -> None:
     assert "assets/jlink" in e.value.detail
 
 
-@pytest.mark.parametrize("marker", ["CLAUDE.md", ".claude", "claude.md"])
+@pytest.mark.parametrize("marker", ["CLAUDE.md", ".claude", "claude.md", "CLAUDE.local.md"])
 def test_F_R02_위쪽에_CLAUDE_md있으면_멈춤(
     clean_base: Path, make_bundle: MakeBundle, marker: str
 ) -> None:
     places = places_at(clean_base)
-    places.runs_root.mkdir(parents=True)
+    rw.ensure_runs_root(places.runs_root)
     if marker == ".claude":
         (places.runs_root / marker).mkdir()
     else:
@@ -219,8 +301,23 @@ def test_F_R02_target안_맨위_CLAUDE_md도_멈춤(clean_base: Path, make_bundl
     assert (e.value.rule, "위로 0단계" in e.value.detail) == ("㉢", True)
 
 
+def test_F_R02_푼경로_위쪽에_CLAUDE_md있으면_멈춤(clean_base: Path) -> None:
+    # 적힌 경로의 위쪽은 깨끗하지만 정션을 풀면 표식이 있는 폴더 아래다
+    real = clean_base / "real"
+    (real / "deep" / "target").mkdir(parents=True)
+    (real / "CLAUDE.md").write_text("fake", encoding="utf-8")
+    (clean_base / "clean").mkdir()
+    _winapi.CreateJunction(str(real / "deep"), str(clean_base / "clean" / "link"))
+    target = clean_base / "clean" / "link" / "target"
+    with pytest.raises(rw.BatchStop) as e:
+        rw.check_no_claude_upward(target)
+    assert (e.value.rule, "푼 경로 위로 2단계" in e.value.detail) == ("㉢", True)
+    rw.check_no_claude_upward(clean_base / "clean")  # 정션 없는 쪽은 통과
+
+
 def test_F_R02_배치폴더에_지난실행_남으면_멈춤(clean_base: Path, make_bundle: MakeBundle) -> None:
     places = places_at(clean_base)
+    rw.ensure_runs_root(places.runs_root)
     (places.runs_root / BATCH / "easy-2-b-1-00000001").mkdir(parents=True)
     with pytest.raises(rw.BatchStop) as e:
         prepare(places, make_bundle(BUNDLE))
@@ -230,6 +327,7 @@ def test_F_R02_배치폴더에_지난실행_남으면_멈춤(clean_base: Path, m
 
 def test_F_R02_같은실행폴더_있으면_멈춤(clean_base: Path) -> None:
     places = places_at(clean_base)
+    rw.ensure_runs_root(places.runs_root)
     (places.runs_root / BATCH / RUN).mkdir(parents=True)
     with pytest.raises(rw.BatchStop) as e:
         rw.create_run_dir(places, BATCH, RUN)
@@ -278,6 +376,7 @@ def test_F_R02_실행폴더가_정션이면_지우지않음(clean_base: Path) ->
     keep = clean_base / "keep"
     keep.mkdir()
     (keep / "x.txt").write_text("keep", encoding="utf-8")
+    rw.ensure_runs_root(places.runs_root)
     batch = places.runs_root / BATCH
     batch.mkdir(parents=True)
     _winapi.CreateJunction(str(keep), str(batch / RUN))
@@ -289,6 +388,7 @@ def test_F_R02_실행폴더가_정션이면_지우지않음(clean_base: Path) ->
 
 def test_F_R02_실행폴더가_같은배치안을_가리키는_정션이면_지우지않음(clean_base: Path) -> None:
     places = places_at(clean_base)
+    rw.ensure_runs_root(places.runs_root)
     batch = places.runs_root / BATCH
     other = batch / "easy-2-b-1-00000001"
     other.mkdir(parents=True)
