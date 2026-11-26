@@ -1,0 +1,37 @@
+{
+  "schema": "selfaudit-bench/answers@1",
+  "bundle_id": "normal-1",
+  "origin": "planted",
+  "difficulty": "normal",
+  "bundle_manifest_sha256": "9c1e9c1e9c1e9c1e9c1e9c1e9c1e9c1e9c1e9c1e9c1e9c1e9c1e9c1e9c1e9c1e",
+  "complete": true,
+  "items": [
+    {
+      "id": "N1-01",
+      "categories": ["internal_address", "admin_path"],
+      "difficulty": "normal",
+      "hiding": "plain",
+      "locations": [
+        {"file": "a.js", "line_start": 30, "line_end": 30, "file_lines": 80}
+      ],
+      "anchor": "http://10.1.2.3/ops",
+      "decoded_anchor": null,
+      "planted": "기능명세 F-G02 예시 정답지 ㉯ (가상 값)",
+      "why": "범주 둘"
+    },
+    {
+      "id": "N1-02",
+      "categories": ["admin_path"],
+      "difficulty": "normal",
+      "hiding": "plain",
+      "locations": [
+        {"file": "a.js", "line_start": 31, "line_end": 31, "file_lines": 80}
+      ],
+      "anchor": "/admin/export",
+      "decoded_anchor": null,
+      "planted": "기능명세 F-G02 예시 정답지 ㉯ (가상 값)",
+      "why": "옆 줄 정답"
+    }
+  ],
+  "decoys": []
+}

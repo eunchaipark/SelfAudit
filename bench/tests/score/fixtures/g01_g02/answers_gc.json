@@ -1,0 +1,36 @@
+{
+  "schema": "selfaudit-bench/answers@1",
+  "bundle_id": "hard-1",
+  "origin": "planted",
+  "difficulty": "hard",
+  "bundle_manifest_sha256": "7d4e7d4e7d4e7d4e7d4e7d4e7d4e7d4e7d4e7d4e7d4e7d4e7d4e7d4e7d4e7d4e",
+  "complete": true,
+  "items": [
+    {
+      "id": "N2-04",
+      "categories": ["secret"],
+      "difficulty": "hard",
+      "hiding": "split",
+      "locations": [
+        {"file": "assets/a-1.js", "line_start": 1, "line_end": 1, "file_lines": 2},
+        {"file": "assets/b-2.js", "line_start": 1, "line_end": 1, "file_lines": 2, "anchor": "\"Wd93RtYb0\""}
+      ],
+      "anchor": "qorvo_7Hk2Lm",
+      "decoded_anchor": "qorvo_7Hk2LmWd93RtYb0",
+      "planted": "기능명세 F-G02 예시 정답지 ㉰ (CR-008, 가상 값)",
+      "why": "두 파일에 나눠 쓴 키"
+    }
+  ],
+  "decoys": [
+    {
+      "id": "N2-D3",
+      "locations": [
+        {"file": "assets/a-1.js", "line_start": 1, "line_end": 1, "file_lines": 2}
+      ],
+      "anchor": "IzJmNmZiMA==",
+      "hiding": "encoded",
+      "decoded_anchor": "#2f6fb0",
+      "why": "base64로 숨긴 색 값"
+    }
+  ]
+}

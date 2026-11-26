@@ -1,0 +1,99 @@
+{
+  "schema": "selfaudit-bench/answers@1",
+  "bundle_id": "easy-1",
+  "origin": "planted",
+  "difficulty": "easy",
+  "bundle_manifest_sha256": "3f2a3f2a3f2a3f2a3f2a3f2a3f2a3f2a3f2a3f2a3f2a3f2a3f2a3f2a3f2a3f2a",
+  "complete": true,
+  "items": [
+    {
+      "id": "E1-01",
+      "categories": ["secret"],
+      "difficulty": "easy",
+      "hiding": "plain",
+      "locations": [
+        {"file": "assets/index-3f2a.js", "line_start": 12, "line_end": 12, "file_lines": 120},
+        {"file": "assets/index-3f2a.js.map", "line_start": 1, "line_end": 1, "file_lines": 1}
+      ],
+      "anchor": "zelto_b0C4frYzt4BKOBGR0EOcliebprppDYO8",
+      "decoded_anchor": null,
+      "planted": "기능명세 F-G02 예시 정답지 ㉮ (가상 값)",
+      "why": "결과물과 소스맵 두 위치"
+    },
+    {
+      "id": "E1-02",
+      "categories": ["internal_address"],
+      "difficulty": "easy",
+      "hiding": "plain",
+      "locations": [
+        {"file": "assets/index-3f2a.js", "line_start": 40, "line_end": 40, "file_lines": 120}
+      ],
+      "anchor": "10.20.30.40:8080",
+      "decoded_anchor": null,
+      "planted": "기능명세 F-G02 예시 정답지 ㉮ (가상 값)",
+      "why": "내부 주소"
+    },
+    {
+      "id": "E1-03",
+      "categories": ["admin_path"],
+      "difficulty": "easy",
+      "hiding": "plain",
+      "locations": [
+        {"file": "assets/index-3f2a.js", "line_start": 55, "line_end": 57, "file_lines": 120}
+      ],
+      "anchor": "/internal-admin/users",
+      "decoded_anchor": null,
+      "planted": "기능명세 F-G02 예시 정답지 ㉮ (가상 값)",
+      "why": "관리 경로, 여러 줄"
+    },
+    {
+      "id": "E1-04",
+      "categories": ["debug_flag"],
+      "difficulty": "easy",
+      "hiding": "plain",
+      "locations": [
+        {"file": "assets/index-3f2a.js", "line_start": 80, "line_end": 80, "file_lines": 120}
+      ],
+      "anchor": "enableDebugPanel",
+      "decoded_anchor": null,
+      "planted": "기능명세 F-G02 예시 정답지 ㉮ (가상 값)",
+      "why": "디버그 플래그"
+    },
+    {
+      "id": "E1-05",
+      "categories": ["source_map"],
+      "difficulty": "easy",
+      "hiding": "plain",
+      "locations": [
+        {"file": "assets/index-3f2a.js.map", "line_start": 1, "line_end": 1, "file_lines": 1}
+      ],
+      "anchor": null,
+      "decoded_anchor": null,
+      "planted": "기능명세 F-G02 예시 정답지 ㉮ (가상 값)",
+      "why": "닻 없는 정답"
+    },
+    {
+      "id": "E1-06",
+      "categories": ["client_authz"],
+      "difficulty": "easy",
+      "hiding": "plain",
+      "locations": [
+        {"file": "assets/index-3f2a.js", "line_start": 101, "line_end": 104, "file_lines": 120}
+      ],
+      "anchor": "role===\"admin\"",
+      "decoded_anchor": null,
+      "planted": "기능명세 F-G02 예시 정답지 ㉮ (가상 값)",
+      "why": "화면에만 있는 권한 검사"
+    }
+  ],
+  "decoys": [
+    {
+      "id": "E1-D1",
+      "locations": [
+        {"file": "assets/index-3f2a.js", "line_start": 20, "line_end": 20, "file_lines": 120}
+      ],
+      "anchor": "YOUR_API_KEY",
+      "why": "자리표시값"
+    }
+  ]
+}
