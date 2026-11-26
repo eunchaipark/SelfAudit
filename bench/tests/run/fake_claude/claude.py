@@ -18,12 +18,12 @@
 - `exit_code`: 종료 코드(기본 0).
 - `spam_bytes`: 이만큼의 줄을 쏟는다(읽기 상한 시험).
 
-`gate` 칸: `{"overrides": {"<n>": "leak"|"skip"|"missing"|"deny"|"read"}, "probes": {"1":
-"deny"|"read",
-"2": …}}`. 기본은 '권한 층이 맞게 막는' 흉내다 — Read·Grep·Glob은 작업 폴더 안(글자 비교, `..`·절대
-꼴은 정규화)이면 읽고 아니면 거절(result 줄 `permission_denials`), REA 도구는 거르개처럼 푼 경로가
-안이면
-답하고 아니면 오류 글(`input_path: target 안의 있는 경로가 아님`).
+`gate` 칸: `{"overrides": {열쇠: 모드}, "overrides_b": {…}, "probes": {"1": 모드, "2": 모드}}`.
+모드는 leak·skip·missing·deny·read, 열쇠는 시도 번호·`도구:값`·도구 이름. `overrides_b`는 MCP 설정에
+`rea`가 있을 때(조건 B)만 쓴다. 기본은 '권한 층이 맞게 막는' 흉내다 — Read·Grep·Glob은 작업 폴더
+안(글자 비교, `..`·절대 꼴은 정규화)이면 읽고 아니면 거절(result 줄 `permission_denials`), REA
+도구는
+거르개처럼 푼 경로가 안이면 답하고 아니면 오류 글(`input_path: target 안의 있는 경로가 아님`).
 """
 
 from __future__ import annotations
@@ -147,10 +147,12 @@ def gate_answer(
     return True, DENIED_TEXT.format(tool=tool), True
 
 
-def gate_lines(scenario: dict[str, Any]) -> list[dict[str, Any]]:
+def gate_lines(scenario: dict[str, Any], args: list[str]) -> list[dict[str, Any]]:
     cwd = os.getcwd()
     spec = scenario["gate"]
     overrides = {str(k): v for k, v in spec.get("overrides", {}).items()}
+    if "rea" in servers(args):
+        overrides |= {str(k): v for k, v in spec.get("overrides_b", {}).items()}
     probes = {str(k): v for k, v in spec.get("probes", {"1": "deny", "2": "read"}).items()}
     attempts = json.loads(Path(cwd, "gate-cases.json").read_text("utf-8"))["attempts"]
     denials: list[dict[str, Any]] = []
@@ -262,7 +264,7 @@ def main() -> int:
         Path(scenario["child_pidfile"]).write_text(str(child.pid), encoding="utf-8")
     for extra in scenario.get("lines", []):
         emit(extra)
-    denials = gate_lines(scenario) if "gate" in scenario else []
+    denials = gate_lines(scenario, args) if "gate" in scenario else []
     if scenario.get("spam_bytes"):
         chunk = ("가" * 1000 + "\n").encode()
         for _ in range(scenario["spam_bytes"] // len(chunk) + 1):
