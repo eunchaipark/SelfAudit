@@ -1738,9 +1738,9 @@
         "id": "26",
         "title": "채점·측정: 결과 읽기와 맞춤 판정 (F-G01, F-G02)",
         "description": "findings 계약 검증·형식 실패·시간 초과, 후보 짝(범주·파일·줄 T·닻·그 위치의 위치 닻), 최대 1:1 짝, 동점 차례, 중복·other·미끼(풀어낸 값 포함)",
-        "details": "영역: 채점·측정\n목적: 결과와 정답을 사람 판단 없이 같게 짝지어 '더 많이·더 정확히 찾는가'를 가른다 (요구사항 R5, 4절)\n읽을 문서: 기능명세 F-G01·F-G02, 설계 실험구조 2.3, 2.5 전체, 7절, 8.4 ②·⑥\n고칠 파일: bench/score/__init__.py, bench/score/read.py, bench/score/match.py, bench/tests/score/fixtures/g01_g02/**, bench/tests/score/test_f_g01.py, bench/tests/score/test_f_g02.py\n계약: findings.schema.json, answers.schema.json(위치 anchor, 미끼 decoded_anchor), bench.common 경로 정규화·lines\n\n작업 쌍: B 한 세션 쪽 (solo-bench, 병합 전 검토 없음 — 사용자 확인 8절 12. 독립 검토는 보정 배치 전 — 실험구조 8.1 ⑦)\n선행(사람): 사용자 확인 7절(T, 닻 맞춤, 경로 비교, 중복, other, 형식 실패, 결과 수 상한)\n선행(설계·문서): design/replan-1124 병합(계약 커밋 037b2e8), 기능명세 F-G02 고침 — 규칙의 닻 맞춤에 '그 위치의 위치 닻', 미끼 헛짚음에 미끼 decoded_anchor·위치 닻 (8.4 2·6, 8.7)\n크기: 예시 약 23 · 파일 약 8 · 하위 작업 6\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤)\n8.4에서 넘어온 것: 2.5 ㉯에 '그 위치의 위치 닻'을 더한다 — 다른 위치의 위치 닻으로는 그 위치가 맞지 않음(8.4 2). 숨긴 미끼를 풀어낸 값(decoded_anchor)으로 가리킨 결과는 '미끼 헛짚음'(8.4 6). 위치 닻은 '설계 해석 — 사용자 확인 전'(7절)이라 다시 채점으로 바꿀 수 있게 둔다",
+        "details": "영역: 채점·측정\n목적: 결과와 정답을 사람 판단 없이 같게 짝지어 '더 많이·더 정확히 찾는가'를 가른다 (요구사항 R5, 4절)\n읽을 문서: 기능명세 F-G01·F-G02, 설계 실험구조 2.3, 2.5 전체, 7절, 8.4 ②·⑥, 8.8 3(위치 정확도에 그 위치의 위치 닻)\n고칠 파일: bench/score/__init__.py, bench/score/read.py, bench/score/match.py, bench/tests/score/fixtures/g01_g02/**, bench/tests/score/test_f_g01.py, bench/tests/score/test_f_g02.py\n계약: findings.schema.json, answers.schema.json(위치 anchor, 미끼 decoded_anchor), bench.common 경로 정규화·lines\n명세 기준: b9d544b\n\n작업 쌍: B 한 세션 쪽 (solo-bench, 병합 전 검토 없음 — 사용자 확인 8절 12. 독립 검토는 보정 배치 전 — 실험구조 8.1 ⑦)\n선행(사람): 사용자 확인 7절(T, 닻 맞춤, 경로 비교, 중복, other, 형식 실패, 결과 수 상한)\n선행(설계·문서): design/replan-1124 병합(계약 커밋 037b2e8), 기능명세 F-G02 고침 — 규칙의 닻 맞춤에 '그 위치의 위치 닻', 미끼 헛짚음에 미끼 decoded_anchor·위치 닻 (8.4 2·6, 8.7)\n크기: 예시 약 23 · 파일 약 8 · 하위 작업 6\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤)\n8.4에서 넘어온 것: 2.5 ㉯에 '그 위치의 위치 닻'을 더한다 — 다른 위치의 위치 닻으로는 그 위치가 맞지 않음(8.4 2). 숨긴 미끼를 풀어낸 값(decoded_anchor)으로 가리킨 결과는 '미끼 헛짚음'(8.4 6). 위치 닻은 '설계 해석 — 사용자 확인 전'(7절)이라 다시 채점으로 바꿀 수 있게 둔다",
         "testStrategy": "test_F_G01_계약맞음_통과 / test_F_G01_계약틀림_format_failure / test_F_G01_결과101개_format_failure / test_F_G01_timeout_결과없이_상태만 / test_F_G02_정답범주밖_짝아님 / test_F_G02_둘째범주도_맞음 / test_F_G02_대소문자다른파일_짝아님 / test_F_G02_역슬래시·점슬래시_정규화 / test_F_G02_line_end더하기2_맞음 / test_F_G02_line_end더하기3_틀림 / test_F_G02_줄틀려도_닻있으면_맞음 / test_F_G02_닻null·줄null_짝아님 / test_F_G02_결과하나가_정답둘_하나만 / test_F_G02_최대짝이_욕심짝보다_많음 / test_F_G02_동점_닻먼저_줄가까운것 / test_F_G02_같은정답_두번_중복은틀림 / test_F_G02_other_분모밖 / test_F_G02_미끼위치_헛짚음 / test_F_G02_map위치로도_맞음 / test_F_G02_결과차례바꿔도_같은짝 / test_F_G02_위치닻으로_맞음 / test_F_G02_다른위치의_위치닻은_짝아님 / test_F_G02_미끼풀어낸값_헛짚음. 화면 없음",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [
           "20"
         ],
@@ -1800,7 +1800,8 @@
             "dependencies": [],
             "parentId": "undefined"
           }
-        ]
+        ],
+        "updatedAt": "2026-11-26T10:43:25.059Z"
       },
       {
         "id": "27",
@@ -2444,7 +2445,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-11-26T10:42:48.595Z",
+      "lastModified": "2026-11-26T10:43:25.062Z",
       "taskCount": 36,
       "completedCount": 15,
       "tags": [
