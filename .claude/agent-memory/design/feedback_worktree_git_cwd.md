@@ -13,4 +13,6 @@ worktree에 갇힌 에이전트는 한 명령 안에서 `cd <worktree>/bench && 
 
 설계 문서에 긴 절을 붙일 때 `cat >> 파일 <<'EOF'` 뒤에 `git diff`를 이어 붙여도 거절된다(2026-11-24 CR-008 넘김) — 긴 글은 Edit 도구로 붙이고 git은 따로. `check.py | head`는 실패한 검사 이름 줄을 자를 수 있다 — 출력을 scratchpad 파일로 받아 `grep -v '^통과'`로 본다.
 
+2026-11-27 run-dir 작업에서도 heredoc 안 python의 역슬래시(`\n`)가 시험 파일 한 줄을 실제 줄바꿈으로 깨뜨렸다 — 역슬래시가 든 고침은 처음부터 Edit 도구나 scratchpad .py로.
+
 **How to apply:** `uv run …`(bench 폴더)과 `git …`(worktree 맨 위)을 다른 Bash 호출로 나눈다. Git Bash heredoc 안 python으로 역슬래시 든 글을 찾아 바꾸면 어긋나기 쉬우니 그런 글은 Edit 도구로 고친다. [[feedback_unicode_escape]]와 같은 갈래.
