@@ -637,6 +637,32 @@ def test_F_R10_네트워크기록있으면_배치멈춤(gate_base: Path) -> None
     assert e.value.rule == "F-R07 5"
 
 
+def test_F_R10_네트워크감시가_실패하면_배치멈춤(gate_base: Path) -> None:
+    """㉡ 폴링 중 프로세스 목록이 실패하면 그 문지기 실행은 error → 배치를 시작하지 않는다(T32 반려
+    1)."""
+    ctx = make_ctx(gate_base)
+
+    def broken() -> dict[int, tuple[int, str]]:
+        raise nw.NetstatError("프로세스 목록을 읽을 수 없음")
+
+    failing = dataclasses.replace(
+        ctx,
+        netwatch=lambda: nw.NetWatch(
+            Path(r"C:\none\node.exe"), {}, poll_s=0.05, netstat=lambda: b"", snapshot=broken
+        ),
+    )
+    with pytest.raises(rw.BatchStop) as e:
+        rg.run_gate(failing)
+    assert e.value.detail == "A: 상태 error"
+    record = next(iter(archived(ctx.places).values()))
+    assert record["outcome"] == {
+        "status": "error",
+        "exit_code": 0,
+        "init_check": "passed",
+        "detail": "프로세스 목록을 읽을 수 없음",
+    }
+
+
 def test_F_R10_시도목록에_기대를_싣지않음() -> None:
     attempts = rg.build_attempts(CASES, fake_values(), "A")
     data = json.loads(rg.cases_file_bytes(attempts))

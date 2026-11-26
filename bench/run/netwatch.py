@@ -278,17 +278,24 @@ class NetWatch:
         return self.record
 
     def poll_once(self) -> None:
+        """한 번 본다. 무엇이 실패하든(프로세스 목록·이미지 경로·netstat) `record.error`에 적는다 —
+        감시가 소리 없이 멈추면 '기록 0'이 통과로 세어진다(F-R07 예외: 기록 없이 채점하지
+        않는다)."""
         if self.record.error is not None:
             return
-        snapshot = self._snapshot()
-        pids = watched_pids(snapshot, self._root, self._node_image, self._image_of)
-        for pid in pids:
-            self.record.rea_processes.setdefault(pid, snapshot[pid][1])
         try:
-            endpoints = parse_netstat(self._netstat())
+            self._poll()
         except NetstatError as e:
             self.record.error = str(e)
-            return
+        except Exception as e:  # 실 안의 예외는 부르는 쪽에 닿지 않는다 — 삼키지 않고 기록한다
+            self.record.error = f"㉡ 폴링 실패 ({type(e).__name__})"
+
+    def _poll(self) -> None:
+        snapshot = self._snapshot()
+        pids = watched_pids(snapshot, self._root, self._node_image, self._image_of)
+        endpoints = parse_netstat(self._netstat())
+        for pid in pids:
+            self.record.rea_processes.setdefault(pid, snapshot[pid][1])
         self.record.polls += 1
         for ep in endpoints:
             if ep.pid in pids:
@@ -296,9 +303,14 @@ class NetWatch:
                 self.record.endpoints.setdefault(key, (ep.pid, snapshot[ep.pid][1]))
 
     def _loop(self) -> None:
-        while not self._stop.is_set():
-            self.poll_once()
-            self._stop.wait(self._poll_s)
+        try:
+            while not self._stop.is_set():
+                self.poll_once()
+                self._stop.wait(self._poll_s)
+        finally:
+            # 멈추라는 말 없이 실이 끝났으면(예: poll_once 밖의 실패) 감시가 없던 것이다
+            if not self._stop.is_set() and self.record.error is None:
+                self.record.error = "㉡ 폴링 실이 일찍 끝남"
 
 
 # --- 방화벽·합치기 --------------------------------------------------------------------------

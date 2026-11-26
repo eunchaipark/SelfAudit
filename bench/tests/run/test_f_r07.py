@@ -177,6 +177,75 @@ def test_F_R07_netstat실패면_기록에_오류() -> None:
     assert json.loads(record.to_json())["error"] == "netstat 종료 코드 1"
 
 
+def failing_on(call: int, error: Exception) -> Callable[[], dict[int, tuple[int, str]]]:
+    """`call`번째 부름에서만 실패하는 가짜 프로세스 목록(그 밖에는 node가 바깥에 붙은 나무)."""
+    state = {"n": 0}
+
+    def snapshot() -> dict[int, tuple[int, str]]:
+        state["n"] += 1
+        if state["n"] == call:
+            raise error
+        return SNAPSHOT
+
+    return snapshot
+
+
+@pytest.mark.parametrize("call", [1, 3], ids=["첫폴링", "중간폴링"])
+@pytest.mark.parametrize(
+    "error",
+    [nw.NetstatError("프로세스 목록을 읽을 수 없음"), OSError("가짜"), KeyError(7)],
+    ids=["NetstatError", "OSError", "생각못한예외"],
+)
+def test_F_R07_폴링이_한번이라도_실패하면_오류(call: int, error: Exception) -> None:
+    """프로세스 목록이 한 번 실패해도 감시 실이 소리 없이 죽지 않고 `record.error`로 남는다
+    → 그 실행 error(기록 없이 채점하지 않는다). 끝점 0이 '통과'로 세어지지 않는다(T32 반려 1)."""
+    rows = netstat_text(("TCP", "10.0.0.5:5000", "192.0.2.1:443", "ESTABLISHED", 103))
+    watch = nw.NetWatch(
+        Path(NODE),
+        {},
+        poll_s=0.01,
+        netstat=lambda: rows,
+        snapshot=failing_on(call, error),
+        image_of=IMAGES.get,
+    )
+    watch.start(100)
+    time.sleep(0.2)
+    record = watch.stop()
+    assert record.error is not None
+    if isinstance(error, nw.NetstatError):
+        assert record.error == "프로세스 목록을 읽을 수 없음"
+    else:
+        assert record.error == f"㉡ 폴링 실패 ({type(error).__name__})"
+    assert record.polls == call - 1  # 실패한 뒤로는 세지 않는다
+    assert json.loads(record.to_json())["error"] == record.error
+
+
+def test_F_R07_이미지경로가_실패해도_오류() -> None:
+    def broken(_pid: int) -> str | None:
+        raise OSError("가짜")
+
+    watch = nw.NetWatch(
+        Path(NODE), {}, poll_s=0.01, netstat=lambda: b"", snapshot=lambda: SNAPSHOT, image_of=broken
+    )
+    watch.start(100)
+    assert watch.stop().error == "㉡ 폴링 실패 (OSError)"
+
+
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
+def test_F_R07_폴링실이_일찍끝나면_오류(monkeypatch: pytest.MonkeyPatch) -> None:
+    """poll_once 밖에서 실이 끝나도(멈추라는 말 없이) 감시가 없던 것으로 적는다."""
+    watch = fake_watch(b"")
+
+    def boom(_timeout: float | None = None) -> bool:
+        raise RuntimeError("가짜")
+
+    monkeypatch.setattr(watch._stop, "wait", boom)
+    watch.start(100)
+    assert watch._thread is not None
+    watch._thread.join(timeout=5)
+    assert watch.stop().error == "㉡ 폴링 실이 일찍 끝남"
+
+
 def test_F_R07_netstat_SystemRoot없으면_실패() -> None:
     with pytest.raises(nw.NetstatError):
         nw.run_netstat({})
