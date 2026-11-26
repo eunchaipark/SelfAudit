@@ -15,4 +15,6 @@ T30(2026-11-25)에서 `bench/run/plan.py`·`workdir.py`·`env.py`·`store.py`·`
 - `mcp.json` 틀 sha256(`McpConfig.template_sha256`)은 조건마다 같고, 쓴 바이트는 `<RUN>` 때문에 실행마다 다르다. `versions.mcp_config_sha256`에 어느 쪽을 적을지는 T32가 정한다(추천: 틀).
 - 구조화 결과 칸 이름 `structured_output`, init·result 줄 칸은 추정 — 첫 보정에서 확인.
 - 처리량 시험은 시간(gc 끔, 세 번 최소)과 메모리(tracemalloc 한 번)를 **따로** 잰다. 같이 재면 tracemalloc이 시간을 5배쯤 늘려 시험이 10초를 넘었다.
+- **반려 1(2026-11-26)**: ① 가림이 드라이브 절대 경로 꼴만 덮어 `//c/Users/…`(우리 거절 규칙 꼴)·`/c/…`·`\\localhost\C$`·URL 인코딩이 남았다 → 꼴을 넓히고 남음 검사는 드라이브 없는 꼬리 `Users\<이름>`를 찾는다. ② `casefold()`가 한글 글에서 입력의 14배 메모리 → 가림은 **바이트 그대로**, 찾기는 바이트 정규식 IGNORECASE.
+  **How to apply:** 경로 꼴을 새로 만드는 코드(거절 규칙 등)를 쓰면 가림 꼴 목록과 맞춰 본다. 처리량 잼·시험 입력에는 한글 줄을 섞는다(ASCII만이면 str이 1바이트/글자라 배수가 가려진다).
 - 망가뜨려 돌리기 스크립트(scratchpad `mutate.py` 꼴): 지킴 19개 중 겹친 지킴 2개만 못 잡음 → 하나는 지우고 하나는 시험을 더했다. [[filter-and-escape-cases]]
