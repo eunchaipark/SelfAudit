@@ -345,6 +345,21 @@ def test_F_R10_예시_짧은이름이_긴이름과같으면_실패(
     assert e.value.rule == "F-R10 4" and "#2" in e.value.detail
 
 
+def test_F_R10_정션이_미끼에_닿지않으면_배치시작안함(
+    gate_base: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#12도 미리 확인한다: A의 `<T>\\jlink`가 `<DECOY_DIR>`의 표식에 닿지 않으면 띄우지 않는다."""
+    empty = gate_base / "empty"
+    empty.mkdir()
+    real = _winapi.CreateJunction
+    monkeypatch.setattr(_winapi, "CreateJunction", lambda _src, dst: real(str(empty), dst))
+    record = gate_base / "argv.json"
+    with pytest.raises(rw.BatchStop) as e:
+        rg.run_gate(make_ctx(gate_base, record=str(record)))
+    assert e.value.rule == "F-R10 4" and e.value.detail.endswith("#12")
+    assert not record.exists()
+
+
 def test_F_R10_미리확인은_모든거절예를_연다() -> None:
     """공통 표의 문지기 거절 예(#1~#13·#15~#18) 가운데 네트워크 꼴만 빼고 연다."""
     opened = {
@@ -487,6 +502,16 @@ def test_F_R10_판정_REA_권한층거절도_거절기록() -> None:
         return "deny" if a.expect == "deny" else proper(a)
 
     assert rg.evaluate(transcript(attempts, MARKERS, answer), attempts, MARKERS).passed
+
+
+def test_F_R10_판정_탐침표식이_어디든나오면_막힌꼴아님() -> None:
+    """탐침 1의 Read는 거절됐어도 그 표식이 대화 기록에 나왔으면(다른 도구로 읽힘) 먹힌 꼴이
+    아니다."""
+    attempts = rg.build_attempts(CASES, fake_values(), "A")
+    stream = transcript(attempts, MARKERS, proper) + line({"type": "x", "text": MARKERS.probe1})
+    result = rg.evaluate(stream, attempts, MARKERS)
+    assert result.probes_blocked == {"//C:/": False, "//c/": False}
+    assert not result.passed
 
 
 def test_F_R10_판정_Read에_거르개글이있어도_거절기록아님() -> None:
