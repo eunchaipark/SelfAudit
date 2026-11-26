@@ -248,9 +248,83 @@ def test_F_R06_대화기록_절대경로_RUN으로가림(layout: Layout) -> None
 def test_F_R06_가림차례_RUN먼저() -> None:
     home = r"C:\Users\u"
     run = r"C:\Users\u\AppData\Local\SelfAudit-bench-runs\20261123-0130-first24\easy-1-a-1-3f2a9c10"
-    line = json.dumps({"cwd": run + r"\target"})
-    assert rs.mask_paths(line, run, home) == '{"cwd": "<RUN>\\\\target"}'
-    assert rs.mask_paths(r"C:\\Users\\u\\.ssh", run, home) == r"<HOME>\\.ssh"
+    line = json.dumps({"cwd": run + r"\target"}).encode()
+    assert rs.mask_paths(line, run, home) == b'{"cwd": "<RUN>\\\\target"}'
+    assert rs.mask_paths(rb"C:\\Users\\u\\.ssh", run, home) == rb"<HOME>\\.ssh"
+
+
+HOME_U = r"C:\Users\u"
+RUN_U = r"C:\Users\u\AppData\Local\SelfAudit-bench-runs\20261123-0130-first24\easy-1-a-1-3f2a9c10"
+
+
+@pytest.mark.parametrize(
+    ("text", "masked"),
+    [
+        ("//c/Users/u/.ssh", "<HOME>/.ssh"),  # 거절 규칙 꼴(F-R02 3)
+        ("/c/Users/u/.ssh", "<HOME>/.ssh"),  # Git Bash 꼴
+        (r"\Users\u\.ssh", r"<HOME>\.ssh"),  # 드라이브 없는 루트 기준
+        (r"\\localhost\C$\Users\u\.ssh", r"<HOME>\.ssh"),  # 관리 공유
+        (r"\\127.0.0.1\C$\Users\u", "<HOME>"),
+        (r"\\\\localhost\\C$\\Users\\u\\.ssh", r"<HOME>\\.ssh"),  # JSON 안
+        (
+            "//c/Users/u/AppData/Local/SelfAudit-bench-runs/20261123-0130-first24/easy-1-a-1-3f2a9c10/target",
+            "<RUN>/target",
+        ),
+        (
+            "/c/Users/u/AppData/Local/SelfAudit-bench-runs/20261123-0130-first24/easy-1-a-1-3f2a9c10",
+            "<RUN>",
+        ),
+        ("C%3A%5CUsers%5Cu%5Cx", "<HOME>%5Cx"),  # URL 인코딩(file: 주소·질의 글)
+        ("C%3A%2FUsers%2Fu%2Fx", "<HOME>%2Fx"),
+    ],
+    ids=[
+        "//c꼴",
+        "/c꼴",
+        "드라이브없음",
+        "localhost공유",
+        "127공유",
+        "JSON안공유",
+        "//c실행폴더",
+        "/c실행폴더",
+        "URL인코딩",
+        "URL인코딩슬래시",
+    ],
+)
+def test_F_R06_드라이브없는_홈꼴도_가림(text: str, masked: str) -> None:
+    got = rs.mask_paths(text.encode(), RUN_U, HOME_U)
+    assert got == masked.encode()
+    assert not rs.home_left(got, HOME_U)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "/C/users/U/.ssh",
+        "//C/USERS/u/x",
+        r"\USERS\U\x",
+        r"\\LOCALHOST\c$\users\u",
+        r"c:\\users\\U\\x",
+        "c%3a%5cusers%5cU%5cx",
+    ],
+)
+def test_F_R06_가린뒤_드라이브없는_홈꼬리_남으면_찾음(text: str) -> None:
+    assert rs.home_left(rs.mask_paths(text.encode(), RUN_U, HOME_U), HOME_U)
+
+
+@pytest.mark.parametrize("text", [r"D:\Users\u\x", r"\\nas\share\Users\u"])
+def test_F_R06_다른앞부분의_홈꼬리도_가림(text: str) -> None:
+    # 드라이브 없는 꼬리 `\Users\u`를 바꾸므로 앞부분이 무엇이든 사용자 이름이 남지 않는다
+    got = rs.mask_paths(text.encode(), RUN_U, HOME_U)
+    assert b"<HOME>" in got and not rs.home_left(got, HOME_U)
+
+
+def test_F_R06_드라이브없는_홈꼴_남으면_error_배치멈춤(layout: Layout) -> None:
+    tail = str(layout.places.user_profile)[2:].replace("\\", "/").upper()
+    extra = [{"type": "user", "note": f"/c{tail}/x"}]
+    with pytest.raises(rs.StoreError) as e:
+        store(layout, stream(layout, {"findings": []}, extra))
+    assert e.value.written is not None
+    assert sorted(p.name for p in e.value.written.iterdir()) == ["run.json"]
 
 
 def test_F_R06_홈경로_소문자남으면_error_배치멈춤(layout: Layout) -> None:
@@ -281,9 +355,7 @@ def test_F_R06_결과글에_홈경로_가림(layout: Layout) -> None:
 
 def _limit_stream(layout: Layout, size: int) -> bytes:
     data = stream(layout, {"findings": []})
-    masked_len = len(
-        rs.mask_paths(data.decode(), str(layout.run_dir), str(layout.places.user_profile)).encode()
-    )
+    masked_len = len(rs.mask_paths(data, str(layout.run_dir), str(layout.places.user_profile)))
     pad = size - masked_len - len(b'{"type":"pad","x":""}\n')
     assert pad > 0
     return b'{"type":"pad","x":"' + b"p" * pad + b'"}\n' + data
@@ -527,24 +599,49 @@ def test_F_R06_처리량_대화기록줄_1만_2만() -> None:
     data = {n: _lines(n) for n in (10_000, 20_000, 40_000)}
     t1 = _seconds(lambda: rs.read_stream(data[10_000]))
     t4 = _seconds(lambda: rs.read_stream(data[40_000]))
+    # 메모리는 입력 대비로 본다(1만·2만 사이 비율은 집합이 두 배씩 커지는 때에 따라 흔들린다)
     m1 = _peak(lambda: rs.read_stream(data[10_000]))
     m2 = _peak(lambda: rs.read_stream(data[20_000]))
     assert t4 / t1 < LINEAR_RATIO_LIMIT, (t1, t4)
-    assert m2 / m1 < 3.0, (m1, m2)
+    assert m1 < 3 * len(data[10_000]) and m2 < 3 * len(data[20_000]), (m1, m2)
 
 
-def test_F_R06_처리량_가림_입력2배4배() -> None:
-    home, run = r"C:\Users\u", r"C:\Users\u\AppData\Local\SelfAudit-bench-runs\b\r"
-    unit = "".join(
-        f'{{"n":{i},"p":"C:\\\\Users\\\\u\\\\f{i}","q":"c:/users/U/{i}"}}\n' for i in range(5_000)
+def _korean_lines(n: int) -> bytes:
+    """지시문·대화가 한국어라 실제 기록에는 한글 줄이 섞인다(반려 1-2: 글로 풀면 메모리가 커짐)."""
+    rows = (
+        json.dumps(
+            {
+                "n": i,
+                "p": f"C:\\Users\\u\\f{i}",
+                "q": f"c:/users/U/{i}",
+                "t": f"한글 설명 {i} " * 4,
+            },
+            ensure_ascii=False,
+        )
+        for i in range(n)
     )
-    texts = {k: unit * k for k in (1, 2, 4)}
+    return ("\n".join(rows) + "\n").encode("utf-8")
+
+
+def test_F_R06_처리량_가림_입력2배4배_한글() -> None:
+    home, run = r"C:\Users\u", r"C:\Users\u\AppData\Local\SelfAudit-bench-runs\b\r"
+    data = {k: _korean_lines(5_000 * k) for k in (1, 2, 4)}
 
     def work(k: int) -> None:
-        rs.home_left(rs.mask_paths(texts[k], run, home), home)
+        rs.home_left(rs.mask_paths(data[k], run, home), home)
 
     t1, t4 = _seconds(lambda: work(1)), _seconds(lambda: work(4))
     assert t4 / t1 < LINEAR_RATIO_LIMIT, (t1, t4)
+    peak = _peak(lambda: work(4))
+    assert peak < 3 * len(data[4]), (peak, len(data[4]))
+
+
+def test_F_R06_처리량_store_run_한글기록_메모리_입력3배아래(layout: Layout) -> None:
+    body = _korean_lines(40_000)
+    data = body + stream(layout, {"findings": []})
+    peak = _peak(lambda: store(layout, data))
+    assert len(data) > 4 * 1024 * 1024
+    assert peak < 3 * len(data), (peak, len(data))
 
 
 def test_F_R06_처리량_결과정규화_1만_2만(tmp_path: Path) -> None:

@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import ntpath
 import re
@@ -19,6 +20,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 from typing import Final
+from urllib.parse import quote
 
 from common.contracts import ContractError, Json, validate_contract
 from common.paths import normalize_finding_path
@@ -172,7 +174,8 @@ def read_stream(data: bytes) -> StreamFacts:
     seen_ids: set[str] = set()
     calls: dict[str, int] = {}
     bad = 0
-    for line in data.splitlines():
+    # 줄 목록을 한꺼번에 만들지 않는다(입력만큼 사본이 생긴다). BytesIO는 입력 버퍼를 나눠 쓴다
+    for line in io.BytesIO(data):
         if not line.strip():
             continue
         try:
@@ -208,28 +211,71 @@ def _count_tools(obj: Mapping[str, Json], seen_ids: set[str], calls: dict[str, i
         calls[key] = calls.get(key, 0) + 1
 
 
-def _path_forms(path: str) -> list[str]:
-    """경로의 글 꼴: JSON 안 `\\\\` 꼴, `\\` 꼴, `/` 꼴, JSON `\\uXXXX` 꼴(ASCII 밖).
+def _variants(spelling: str) -> list[str]:
+    """한 경로 글의 꼴: `\\` 꼴, JSON 안 `\\\\` 꼴, `/` 꼴, JSON `\\uXXXX` 꼴(ASCII 밖),
+    URL 인코딩 꼴(`%5C`·`%2F` — `file:` 주소·질의 글에 실린 경로)."""
+    slash = spelling.replace("\\", "/")
+    return [
+        spelling,
+        spelling.replace("\\", "\\\\"),
+        slash,
+        json.dumps(spelling)[1:-1],
+        quote(spelling, safe=""),
+        quote(slash, safe=""),
+    ]
 
-    긴 꼴부터 바꾼다.
+
+def _path_forms(path: str) -> list[bytes]:
+    """F-R06 5 가림에 쓰는 경로 꼴들(UTF-8 바이트), 긴 꼴부터.
+
+    명세의 세 꼴(드라이브 절대 경로의 `\\`·`/`·JSON `\\\\` 꼴)에 더해, 같은 곳을 가리키는
+    드라이브 없는 꼴도 넣는다: `//c/…`(거절 규칙 꼴, F-R02 3), `/c/…`(Git Bash 꼴),
+    `\\\\localhost\\C$\\…`(관리 공유), 드라이브 없는 `\\Users\\…`. 긴 꼴부터 바꾸므로 짧은 꼴이
+    긴 꼴의 일부를 먼저 깨지 않는다.
     """
     win = ntpath.normpath(path)
-    forms = [win.replace("\\", "\\\\"), win, win.replace("\\", "/"), json.dumps(win)[1:-1]]
-    return list(dict.fromkeys(forms))
+    spellings = [win]
+    drive, tail = ntpath.splitdrive(win)
+    if len(drive) == 2 and drive[1] == ":" and len(tail) > 1:
+        letter, slash_tail = drive[0], tail.replace("\\", "/")
+        spellings += [
+            f"\\\\localhost\\{letter.upper()}${tail}",
+            f"\\\\127.0.0.1\\{letter.upper()}${tail}",
+            f"//{letter.lower()}{slash_tail}",
+            f"/{letter.lower()}{slash_tail}",
+            tail,
+        ]
+    forms = {v.encode("utf-8") for s in spellings for v in _variants(s)}
+    return sorted(forms, key=lambda f: (-len(f), f))
 
 
-def mask_paths(text: str, run_dir: str, home: str) -> str:
-    """F-R06 5: **먼저** 실행 폴더를 `<RUN>`으로, **그다음** 홈 폴더를 `<HOME>`으로(글자 그대로)."""
+def mask_paths(data: bytes, run_dir: str, home: str) -> bytes:
+    """F-R06 5: **먼저** 실행 폴더를 `<RUN>`으로, **그다음** 홈 폴더를 `<HOME>`으로(글자 그대로).
+
+    바이트(UTF-8) 그대로 바꾼다 — 글로 풀면 한글이 든 기록은 글자마다 2~4바이트라 메모리가 는다.
+    """
     for path, mark in ((run_dir, RUN_MARK), (home, HOME_MARK)):
         for form in _path_forms(path):
-            text = text.replace(form, mark)
-    return text
+            data = data.replace(form, mark.encode())
+    return data
 
 
-def home_left(text: str, home: str) -> bool:
-    """F-R06 5: 가린 뒤에도 홈 폴더 경로가 (대소문자만 다른 꼴까지) 남았는가."""
-    folded = text.casefold()
-    return any(form.casefold() in folded for form in _path_forms(home))
+def _home_needle(home: str) -> re.Pattern[bytes]:
+    """홈 폴더의 드라이브 없는 꼬리(`Users\\<이름>`)를 네 꼴로, 대소문자 없이 찾는 정규식."""
+    tail = ntpath.splitdrive(ntpath.normpath(home))[1].lstrip("\\")
+    target = tail or ntpath.normpath(home)
+    alternatives = sorted({re.escape(v.encode("utf-8")) for v in _variants(target)}, key=len)
+    return re.compile(b"|".join(reversed(alternatives)), re.IGNORECASE)
+
+
+def home_left(data: bytes, home: str) -> bool:
+    """F-R06 5: 가린 뒤에도 홈 폴더 경로가 (대소문자만 다른 꼴·드라이브 없는 꼴까지) 남았는가.
+
+    드라이브 없는 꼬리 `Users\\<이름>`를 찾으므로 `C:`·`/c/`·`\\\\localhost\\C$` 등 어느 앞부분이든
+    걸린다. 사본을 만들지 않는다(`casefold`는 한글 글에서 입력의 십수 배를 썼다). 대소문자는 ASCII만
+    맞춘다(바이트 정규식) — ASCII 밖 글자의 대소문자 꼴은 잡지 못한다(한계).
+    """
+    return _home_needle(home).search(data) is not None
 
 
 # --- 결과 ------------------------------------------------------------------------------------
@@ -382,25 +428,24 @@ def store_run(
     home, run_text = str(places.user_profile), str(run_dir)
     parsed = read_stream(stream)
 
-    def masked(data: bytes) -> str:
-        return mask_paths(data.decode("utf-8", errors="surrogateescape"), run_text, home)
+    def masked(data: bytes) -> bytes:
+        return mask_paths(data, run_text, home)
 
-    transcript_text = masked(stream)
+    transcript_bytes = masked(stream)
     side = {NETGUARD: masked(netguard), NETSTAT: masked(netstat)}
     status, detail = facts.status, facts.detail
-    findings_text: str | None = None
+    findings_bytes: bytes | None = None
     structured = parsed.result.get(STRUCTURED_KEY) if parsed.result is not None else None
     if structured is not None:
         normalized = normalize_findings(structured, str(target))
         errors = validate_contract("findings", normalized)
         if errors and status == "ok":
             status, detail = "format_failure", "findings 계약: " + _where(errors)
-        findings_text = mask_paths(_json_text(normalized), run_text, home)
-    texts = [transcript_text, *side.values(), *([findings_text] if findings_text else [])]
-    leaked = any(home_left(t, home) for t in texts)
+        findings_bytes = masked(_json_text(normalized).encode("utf-8"))
+    blobs = [transcript_bytes, *side.values(), *([findings_bytes] if findings_bytes else [])]
+    leaked = any(home_left(b, home) for b in blobs)
     if leaked:
         status, detail = "error", "가린 뒤에도 홈 경로가 남음(대소문자만 다른 꼴 등)"
-    transcript_bytes = transcript_text.encode("utf-8", errors="surrogateescape")
     to_archive = leaked or len(transcript_bytes) > TRANSCRIPT_LIMIT_BYTES
     transcript_path = (
         places.archive_dir / f"{facts.run_id}.jsonl" if to_archive else out / TRANSCRIPT
@@ -413,16 +458,14 @@ def store_run(
     record = run_record(
         facts, stream=parsed, status=status, detail=detail, transcript=transcript_info
     )
-    record_text = _json_text(record)
-    if home_left(record_text, home):
+    record_bytes = _json_text(record).encode("utf-8")
+    if home_left(record_bytes, home):
         raise StoreError("run.json에 홈 경로가 있음(쓰지 않음)")
-    files: dict[str, bytes] = {RUN_JSON: record_text.encode("utf-8")}
+    files: dict[str, bytes] = {RUN_JSON: record_bytes}
     if not leaked:
-        files |= {
-            name: text.encode("utf-8", errors="surrogateescape") for name, text in side.items()
-        }
-        if findings_text is not None:
-            files[FINDINGS_JSON] = findings_text.encode("utf-8")
+        files |= side
+        if findings_bytes is not None:
+            files[FINDINGS_JSON] = findings_bytes
         if not to_archive:
             files[TRANSCRIPT] = transcript_bytes
     if to_archive:
