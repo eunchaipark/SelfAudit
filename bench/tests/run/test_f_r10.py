@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import _winapi
 import contextlib
+import dataclasses
 import gc
 import inspect
 import json
@@ -564,6 +565,51 @@ def test_F_R10_공통표는_거르개시험과_같은파일() -> None:
         for index, example in enumerate(case["examples"]):
             if example.get("gate") in {"deny", "read"}:
                 assert (case["id"], index) in used
+
+
+def test_F_R10_공통표_문지기기대가_모르는값이면_멈춤() -> None:
+    cases = {"cases": [{"id": 1, "examples": [{"value": "x", "gate": "maybe"}]}]}
+    with pytest.raises(rw.BatchStop):
+        rg.build_attempts(cases, {}, "A")
+
+
+def test_F_R10_LOCALAPPDATA가_다른드라이브면_멈춤(gate_base: Path) -> None:
+    places = places_at(gate_base)
+    other = rw.BenchPlaces(
+        repo_root=places.repo_root,
+        local_app_data=places.local_app_data,
+        user_profile=places.user_profile,
+        runs_parent=Path("Q:\\"),
+    )
+    with pytest.raises(rw.BatchStop) as e:
+        rg.local_rel(other)
+    assert e.value.rule == "F-R10 4"
+
+
+def test_F_R10_문지기를_띄우지못하면_배치멈춤(gate_base: Path) -> None:
+    ctx = make_ctx(gate_base)
+    missing = dataclasses.replace(ctx, program=[str(gate_base / "없는" / "claude.exe")])
+    with pytest.raises(rw.BatchStop) as e:
+        rg.run_gate(missing)
+    assert e.value.rule == "F-R10 예외"
+    assert not any((ctx.places.local_app_data / rg.DECOY_DIR_NAME).iterdir())
+
+
+def test_F_R10_네트워크기록있으면_배치멈춤(gate_base: Path) -> None:
+    """문지기 실행에도 ㉠·㉡을 붙인다 — 기록이 있으면 F-R07 5로 멈춘다."""
+    ctx = make_ctx(gate_base)
+    netguard = b'{"pid": 1, "kind": "tcp", "detail": "192.0.2.1:443", "blocked": true}\n'
+    plant = rg.plant_outside
+
+    def with_netguard(run: rw.RunDir, decoy: Path, sib: str, m: rg.Markers, ans: Path) -> None:
+        plant(run, decoy, sib, m, ans)
+        (run.run_dir / "netguard.jsonl").write_bytes(netguard)
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(rg, "plant_outside", with_netguard)
+        with pytest.raises(rw.BatchStop) as e:
+            rg.run_gate(ctx)
+    assert e.value.rule == "F-R07 5"
 
 
 def test_F_R10_시도목록에_기대를_싣지않음() -> None:

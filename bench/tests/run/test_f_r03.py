@@ -268,6 +268,29 @@ def test_F_R03_모델전체ID_받음(tmp_path: Path, model: str) -> None:
 def test_F_R03_명령줄_32767자넘으면_시작안함(tmp_path: Path) -> None:
     with pytest.raises(cc.CommandTooLong):
         command(["claude.exe"], tmp_path / "mcp.json", prompt="가" * 33_000)
+    command(["claude.exe"], tmp_path / "mcp.json", prompt="가" * 30_000)  # 한도 안은 그대로
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        pytest.param({"effort": ""}, id="노력빈글"),
+        pytest.param({"effort": "high --x"}, id="노력에_인자"),
+        pytest.param({"max_budget_usd": 0.0}, id="비용0"),
+        pytest.param({"max_budget_usd": float("nan")}, id="비용NaN"),
+        pytest.param({"mcp_config": Path("mcp.json")}, id="MCP상대경로"),
+    ],
+)
+def test_F_R03_명령줄_값꼴아니면_배치멈춤(tmp_path: Path, bad: dict[str, Any]) -> None:
+    kw = {"mcp_config": tmp_path / "mcp.json", **bad}
+    with pytest.raises(rw.BatchStop) as e:
+        command(["claude.exe"], kw.pop("mcp_config"), **kw)
+    assert e.value.rule == "F-R03 2"
+
+
+def test_F_R03_지시문종류_밖이면_배치멈춤() -> None:
+    with pytest.raises(rw.BatchStop):
+        cc.check_prompt("아무 글", "other")
 
 
 def test_F_R03_셸없이_claude_exe(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
