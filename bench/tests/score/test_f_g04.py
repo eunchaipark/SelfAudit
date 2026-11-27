@@ -132,7 +132,8 @@ def test_F_G04_칸안_바깥글() -> None:
     assert md_cell("a|b") == "a\\|b"
     assert md_cell("x\ny\r\nz") == "x<br>y<br>z"
     assert md_cell("<script>`*$") == "\\<script\\>\\`\\*\\$"
-    assert md_cell("키​값‮") == "키\\u200b값\\u202e"  # 보이지 않는 글자는 글로
+    hidden = "키" + chr(0x200B) + "값" + chr(0x202E)  # 보이지 않는 글자(소스에는 넣지 않는다)
+    assert md_cell(hidden) == r"키\u200b값\u202e"  # 보이지 않는 글자는 \uXXXX 글로
 
 
 def test_F_G04_SVG_같은입력_같은바이트() -> None:
