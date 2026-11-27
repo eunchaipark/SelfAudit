@@ -14,6 +14,7 @@ import json
 from collections.abc import Sequence
 from fractions import Fraction
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -269,10 +270,11 @@ def write_run(
     """실행 폴더 하나(run.json·findings.json·transcript.jsonl)를 쓴다. 대화 기록 지문은 맞춘다."""
     run_dir = root / (name or str(rec["run_id"]))
     run_dir.mkdir(parents=True)
-    rec = json.loads(json.dumps(rec))
-    rec["transcript"]["bytes"] = len(transcript)
-    if rec["transcript"]["stored"] == "results":
-        rec["transcript"]["sha256"] = hashlib.sha256(transcript).hexdigest()
+    rec = json.loads(json.dumps(rec))  # 사본(부른 쪽 값을 바꾸지 않게)
+    meta: Any = rec["transcript"]
+    meta["bytes"] = len(transcript)
+    if meta["stored"] == "results":
+        meta["sha256"] = hashlib.sha256(transcript).hexdigest()
         (run_dir / "transcript.jsonl").write_bytes(transcript)
     (run_dir / "run.json").write_text(json.dumps(rec, ensure_ascii=False), encoding="utf-8")
     if found is not None:
@@ -413,7 +415,7 @@ def test_F_G03_내앱은_재현율없이_결과수만() -> None:
     stats = report.by_target[("A", "mine-app")]
     assert (stats.recall, stats.precision) == (None, None)
     assert stats.results is not None
-    assert (stats.results.low, stats.results.mid, stats.results.high) == (9, 12, 15)
+    assert [stats.results.low, stats.results.mid, stats.results.high] == [9, 12, 15]
     assert report.overall["A"].recall_spread is None  # 심은 번들 묶음과 섞지 않는다
 
 
@@ -546,7 +548,7 @@ def test_F_G03_시간·비용_null은_빼고() -> None:
         Fraction(5, 8),
         2,
     )
-    assert (stats.minutes.low, stats.minutes.mid, stats.minutes.high) == (5, 10, 15)
+    assert [stats.minutes.low, stats.minutes.mid, stats.minutes.high] == [5, 10, 15]
 
 
 # --- 셋째를 더할지 (규칙 10, 설계 8.2) --------------------------------------------------------
@@ -558,7 +560,9 @@ def advice(*rows: tuple[str, str, int, int, int]) -> tuple[str, ...]:
     return sa.build_report(runs, []).advice
 
 
-def two_bundles(condition: str, matched: Sequence[int], difficulty: str = "normal") -> list:
+def two_bundles(
+    condition: str, matched: Sequence[int], difficulty: str = "normal"
+) -> list[tuple[str, str, int, int, int]]:
     """그 난이도 번들 둘(정답 9·9 = 합 18)에서 차례마다 짝 합이 `matched`가 되게."""
     rows = []
     for r, k in enumerate(matched, start=1):
