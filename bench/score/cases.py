@@ -20,6 +20,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import re
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -52,6 +53,8 @@ STORED_HERE: Final = "results"
 # 저장소 안 대화 기록 상한: 실행기가 이보다 큰 기록은 저장소 밖에 둔다(F-R06 6, 2MB)
 _TRANSCRIPT_LIMIT_BYTES: Final = 2 * 1024 * 1024
 _PLANTED: Final = "planted"
+# JSON 글로 바꾸면 꼴이 바뀌는 글자: 보이는 ASCII(0x20~0x7e) 밖, 따옴표(0x22), 역슬래시(0x5c)
+_UNSAFE: Final = re.compile(r"[^\x20\x21\x23-\x5b\x5d-\x7e]")
 _EMPTY: Final = "사례 후보 없음"
 _HEADER: Final = (
     "대상",
@@ -153,6 +156,7 @@ def find_in_transcript(data: bytes, needles: Mapping[int, str]) -> dict[int, int
     줄 목록을 한꺼번에 만들지 않는다(BytesIO는 입력 버퍼를 나눠 쓴다). 찾을 것이 다 찾아지면 멈춘다.
     """
     forms = {i: _forms(text) for i, text in needles.items()}
+    cores = {i: _core(text) for i, text in needles.items()}
     found: dict[int, int | None] = dict.fromkeys(needles)
     pending = set(needles)
     for number, line in enumerate(io.BytesIO(data), start=1):
@@ -161,10 +165,13 @@ def find_in_transcript(data: bytes, needles: Mapping[int, str]) -> dict[int, int
         texts = list(_tool_results(line))
         if not texts:
             continue
-        for i in sorted(pending):
-            if any(form in text for text in texts for form in forms[i]):
-                found[i] = number
-                pending.discard(i)
+        # 조각마다 따로 찾으면 되풀이가 (조각 × 찾을 것 × 꼴)만큼 돈다. 조각 사이에 NUL을 두고
+        # 이어 붙여 한 번에 본다(NUL은 조각을 넘는 맞춤을 막는다 — evidence에 NUL이 있을 때만 예외)
+        blob = "\x00".join(texts)
+        hits = [i for i in pending if cores[i] in blob and any(form in blob for form in forms[i])]
+        for i in hits:
+            found[i] = number
+            pending.discard(i)
     return found
 
 
@@ -309,7 +316,16 @@ def _tool_results(line: bytes) -> Iterator[str]:
                     yield part["text"]
 
 
+def _core(text: str) -> str:
+    """모든 꼴(`_forms`)에 그대로 들어 있는 가장 긴 조각 — JSON 글로 바꿔도 변하지 않는 글자(따옴표·
+    역슬래시 밖의 보이는 ASCII)만 이어진 곳. 이것이 없는 줄은 꼴들을 볼 것도 없다(빠른 거르기)."""
+    pieces = _UNSAFE.split(text)
+    return max(pieces, key=len)
+
+
 def _forms(text: str) -> tuple[str, ...]:
-    """글 그대로, JSON 글 안 꼴(ASCII 밖 그대로·`\\uXXXX`)."""
-    forms = [text, json.dumps(text, ensure_ascii=False)[1:-1], json.dumps(text)[1:-1]]
-    return tuple(dict.fromkeys(forms))
+    """글 그대로, JSON 글 안 꼴(ASCII 밖 그대로·`\\uXXXX`), 그 꼴이 한 번 더 JSON 글에 실린 꼴
+    (도구가 낸 JSON 글의 칸 값이 다시 JSON 글일 때 — 실험구조 8.10 2의 두 겹과 같은 까닭)."""
+    once = [json.dumps(text, ensure_ascii=False)[1:-1], json.dumps(text)[1:-1]]
+    twice = [json.dumps(form)[1:-1] for form in once]
+    return tuple(dict.fromkeys([text, *once, *twice]))

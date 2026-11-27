@@ -162,9 +162,15 @@ class Report:
     advice: tuple[str, ...]
 
     def limited(self, condition: str) -> int:
-        """상한에 걸린 대상 실행 수(F-G03 9)."""
-        counts = self.status_counts.get(condition, {})
-        return sum(counts.get(status, 0) for status in sorted(LIMIT_STATUSES))
+        """상한에 걸린 심은 번들 대상 실행 수(F-G03 9) — `조건별` 표의 다른 칸과 같은 실행 묶음.
+
+        Juice Shop·내 앱까지 센 수는 `status_counts`(`상태별` 표)에 있다.
+        """
+        return sum(
+            1
+            for s in self.runs
+            if s.condition == condition and s.answered and s.complete and s.status in LIMIT_STATUSES
+        )
 
 
 def build_report(scores: Iterable[RunScore], rerun: Iterable[RunRead]) -> Report:

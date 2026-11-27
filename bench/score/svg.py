@@ -46,7 +46,8 @@ _DOT_RIGHT: Final = 24
 _DOT_TOP: Final = 64
 _DOT_PLOT_HEIGHT: Final = 300
 _DOT_RADIUS: Final = 5
-_COST_STEP: Final = Fraction(1, 4)  # 비용 축은 0.25 USD 단위로 올린다
+# 비용 축 눈금 간격 후보(USD). 눈금이 `_TICKS`개 이하가 되는 가장 작은 간격을 쓴다
+_COST_STEPS: Final = tuple(Fraction(n, 100) * 10**k for k in range(6) for n in (5, 10, 25, 50))
 _SHAPES: Final = 3  # 점 꼴: 원·네모·마름모 차례
 _SQUARE: Final = 1
 _DIAMOND: Final = 2
@@ -125,13 +126,15 @@ def _dots(report: Report) -> str:
         if s.answered and s.complete and s.metrics.cost_usd is not None and s.recall is not None
     ]
     top_cost = max((cost for _, cost, _ in points if cost is not None), default=Fraction(0))
-    x_max = max(_COST_STEP, math.ceil(top_cost / _COST_STEP) * _COST_STEP)
+    step = next((s for s in _COST_STEPS if top_cost <= s * _TICKS), _COST_STEPS[-1])
+    ticks = max(1, math.ceil(top_cost / step))
+    x_max = step * ticks
     plot_w = _WIDTH - _DOT_LEFT - _DOT_RIGHT
     bottom = _DOT_TOP + _DOT_PLOT_HEIGHT
     height = bottom + _AXIS_ROOM + 8
     title = "조건별 비용 대 재현율 (점 = 대상 실행 하나)"
     parts = [*_head(height, title), *_legend(report.conditions, "dot")]
-    x_ticks = [(Fraction(k, _TICKS), fmt_fixed(x_max * k / _TICKS, 2)) for k in range(_TICKS + 1)]
+    x_ticks = [(Fraction(k, ticks), fmt_fixed(step * k, 2)) for k in range(ticks + 1)]
     parts.extend(_x_grid(_DOT_LEFT, plot_w, _DOT_TOP, bottom, x_ticks))
     for frac, label in _percent_ticks():
         y = bottom - _DOT_PLOT_HEIGHT * frac

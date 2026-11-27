@@ -132,6 +132,10 @@ def test_F_G06_MCP결과_JSON글안에서도_찾음() -> None:
     }
     data = tool_line("없음") + json.dumps(line).encode() + b"\n"
     assert find_in_transcript(data, {0: evidence, 1: "어디에도 없음"}) == {0: 2, 1: None}
+    # 두 겹: JSON 글의 칸 값이 다시 JSON 글(따옴표가 `\\\\\\"`로)
+    twice = json.dumps({"result": json.dumps({"snippet": evidence}, ensure_ascii=False)})
+    data = tool_line("없음") + tool_line("없음") + tool_line(twice)
+    assert find_in_transcript(data, {0: evidence}) == {0: 3}
 
 
 def test_F_G06_대화기록이_저장소밖이면_sha256만(tmp_path: Path) -> None:

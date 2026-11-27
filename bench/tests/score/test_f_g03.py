@@ -530,8 +530,12 @@ def test_F_G03_상한에_걸린_실행수() -> None:
         scored(answers, "easy-1", "A", 2, None, "budget_exceeded"),
         scored(answers, "easy-1", "A", 3, None, "format_failure"),
     ]
+    juice = answers_doc("juice-shop", 4, origin="practice")
+    runs.append(scored(juice, "juice-shop", "A", 1, None, "timeout", kind="practice"))
     report = sa.build_report(runs, [])
+    # `조건별` 칸은 심은 번들 실행만(그 줄의 다른 칸과 같은 묶음), `상태별`은 대상 실행 전부
     assert (report.limited("A"), report.limited("B")) == (2, 0)
+    assert report.status_counts["A"]["timeout"] == 2
 
 
 def test_F_G03_시간·비용_null은_빼고() -> None:
