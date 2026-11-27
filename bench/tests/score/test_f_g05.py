@@ -15,7 +15,7 @@ import pytest
 from common.contracts import Json
 from score.__main__ import main
 from score.read import ScoreError
-from score.recompute import check_report, score_results
+from score.recompute import check_report, check_report_file, load_answers, score_results
 from score.svg import build_figures
 from score.tables import TABLE_NAMES, build_tables, marked
 from tests.score.test_f_g03 import answers_doc, hit, miss, record, write_run
@@ -214,3 +214,27 @@ def test_F_G05_score명령_보고서검사(tmp_path: Path, capsys: pytest.Captur
 def test_F_G05_score명령_원자료없으면_멈춤(tmp_path: Path) -> None:
     code = main(["--results", str(tmp_path / "없음"), "--out", str(tmp_path / "out")])
     assert code == 2
+
+
+def test_F_G05_대상목록·정답지를_읽지못하면_멈춤(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    targets = write_targets(repo / "bench" / "targets.json", repo)
+    assert set(load_answers([targets], repo)) == {"easy-1", "hard-1"}
+    with pytest.raises(ScoreError, match="대상 목록 둘에 같은 ID"):
+        load_answers([targets, targets], repo)
+    broken = tmp_path / "broken.json"
+    broken.write_bytes(b"{")
+    with pytest.raises(ScoreError, match="대상 목록을 읽지 못함"):
+        load_answers([broken], repo)
+    (repo / "bench" / "answers" / "easy-1.json").write_bytes(b'{"schema": 1}')
+    with pytest.raises(ScoreError, match="정답지를 읽지 못함"):
+        load_answers([targets], repo)
+
+
+def test_F_G05_보고서파일을_읽지못하면_멈춤(tmp_path: Path) -> None:
+    with pytest.raises(ScoreError, match="보고서를 읽지 못함"):
+        check_report_file(tmp_path / "없음.md", {})
+    latin = tmp_path / "latin.md"
+    latin.write_bytes(b"\xff\xfe")
+    with pytest.raises(ScoreError, match="UTF-8이 아님"):
+        check_report_file(latin, {})

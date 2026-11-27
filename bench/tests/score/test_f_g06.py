@@ -9,6 +9,8 @@ import json
 import random
 from pathlib import Path
 
+import pytest
+
 from common.contracts import Json
 from score.cases import (
     Candidate,
@@ -19,6 +21,7 @@ from score.cases import (
     select_cases,
 )
 from score.metrics import RunScore
+from score.read import ScoreError
 from score.recompute import score_results
 from tests.score.test_f_g03 import answers_doc, finding, hit, miss, record, scored, write_run
 
@@ -85,7 +88,7 @@ def assistant_line(text: str) -> bytes:
     return json.dumps(msg, ensure_ascii=False).encode() + b"\n"
 
 
-def test_F_G06_B미끼헛짚음_실행ID_대화줄(tmp_path: Path) -> None:
+def test_F_G06_B미끼헛짚음_실행ID·대화줄(tmp_path: Path) -> None:
     normal = answers_doc("normal-1", 3, difficulty="normal", decoys=1)
     evidence = "apiKey: \"가짜_키_'x'\""
     transcript = (
@@ -195,3 +198,18 @@ def test_F_G06_후보0개면_사례후보없음() -> None:
     text = cases_markdown((), {})
     assert text.count("사례 후보 없음") == 3
     assert "## B만 찾은 정답 (후보 0개, 줄 0개)" in text
+
+
+def test_F_G06_findings를_다시읽지못하면_멈춤(tmp_path: Path) -> None:
+    easy = answers_doc("easy-1", 3)
+    root = tmp_path / "2026-11-27"
+    run_dir = write_run(root, record("easy-1", "B", 1), [hit(1)], b"")
+    write_run(root, record("easy-1", "A", 1), [miss(0)], b"")
+    result = score_results([root], {"easy-1": easy})
+    cases = select_cases(result.report.runs, {"easy-1": easy})
+    (run_dir / "findings.json").write_bytes(b'{"findings": [{"category": "xss"}]}')
+    with pytest.raises(ScoreError, match="계약에 어긋남"):
+        read_details(result.report.runs, cases)
+    (run_dir / "findings.json").write_bytes(b"{")
+    with pytest.raises(ScoreError, match="다시 읽지 못함"):
+        read_details(result.report.runs, cases)

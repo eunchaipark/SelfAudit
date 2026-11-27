@@ -488,7 +488,7 @@ def test_F_G03_가운데_계산안한값은_빼고() -> None:
     assert sa.spread([None, None]) is None
 
 
-def test_F_G03_난이도별_범주별() -> None:
+def test_F_G03_난이도별·범주별() -> None:
     answers = answers_doc(
         "easy-1",
         3,
