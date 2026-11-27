@@ -2,7 +2,7 @@
   "master": {
     "tasks": [
       {
-        "id": "1",
+        "id": 1,
         "title": "공통: 서버 시작 정리 (F-I01 12)",
         "description": "서버가 시작할 때 진행 중 점검을 실패로 바꾸고 work/ 아래 폴더를 지운다",
         "details": "영역: 공통\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02)\n읽을 문서: 기능명세 F-I01 처리 규칙 11·12, 예시 마지막 줄\n고칠 파일: backend/app/main.py, backend/tests/core/**\n계약: Scan 모델(상태·실패 이유), settings.data.work\n명세 기준: 0905a56\n\n공통 파일(main.py)이라 설계가 한다. T14의 선행.\nT2 검증 넘김(ops/검증/T2.md): 시작 정리는 work 아래 항목마다 core.workdirs와 같은 확인(링크·정션 아님, resolve() 부모가 work)을 거친다. 숫자 아닌 이름 처리를 정한다. 읽기 전용 파일이 있어도 지우도록(rmtree onexc에서 링크 아님 확인 뒤 chmod). scans ID 재사용(AUTOINCREMENT 아님) 때문에 남은 work/<id>가 새 점검을 막지 않는지 테스트.",
@@ -56,7 +56,7 @@
         ]
       },
       {
-        "id": "2",
+        "id": 2,
         "title": "앱: 점검 기록 목록·앱 지우기·최근 점수 (F-P02, F-P03 앱 지우기)",
         "description": "앱별 점검 목록(최신순), 앱 목록의 최근 점수, 앱 지우기(확인·진행 중 거부)",
         "details": "영역: 앱\n목적: 앱별 점검 기록을 보고, 지울 수 있다 (FR-09)\n읽을 문서: 기능명세 F-P02, F-P03 처리 규칙 3·4, 화면정의 SCR-01 01-02·01-03\n고칠 파일: backend/app/apps/**, backend/tests/apps/**, frontend/src/features/apps/**\n계약: GET /apps, GET /apps/{id}/scans, DELETE /apps/{id}?confirm=true (AppListItemOut, ScanListItemOut, DeletedOut)\n명세 기준: 0dd0d9c\n\nCR-001 영향: F-P01 출처 주소 형식(apps/**). CR-001 반영 뒤 명세 기준을 잡는다. SCR-03 기록 표시는 T16. 점검 지우기 규칙은 T15와 맞춘다(중복되면 설계에 공용 함수 요청).",
@@ -132,7 +132,7 @@
         ]
       },
       {
-        "id": "3",
+        "id": 3,
         "title": "입력: 폴더 받기와 공통 분류·제한 (F-I01 B 1·4~10)",
         "description": "receive_folder와 공통 분류: 링크 건너뜀, 개수·크기 제한, 확장자 분류, 대상만 쓰기, 건너뜀 목록",
         "details": "영역: 입력\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02)\n읽을 문서: 기능명세 F-I01 처리 규칙 B 1·4~10, 예시(폴더·크기·확장자·대상 없음), 보안규칙 경로\n고칠 파일: backend/app/intake/**, backend/tests/intake/**, backend/tests/fixtures/**\n계약: intake.receive_folder → IntakeResult / IntakeFailed(reason), Skipped·SkipReason\n명세 기준: 4cce1b1\n\nDB·네트워크 없음. 제한은 core/limits를 읽어 작은 값으로 시험한다.",
@@ -197,7 +197,7 @@
         ]
       },
       {
-        "id": "4",
+        "id": 4,
         "title": "입력: zip 받기와 항목 검사 (F-I01 B 2·3·5)",
         "description": "receive_zip: 경로 탈출·Windows 이름(제어 문자·<>\"|?* 포함)·압축 폭탄 거부, 이름 겹침·링크 건너뜀, 맨 위 폴더 벗기기",
         "details": "영역: 입력\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02)\n읽을 문서: 기능명세 F-I01 처리 규칙 B 2·3·5, 예외(실패 문구의 <항목> 표시: \\x0A 꼴, 200자에서 자름), 예시(zip 줄 전체), 보안규칙 5장 'zip 항목'\n고칠 파일: backend/app/intake/**, backend/tests/intake/**, backend/tests/fixtures/**\n계약: intake.receive_zip(path) → IntakeResult / IntakeFailed(reason)\n변경: CR-003, CR-006\n명세 기준: 0905a56\n\n업로드 zip은 <데이터 폴더>/uploads/에 있다고 보고 경로를 받는다.\nZipFile.extract()를 쓰지 않는다. Windows에서 금지 글자를 몰래 _로 바꾸므로 2ⓑ 검사를 통과한 이름으로 직접 쓴다 (CR-003 기술 검토, 보안규칙 5장).\nT3 검증 넘김(ops/검증/T3.md): 공용 write_bundle의 _inside가 앞단 2ⓐⓑ에 기댄다 → _inside 안에서 resolve 전에 조각마다 드라이브·앵커·\\·:·예약 이름(CON·NUL 등)·끝 점·공백을 거부한다. 훑기와 복사 사이 정션 바꿔치기: 연 뒤 os.fstat(fd)의 (st_dev, st_ino)를 훑을 때 본 값과 비교해 다르면 건너뛴다(폴더 받기와 같은 함수).",
@@ -264,7 +264,7 @@
         ]
       },
       {
-        "id": "5",
+        "id": 5,
         "title": "규칙: 공용 텍스트 도구와 비밀값 노출 (F-S01)",
         "description": "rules/text.py(위치·가린 값·근거 조각·HMAC·.map 순회)와 S01 규칙, 겹침·자리표시값·묶기",
         "details": "영역: 규칙\n목적: 번들에서 비밀값 노출을 찾는다 (FR-03)\n읽을 문서: 기능명세 F-S01 전체, 코드규칙 3장 '정규식', 보안규칙 2장 표, NFR-03\n고칠 파일: backend/app/rules/**, backend/tests/rules/**\n명세 기준: 126c805\n계약: Finding, rules.run_rules 입력 형태(contracts/engine.py), 로컬 키는 인자\n\nCR-001 반영됨(겹침 범위 = 값 범위). S01-GENERIC은 되돌아가기 폭주를 막는다(설계 보고).",
@@ -330,7 +330,7 @@
         "updatedAt": "2026-11-19T12:19:48.718Z"
       },
       {
-        "id": "6",
+        "id": 6,
         "title": "규칙: 소스맵 노출과 내부 주소 (F-S02, F-S03)",
         "description": "S02(맵 내용·경로·인라인·끊긴 참조·건너뛴 소스맵 안내)와 S03(URL 분류·관리 경로·걸림 상한)",
         "details": "영역: 규칙\n목적: 소스맵으로 원본 코드가 드러나는지 찾는다 (FR-04) / 내부 주소·개발 서버·관리자 경로가 남았는지 찾는다 (FR-05)\n읽을 문서: 기능명세 F-S02, F-S03, 1절 '근거 조각'(②㉠㉡)·'값 가리기 (S02·S03)', CR-007\n고칠 파일: backend/app/rules/**, backend/tests/rules/**\n계약: Finding, SkipReason.NOT_SOURCEMAP·TOO_MANY_HITS, IntakeResult.targets·skipped('번들에 있음', CR-004), T18의 파일 하나 S01 결과(걸림 범위·멈춤, rules/ 안)\n변경: CR-002, CR-003, CR-004, CR-005, CR-007\n명세 기준: 4cce1b1\n\nCR-001 영향(겹침 범위). S02 예외는 'JSON 객체가 아님'(CR-002). S03 근거 조각은 T18의 build_snippet(㉠㉡)을 그대로 쓰고, S01이 멈춘 파일에서도 받은 S01 걸림 범위를 넣는다(CR-003). '번들에 있음' = targets + skipped(CR-004).\n반려 고침 (CR-007, D-033): ops/검증/T6.md '레인이 고칠 것'. S02 값·S03 값·S03 증거키(HMAC 12자, S01과 같은 방법, endpoints.scan_file에 로컬 키 인자)·S01이 아닌 걸림의 걸린 곳 가림. 길이 상한 n(CR-007 (4))은 설계 D가 정한 뒤 시작한다. HIT_LIMIT는 core.limits에서 import.",
@@ -407,7 +407,7 @@
         ]
       },
       {
-        "id": "7",
+        "id": 7,
         "title": "규칙: 취약 라이브러리 (F-S04)",
         "description": "RetireJS 목록 읽기(없음·형식 오류·항목 버림), 버전 비교, S04-VULNLIB, 규칙 버전",
         "details": "영역: 규칙\n목적: 번들 안 라이브러리 버전을 알려진 취약 목록과 대조한다 (FR-06)\n읽을 문서: 기능명세 F-S04, 용어 '규칙 버전'\n고칠 파일: backend/app/rules/**, backend/tests/rules/**, backend/tests/fixtures/**\n계약: RuleRun.rules_version, 안내 문구\n변경: CR-004\n\n목록 경로는 인자로 받는다. 네트워크 없음.\n맨 위가 JSON 객체가 아니면 형식 오류다. 항목 모양이 틀리면(below 없음 등) 그 항목만 버린다. 형식 오류이거나 쓸 항목이 0개면 r1+vulndb.none (D-028).",
@@ -474,7 +474,7 @@
         ]
       },
       {
-        "id": "8",
+        "id": 8,
         "title": "규칙: 심각도·점수와 규칙 실행 연결 (F-S06)",
         "description": "score(점수·개수·정렬)와 run_rules(S01~S04 묶기, 규칙 버전, 발견 상한, 안내 차례, 건너뜀 한 줄)",
         "details": "영역: 규칙\n목적: 발견마다 심각도를 매기고 점검 점수를 낸다 (FR-08)\n읽을 문서: 기능명세 F-S06, 용어 '규칙 버전'·'발견 상한', F-S01 11·F-S03 9(건너뜀 한 줄), F-S02 6(안내 차례), F-S01 예시 217줄, 1절 '값 가리기 (S02·S03)'(CR-007: endpoints.scan_file에 로컬 키를 넘김)\n고칠 파일: backend/app/rules/**, backend/tests/rules/**\n계약: rules.run_rules → RuleRun(RunRules 설명: notices 차례·skipped 한 줄·rules_version, CR-003·004), rules.score → ScoreResult, SkipReason.TOO_MANY_HITS; 파일 하나마다 부르는 차례 S01(secrets.scan_file) → S02(sourcemaps) → S03(endpoints.scan_file(path, content, key, s01_spans=), 로컬 키·같은 글 S01 걸림 범위를 넘김, T6)\n변경: CR-003, CR-004, CR-005",
@@ -553,7 +553,7 @@
         ]
       },
       {
-        "id": "9",
+        "id": 9,
         "title": "비교: 발견 지문 (F-C01)",
         "description": "compare.fingerprint(해시 파일 이름 정규화, 규칙ID|경로|증거키)",
         "details": "영역: 비교·내보내기\n목적: 같은 앱의 두 점검을 비교해 고쳐짐·남음·새로 생김과 점수 변화를 보여 준다 (FR-10)\n읽을 문서: 기능명세 F-C01\n고칠 파일: backend/app/compare/**, backend/tests/compare/**\n명세 기준: 7ba2079\n계약: compare.fingerprint(Finding) → str\n\n점검 흐름(T14)의 선행.",
@@ -608,7 +608,7 @@
         "updatedAt": "2026-11-19T11:52:28.727Z"
       },
       {
-        "id": "10",
+        "id": 10,
         "title": "비교: 두 점검 비교와 전후 비교 화면 (F-C02, SCR-05)",
         "description": "compare_scans, GET /compare, 전후 비교 화면",
         "details": "영역: 비교·내보내기\n목적: 같은 앱의 두 점검을 비교해 고쳐짐·남음·새로 생김과 점수 변화를 보여 준다 (FR-10)\n읽을 문서: 기능명세 F-C02, 화면정의 SCR-05\n고칠 파일: backend/app/compare/**, backend/tests/compare/**, frontend/src/features/compare/**\n계약: GET /compare?a&b → ComparisonOut\n변경: CR-004\n명세 기준: 7f37b30\n\n점검·발견 행은 테스트에서 모델로 직접 넣는다.",
@@ -687,7 +687,7 @@
         "updatedAt": "2026-11-19T16:48:18.800Z"
       },
       {
-        "id": "11",
+        "id": 11,
         "title": "내보내기: JSON (F-E01)",
         "description": "export.to_json, 파일 이름 규칙, GET /scans/{id}/export.json",
         "details": "영역: 비교·내보내기\n목적: 점검 결과를 JSON과 Markdown으로 내보낸다. Markdown에는 Claude Code에 물어볼 안내를 넣는다 (FR-11)\n읽을 문서: 기능명세 F-E01, 결정기록 D-023, 보안규칙 2장 표\n고칠 파일: backend/app/export/**, backend/tests/export/**\n계약: export.to_json → bytes, GET /scans/{id}/export.json",
@@ -752,7 +752,7 @@
         ]
       },
       {
-        "id": "12",
+        "id": 12,
         "title": "내보내기: Markdown (F-E02)",
         "description": "export.to_markdown(칸 이스케이프, 200자, 고정 문구), export.md",
         "details": "영역: 비교·내보내기\n목적: 점검 결과를 JSON과 Markdown으로 내보낸다. Markdown에는 Claude Code에 물어볼 안내를 넣는다 (FR-11)\n읽을 문서: 기능명세 F-E02, 화면정의 SCR-04 'Claude Code에 물어보기', 결정기록 D-021\n고칠 파일: backend/app/export/**, backend/tests/export/**\n계약: export.to_markdown → bytes, GET /scans/{id}/export.md\n\n고정 문구를 화면정의에서 가져오는 방법은 레인이 정해 보고한다.",
@@ -819,7 +819,7 @@
         ]
       },
       {
-        "id": "13",
+        "id": 13,
         "title": "점검 흐름: REA 참고 분석 (F-S05, REA 없이 끝나는 범위)",
         "description": "rea.analyze: 찾기·없음 처리, 명령 구성(셸 없음·120초), 결과 검사",
         "details": "영역: 점검 흐름\n목적: REA가 설치돼 있으면 그 분석 요약을 참고로 보여 준다 (FR-07)\n읽을 문서: 기능명세 F-S05, 보안규칙 외부 프로세스 절\n고칠 파일: backend/app/rea/**, backend/tests/rea/**\n계약: rea.analyze(root) → ReaRef\n\n실제 REA 실행 확인과 JSON 필드 이름은 미결(D-024). 필드 읽기는 주입 함수로 두고 없음·가짜 JSON까지만 한다.",
@@ -884,7 +884,7 @@
         ]
       },
       {
-        "id": "14",
+        "id": 14,
         "title": "점검 흐름: 점검 시작·실행·저장 (F-I01 A·11)",
         "description": "점검 시작 API와 거부, intake→rules→score→rea→지문 잇기, 상태 전이, 격리 폴더 삭제",
         "details": "영역: 점검 흐름\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02) / 발견마다 심각도를 매기고 점검 점수를 낸다 (FR-08)\n읽을 문서: 기능명세 F-I01 A·B 1·11, 예외·예시, F-S06 4, F-S02 6·F-S04 안내, 1절 '발견 상한'(안내), F-S01 11(건너뜀 이유)\n고칠 파일: backend/app/scans/**, backend/tests/scans/**\n계약: POST /apps/{id}/scans/zip, POST /apps/{id}/scans/folder → ScanStartedOut, 모델 Scan·FindingRow·SkippedRow·ReaRow, RuleRun.skipped·notices(CR-003·004)\n변경: CR-003, CR-004\n\n마이그레이션 없음(skipped.reason은 String(32)이고 '걸림이 너무 많아 일부만 점검'은 15자). 로컬 키는 app.state.local_key.\nT3 검증 넘김: receive_folder의 OSError str(exc)에는 원본·격리 폴더 전체 경로가 있다 → 점검 실패 이유·로그에는 고정 문구만 저장한다.\n설계 요청(T1): 점검을 만들 때 make_quarantine 전에 core.workdirs.remove_work_dir(work, id)를 부른다 — 서버가 켜진 동안 못 지운 폴더가 scans ID 재사용으로 같은 ID 새 점검을 막지 않게. 근본 해결(AUTOINCREMENT)은 다음 마이그레이션 때 설계.",
@@ -970,7 +970,7 @@
         ]
       },
       {
-        "id": "15",
+        "id": 15,
         "title": "점검 흐름: 점검 결과 조회·점검 지우기 (F-P03)",
         "description": "GET /scans/{id}, DELETE /scans/{id}?confirm=true",
         "details": "영역: 점검 흐름\n목적: 앱별 점검 기록을 보고, 지울 수 있다 (FR-09)\n읽을 문서: 기능명세 F-P03 1·2·4, F-S06 정렬, 화면정의 SCR-04 04-01~04-05·04-08·04-09\n고칠 파일: backend/app/scans/**, backend/tests/scans/**\n계약: GET /scans/{id} → ScanOut, DELETE /scans/{id} → DeletedOut\n\n앱 지우기(T2)와 삭제 규칙을 맞춘다.\nT2 검증 넘김: 점검 지우기는 core.workdirs.remove_work_dir·core.deps.Confirm을 쓴다. 지운 수·폴더 목록은 DELETE … RETURNING id처럼 같은 문장에서 얻는다(앱 지우기도 같이 고칠 것).",
@@ -1037,7 +1037,7 @@
         ]
       },
       {
-        "id": "16",
+        "id": 16,
         "title": "점검 흐름: 앱 상세 화면 (SCR-03)",
         "description": "새 점검(zip·폴더)·점검 기록·비교 선택·앱 지우기 화면",
         "details": "영역: 점검 흐름\n목적: 웹 번들(빌드 폴더 또는 zip)을 받아 격리된 곳에 안전하게 푼다 (FR-02) / 앱별 점검 기록을 보고, 지울 수 있다 (FR-09)\n읽을 문서: 화면정의 SCR-03, 기능명세 F-I01 예외, F-P02, F-P03\n고칠 파일: frontend/src/features/scans/**\n계약: POST scans/zip·folder, GET /apps/{id}/scans, DELETE /apps/{id}",
@@ -1116,7 +1116,7 @@
         ]
       },
       {
-        "id": "17",
+        "id": 17,
         "title": "점검 흐름: 점검 결과 화면 (SCR-04)",
         "description": "점수·개수·발견 표·REA 참고·건너뜀·안내·내보내기·지우기·폴링",
         "details": "영역: 점검 흐름\n목적: 발견마다 심각도를 매기고 점검 점수를 낸다 (FR-08) / REA가 설치돼 있으면 그 분석 요약을 참고로 보여 준다 (FR-07) / 점검 결과를 JSON과 Markdown으로 내보낸다. Markdown에는 Claude Code에 물어볼 안내를 넣는다 (FR-11)\n읽을 문서: 화면정의 SCR-04 전체(04-05 CR-003·004), 기능명세 F-S05 안내, F-S02 6·F-S04 안내, 1절 '발견 상한', F-E01\n고칠 파일: frontend/src/features/scans/**\n계약: GET /scans/{id}, export.json·export.md, DELETE /scans/{id}\n변경: CR-003, CR-004, CR-005",
@@ -1197,7 +1197,7 @@
         ]
       },
       {
-        "id": "18",
+        "id": 18,
         "title": "규칙: 비밀값 근거 조각 가림 보강·.map 이름·걸림 상한 (F-S01 9·11, CR-003)",
         "description": "build_snippet에 키워드 꼴 짧은 값·URL 사용자:비밀번호@ 가림(㉠㉡), .map 이름 정리, 파일 하나 S01 걸림 10,000개에서 멈춤",
         "details": "영역: 규칙\n목적: 번들에서 비밀값 노출을 찾는다 (FR-03) / 비밀값 원문을 내보내기 파일에 남기지 않는다 (NFR-03)\n읽을 문서: 기능명세 1절 '근거 조각'(②㉠㉡·알려진 한계), F-S01 처리 규칙 9·11, F-S01 예시 (CR-003) 줄, 코드규칙 3장 '정규식', CR-003 기술 검토 (a)(b)(c)\n고칠 파일: backend/app/rules/**, backend/tests/rules/**\n계약: Finding(그대로), SkipReason.TOO_MANY_HITS, rules/ 안의 secrets.scan_file 출력(발견·S01 걸림 범위·멈춤 여부, T6·T8이 받는다)\n변경: CR-003, CR-005\n명세 기준: b2cb19d\n\n범위: CR-003 (a)(b)(c) 중 규칙 레인 몫. 점검 전체 50,000개는 T8, S03 상한은 T6, (d) zip 이름은 T4.\n(a) 차례 ② S01 가리기 → ㉠㉡ → ③ → ④ → ⑤. 조건 넷: 걸린 곳 앞·뒤를 따로 보고 걸린 곳 자체는 안 바꿈 / S01 가린 뒤 글에 적용 / 빈 값 그대로 / 백틱도 따옴표. 키워드 먼저 찾아 선형. 키워드 목록은 S01-GENERIC과 하나로(두 곳에 적지 않음).\n(c) 이름의 U+0000~001F·U+007F 하나 → 공백 하나, \\r\\n → 공백 하나. 코드 포인트 100자 넘으면 … + 뒤 100자. 이름에 ③ 안 함.\n(b) 받아들인 걸림(묶기 전)을 센다. .map은 항목 합쳐 센다. 멈추는 단위는 그 파일의 F-S01 전체.\n검증 T5 남은 것: backend/app/rules/secrets.py:4 모듈 설명 주석을 지금 코드에 맞게(키워드 뒤 식별자 덩어리 끝으로 건너뜀, 앞쪽 안 봄).\n초안: ops/계획/CR-003-태스크초안.md",
@@ -1266,7 +1266,7 @@
         "updatedAt": "2026-11-19T17:02:55.445Z"
       },
       {
-        "id": "19",
+        "id": 19,
         "title": "규칙: 근거 조각 구분자 넓히기·.map 이름 가림 (F-S01 9, CR-006)",
         "description": "근거 조각과 .map 이름에서 비밀값 원문이 남는 흔한 JS 꼴을 가린다",
         "details": "영역: 규칙\n목적: 비밀값 원문을 내보내기 파일에 남기지 않는다 (NFR-03)\n읽을 문서: 기능명세 1절 '근거 조각'(㉠㉡·알려진 한계)·'보이지 않는 글자', F-S01 처리 규칙 9, F-S01 예시 (CR-006) 줄, CR-006\n고칠 파일: backend/app/rules/**, backend/tests/rules/**\n계약: Finding(그대로), rules/ 안의 secrets.scan_file 출력(그대로)\n변경: CR-006\n명세 기준: 0905a56\n\n범위: CR-006 (a)(b-1)(b-2)(c)(f)의 규칙 레인 몫 (D-032 대리, D-033 사용자). (d) zip 문구는 T4, (e)는 T10 코드 그대로.\n고칠 곳: rules/text.py _ASSIGN_TAIL(비교 ===·!==·==, 화살표 =>, 함수 인자 따옴표 값, 따옴표 안 \\ 다음 한 글자는 값)·map_prefix(②·㉠·㉡, 보이지 않는 글자 → 공백, 100자, ③ 안 함), secrets.py _URL_USERINFO 대소문자 무시(f)와 URLCRED 자기 조각 사용자 이름(a). rules/text.py의 HIT_LIMIT는 core.limits.HIT_LIMIT import로(설계 d7194c4).\nT6과 같은 파일이라 T6 병합 뒤에 시작한다.",
@@ -1335,7 +1335,7 @@
         ]
       },
       {
-        "id": "20",
+        "id": 20,
         "title": "공통: 실험 도구 뼈대 (설계 5절 '공통 뼈대')",
         "description": "bench uv 프로젝트, 계약 검증·번들 지문·경로 정규화 함수, conftest, 검사 4개, 규칙 paths에 bench/**",
         "details": "영역: 공통\n목적: 같은 원자료면 늘 같은 숫자가 나오게 정답지·결과·실행 원자료를 한 가지 검증·지문으로 읽는다 (요구사항 R5 '다 됐다의 기준', R3 '기계가 읽는 꼴')\n읽을 문서: 설계 실험구조 1절, 2.2 '경로 꼴'·'bundle_manifest_sha256'·'길이 상한', 2.4, 2.5 조건 2(경로 정규화), 5절 '공통 뼈대', 지도 '공통 파일'\n고칠 파일: bench/pyproject.toml, bench/uv.lock, bench/common/**, bench/tests/conftest.py, bench/tests/common/**, bench/README.md, ops/checks.json, .claude/rules/코드-서버.md, .claude/rules/보안코딩.md, .claude/rules/테스트.md\n계약: bench/contracts/answers·findings·run.schema.json (이미 있음, 읽기만), bench.common 계약 검증·지문·경로 정규화 함수 (이 태스크가 이름을 정하고 지도에 적는다)\n명세 기준: 262a137\n\n경로 정규화(`\\`→`/`, 앞의 `./` 지움, 대상 폴더 절대 경로를 지움)는 F-R06(원자료 저장)과 F-G02(맞춤 판정)가 같이 쓰므로 common에 둔다. 근거: 설계 5절 '세 레인이 각자 만들면 서로 다른 답이 나온다'.\n`코드-공통.md`에도 bench/**를 넣을지는 설계가 본다(설계 5절은 코드-서버·보안코딩·테스트만 적었다).\n크기: 예시 약 7 · 파일 약 10 · 하위 작업 5",
@@ -1392,7 +1392,7 @@
         ]
       },
       {
-        "id": "21",
+        "id": 21,
         "title": "번들·정답지: 빌드·심기 틀과 대상 목록 (F-B01, F-B04, F-B05, F-B02 틀, F-B07 번들 하나)",
         "description": "원본→결과물 빌드(펼침·압축·해시 이름), 가짜 값 만들기·나눔 도구, 지문 쓰기, targets.json, 번들 하나 구성 검사 틀",
         "details": "영역: 번들·정답지\n목적: A·B가 늘 같은 대상을 받고, 번들이 바뀌면 채점이 멈추게 한다 (요구사항 5.1 '같게 하는 것: 대상', R3)\n읽을 문서: 기능명세 F-B01·F-B02·F-B04·F-B05·F-B07 (문서가 쓸 절), 설계 실험구조 1절, 2.2 'anchor'·'bundle_manifest_sha256'·'가짜 값의 꼴', 2.7, 4절 ⑶\n고칠 파일: bench/sources/build_tools/**, bench/targets.json, bench/tests/bundles/conftest.py, bench/tests/bundles/fixtures/**, bench/tests/bundles/test_f_b01.py, bench/tests/bundles/test_f_b02_tools.py, bench/tests/bundles/test_f_b04.py, bench/tests/bundles/test_f_b05.py, bench/tests/bundles/test_f_b07_bundle.py\n계약: answers.schema.json, bench.common 지문 함수(T20), check_bench.py가 읽는 targets.json 꼴(설계 4절 ⑶)\n명세 기준: d19b509\n\n제안: 변환 단계(압축·인코딩·난독화)는 원본 폴더마다 둔 빌드 설정이 고르게 한다. 그러면 T23·T24가 `build.py`를 고치지 않고 자기 파일만 더한다(쌍 A의 두 쪽이 같은 파일을 건드리지 않게). `build_tools/` 자리는 설계 1절 폴더 표에 없어서 후보로 둔 것이다(미결 5).\n크기: 예시 약 12 · 파일 약 11 · 하위 작업 6",
@@ -1460,7 +1460,7 @@
         ]
       },
       {
-        "id": "22",
+        "id": 22,
         "title": "번들·정답지: 쉬움 번들 둘 (F-B02, F-B03, F-B07 — easy-1·easy-2)",
         "description": "펼친 코드와 sourcesContent가 든 소스맵, plain·comment·config로 숨기기, 정답 8~10개·미끼 2~3개씩",
         "details": "영역: 번들·정답지\n목적: 정답을 우리가 아는 번들로 재현율을 세고, 쉬움 단계의 바닥값을 둔다 (요구사항 R3, 5.1 대상 ①)\n읽을 문서: 기능명세 F-B02·F-B03·F-B07, 설계 실험구조 2.2, 2.3 category, 2.7 표 easy 줄\n고칠 파일: bench/sources/easy-1/**, bench/sources/easy-2/**, bench/bundles/easy-1/**, bench/bundles/easy-2/**, bench/answers/easy-1.json, bench/answers/easy-2.json, bench/tests/bundles/test_f_b02_easy.py\n계약: answers.schema.json\n명세 기준: ef9a348\n\n크기: 예시 약 8 · 파일 약 20 · 하위 작업 6\nT21 검증 넘김: build_tools/build.py `_write_bundle` 바꿔 넣기를 원자적으로 — 옛 폴더를 `.<id>.old`로 rename → 새 폴더 rename → 옛 폴더 지움, 실패하면 되돌림, OSError는 BuildError로. 열린 파일(Windows 잠금)로 한 번 시험. 키 접두어는 허용 목록에서만, 한 번들 안에서 겹치지 않게. 16자 영숫자 닻에는 fake·test·demo 낱말을 넣지 않는다(규칙 10).",
@@ -1528,7 +1528,7 @@
         ]
       },
       {
-        "id": "23",
+        "id": 23,
         "title": "번들·정답지: 보통 번들 둘 (F-B02, F-B03, F-B07 — normal-1·normal-2)",
         "description": "압축(한 줄)·해시 이름, split·encoded(base64·16진)·config로 숨기기",
         "details": "영역: 번들·정답지\n목적: 숨긴 문제에서 REA가 차이를 내는지 난이도별로 시험할 수 있게 한다 (요구사항 R3 '난이도를 나누는 것', 5.1 대상 ①)\n읽을 문서: 기능명세 F-B02·F-B03·F-B07, 설계 실험구조 2.2 'anchor'·'hiding', 2.7 표 normal 줄\n고칠 파일: bench/sources/build_tools/encode.py, bench/sources/normal-1/**, bench/sources/normal-2/**, bench/bundles/normal-1/**, bench/bundles/normal-2/**, bench/answers/normal-1.json, bench/answers/normal-2.json, bench/tests/bundles/test_f_b02_normal.py\n계약: answers.schema.json\n명세 기준: b7cadc5\n\n작업 쌍: A 병렬 쪽 (lane-bench + 보안·명세 검토 + 총괄)\n크기: 예시 약 9 · 파일 약 19 · 하위 작업 6\nT21 넘김: 키 접두어는 build_tools 허용 목록에서만, 한 번들 안에서 겹치지 않게. 16자 영숫자 닻에는 fake·test·demo 낱말을 넣지 않는다(규칙 10). 변환 도구는 build_tools/encode.py·obfuscate.py를 더하고 plan.json에 이름만.",
@@ -1596,7 +1596,7 @@
         ]
       },
       {
-        "id": "24",
+        "id": 24,
         "title": "번들·정답지: 어려움 번들 둘과 직접 만든 난독화 (F-B02, F-B03, F-B07 — hard-1·hard-2)",
         "description": "압축 + 문자열 배열·돌리기·글자 코드 난독화, sourcemap_only·split",
         "details": "영역: 번들·정답지\n목적: 'REA는 숨기거나 난독화한 문제에서 차이를 낼 것'이라는 가설을 시험할 대상을 둔다 (요구사항 R3, 5.1 대상 ①)\n읽을 문서: 기능명세 F-B02·F-B03·F-B07, 설계 실험구조 2.2, 2.7 표 hard 줄·'난독화를 직접 만드는 근거'\n고칠 파일: bench/sources/build_tools/obfuscate.py, bench/sources/hard-1/**, bench/sources/hard-2/**, bench/bundles/hard-1/**, bench/bundles/hard-2/**, bench/answers/hard-1.json, bench/answers/hard-2.json, bench/tests/bundles/test_f_b02_hard.py\n계약: answers.schema.json\n\n작업 쌍: A 한 세션 쪽 (solo-bench, 병합 전 검토 없음 — 사용자 확인 8절 12)\n크기: 예시 약 10 · 파일 약 20 · 하위 작업 6\nT21 넘김: 키 접두어는 build_tools 허용 목록에서만, 한 번들 안에서 겹치지 않게. 16자 영숫자 닻에는 fake·test·demo 낱말을 넣지 않는다(규칙 10). 변환 도구는 build_tools/encode.py·obfuscate.py를 더하고 plan.json에 이름만.",
@@ -1664,7 +1664,7 @@
         ]
       },
       {
-        "id": "25",
+        "id": 25,
         "title": "번들·정답지: 번들 고침과 심은 번들 전체 구성 검사 (F-B01·B02·B03 고침, F-B07 전체)",
         "description": "normal·hard 이름 줄이기, 위치 닻·미끼 hiding·decoded_anchor 채움, 같은 방법·같은 길이 미끼, 64자 닻, 다시 빌드한 여섯 번들로 F-B07 전체 검사",
         "details": "영역: 번들·정답지\n목적: 첫 실험 전에 정답·미끼를 겉모양으로 가를 단서와 맞힐 수 없는 위치를 없애고, 여섯 번들이 구성·공정성 규칙을 지키는지 기계가 확인한다 (요구사항 R3, 3절 실패 ①, D-035)\n읽을 문서: 기능명세 F-B01·F-B02·F-B03·F-B07, 설계 실험구조 2.2, 2.7, 8.4, 8.8\n고칠 파일: bench/sources/**, bench/bundles/**, bench/answers/**, bench/tests/bundles/**\n계약: answers.schema.json(8.4: 위치 anchor, 미끼 hiding·decoded_anchor), bench.common.lines\n명세 기준: 0d27928\n변경: CR-008\n\n쌍 아님: 쌍 A의 결과물(T23·T24 번들)을 고친다 (실험구조 8.3, 8.4 '쌍 A와의 관계'). 쌍 A 독립 검토는 고치기 전 병합 커밋(T23 f6e5aad, T24 c23d5bb)에서 하므로 쌍 쪽이 돌지 않을 때 같이 돌려도 된다 (8.1 ⑧, 8.3 '차례')\n선행(설계): design/replan-1124 병합 — 계약 커밋 037b2e8(locations[].anchor, 미끼 hiding·decoded_anchor 선택 칸) (8.4 2·3·6 '지금 고침', 8.7 총괄)\n선행(문서): 기능명세 F-B01·F-B02·F-B03·F-B07 고침 (8.7 문서 역할 표)\n크기: 예시 약 15 · 손으로 고칠 파일 약 12 (+ 명령 answers <id>로 다시 만드는 번들 4·정답지 6) · 하위 작업 6\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤). 번들이면 정답·미끼를 겉모양(이름·길이·낱말·꼴 깨짐)으로 가를 수 있는지도\n고칠 것(8.4에서 T25로 정한 것): ① normal·hard 빌드의 '줄일 이름 표'(선언한 이름만 짧게, 속성·window. 전역·문자열·export 이름은 그대로, 표에 없는 2자 넘는 선언 이름이면 빌드 멈춤, 구조 분해 선언 금지, easy는 그대로) ② 줄로 못 가르는 위치마다 정답 닻이나 위치 닻이 그 파일에 글자 그대로 ③ 난이도마다 정답이 쓰는 숨긴 방법마다 그 방법을 거친 미끼 하나 이상 — easy 미끼 하나를 주석으로, normal 미끼 하나를 나눠 쓴 값으로, 심은 번들 미끼는 hiding 필수 ④ 줄로 못 가르는 위치가 있는 정답·미끼의 닻은 64자 이하, 더 길면 앞에서부터 번들 안에서 고유한 가장 짧은 조각(16자 이상) ⑤ 같은 번들에 같은 인코딩 정답·미끼가 있으면 미끼 하나는 정답 길이의 1.5배 안(normal-1·2 미끼 하나씩) ⑥ 미끼 decoded_anchor 채움(normal·hard) ⑦ verify _check_fake_values가 토큰 서명 끝 글자(표준 꼴 AEIMQUYcgkosw048)도 봄(옛 T22 넘김) ⑧ 예약 이름(.example·.test·.invalid)을 정답·미끼 한쪽에만 쓰지 않음을 여섯 번들 공통 검사로, 찾으면 그 번들을 고침 ⑨ minify.py의 _REGEX_AFTER_PUNCT·_REGEX_AFTER_WORDS·_WORD를 공개 이름으로 바꾸고 __all__에, obfuscate.py가 그것을 씀(결과 바이트 같음)\n잰 것(8.4, 설계 2026-11-24): 정답 위치 101곳 중 줄로 못 가르는 곳 67곳, 그 파일에 닻이 없는 곳 8곳(N1-07 courier-*.js·.map, N1-09 .map, N2-01·N2-03·N2-06 index-*.js, H1-09 .map, H2-09 .map). 64자 넘는 닻·풀어낸 값 8개(E1-02, E2-02, N2-03, H1-04, H1-05, H1-08, H2-02 풀어낸 값, H2-06)\n고치지 않는 것(R1 한계): 속성 이름·값 길이처럼 실제 앱에도 있는 겉모양 단서 (8.4 '한계')\n더 고칠 것(설계 8.8, 쌍 A 독립 검토 ops/검증/T23.md·T24.md '독립 검토'): ⑩ 미끼 닻과 같은 범주 정답 닻 사이 300자 넘게(F-B07 새 검사 '미끼와 정답의 거리', 8.8 6 — 미끼 17개 중 16개가 지금 300자 안) ⑪ normal-2 `?kiosk` 숨은 모드는 새 정답 N2-10(hidden_route, 8.8 7㉯) ⑫ normal·hard 원본의 단축 속성 26곳·export function 3개를 `이름: 이름`·선언 분리로 풀어 씀(8.8 4 — 빌드 멈춤 꼴) ⑬ 풀어낸 값 앞 조각은 번들 어디에도 없게(8.8 2: H2-02 앞 16자, N1-02·N2-01은 20자)\n후속(T25에 넣지 않음, 낮음): hard-2 VAPID 미끼가 P-256 곡선 위 점이 아님(8.8 7㉮) · obfuscate 메모리 주석(잰 값 입력의 약 15배) · node 없으면 문법 검사 건너뜀을 check 요약에 · lane-bench 기능 메모의 '커밋 해시' 미끼 글\n참고(문서 회고 0d27928): 계약 뜻 규칙 '닻 겹침'(설계 8.4, common.contracts._check_anchor_overlaps)은 코드에 있고 F-B03 10 목록에는 아직 없다 — F-B03 5 ㉡이 가리키는 규칙이니 설계 8.4를 기준으로 본다.",
@@ -1735,7 +1735,7 @@
         "updatedAt": "2026-11-24T18:00:23.637Z"
       },
       {
-        "id": "26",
+        "id": 26,
         "title": "채점·측정: 결과 읽기와 맞춤 판정 (F-G01, F-G02)",
         "description": "findings 계약 검증·형식 실패·시간 초과, 후보 짝(범주·파일·줄 T·닻·그 위치의 위치 닻), 최대 1:1 짝, 동점 차례, 중복·other·미끼(풀어낸 값 포함)",
         "details": "영역: 채점·측정\n목적: 결과와 정답을 사람 판단 없이 같게 짝지어 '더 많이·더 정확히 찾는가'를 가른다 (요구사항 R5, 4절)\n읽을 문서: 기능명세 F-G01·F-G02, 설계 실험구조 2.3, 2.5 전체, 7절, 8.4 ②·⑥, 8.8 3(위치 정확도에 그 위치의 위치 닻)\n고칠 파일: bench/score/__init__.py, bench/score/read.py, bench/score/match.py, bench/tests/score/fixtures/g01_g02/**, bench/tests/score/test_f_g01.py, bench/tests/score/test_f_g02.py\n계약: findings.schema.json, answers.schema.json(위치 anchor, 미끼 decoded_anchor), bench.common 경로 정규화·lines\n명세 기준: b9d544b\n\n작업 쌍: B 한 세션 쪽 (solo-bench, 병합 전 검토 없음 — 사용자 확인 8절 12. 독립 검토는 보정 배치 전 — 실험구조 8.1 ⑦)\n선행(사람): 사용자 확인 7절(T, 닻 맞춤, 경로 비교, 중복, other, 형식 실패, 결과 수 상한)\n선행(설계·문서): design/replan-1124 병합(계약 커밋 037b2e8), 기능명세 F-G02 고침 — 규칙의 닻 맞춤에 '그 위치의 위치 닻', 미끼 헛짚음에 미끼 decoded_anchor·위치 닻 (8.4 2·6, 8.7)\n크기: 예시 약 23 · 파일 약 8 · 하위 작업 6\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤)\n8.4에서 넘어온 것: 2.5 ㉯에 '그 위치의 위치 닻'을 더한다 — 다른 위치의 위치 닻으로는 그 위치가 맞지 않음(8.4 2). 숨긴 미끼를 풀어낸 값(decoded_anchor)으로 가리킨 결과는 '미끼 헛짚음'(8.4 6). 위치 닻은 '설계 해석 — 사용자 확인 전'(7절)이라 다시 채점으로 바꿀 수 있게 둔다",
@@ -1804,7 +1804,7 @@
         "updatedAt": "2026-11-26T11:14:29.433Z"
       },
       {
-        "id": "27",
+        "id": 27,
         "title": "채점·측정: 지표·다시 계산·표·그림·사례 후보 (F-G03~F-G06)",
         "description": "재현율·정밀도·위치 정확도, 난이도·범주별, N=2 최소·가운데·최대와 셋째 권고, score 명령·보고서 표 대조, Markdown 표·SVG 2~3장, B만·A만 찾은 것·B 미끼 헛짚음 목록",
         "details": "영역: 채점·측정\n목적: 같은 원자료면 늘 같은 숫자·표·그림이 나오고, 보고서 숫자와 'REA가 있어야만 찾은 것' 사례 후보를 원자료에서 다시 만든다 (요구사항 R5, R1, 2절 3·4)\n읽을 문서: 기능명세 F-G03~F-G06, 요구사항 4절 예시, 설계 실험구조 2.5 '재현율'~'N을 늘리는 기준', 2.6, 3.8, 3.9, 8.2\n고칠 파일: bench/score/metrics.py, bench/score/aggregate.py, bench/score/recompute.py, bench/score/tables.py, bench/score/svg.py, bench/score/cases.py, bench/score/__main__.py, bench/tests/score/fixtures/g03_g06/**, bench/tests/score/test_f_g03.py, bench/tests/score/test_f_g04.py, bench/tests/score/test_f_g05.py, bench/tests/score/test_f_g06.py, docs/보고서/그림/**\n계약: run.schema.json 상태 값, T26 맞춤 결과(레인 안), 보고서 표식 <!-- 표:<이름> --> … <!-- /표 -->, stream-json 대화 기록(3.8)\n명세 기준: e4ce098\n\n작업 쌍: D 한 세션 쪽 (solo-bench, 병합 전 검토 없음 — 사용자 확인 8절 12. 독립 검토는 보정 배치 전 — 실험구조 8.1 ⑦)\n합친 것: 옛 T27(F-G03·G05) + 옛 T28(F-G04·G06) — 둘 다 'T26의 짝 → 숫자·표'이고 같은 __main__.py·같은 원자료 꼴을 쓴다 (실험구조 8.3)\n선행(사람): 사용자 확인 7절(모으기, Juice Shop 정밀도)\n선행(문서): 기능명세 F-G03 10의 N 기준을 8.2로 — 두 차례 재현율 차이가 20%p를 넘으면 그 난이도 셋째 권고 (8.7)\n크기: 예시 약 25 · 파일 약 13 · 하위 작업 6\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤)\nN 기준(8.2): 재현율은 그 난이도 번들 둘을 합친 짝 합 ÷ 정답 합. 어느 한 조건이라도 두 차례 차이가 20%p를 넘으면 그 난이도의 번들 둘을 A·B 모두 셋째로 권고. 셋째 뒤에도 범위가 20%p를 넘으면 더 권고하지 않고, A·B 범위가 겹치면 '차이를 말할 수 없음'\n넘김(쌍 B 독립 검토 ops/검증/T26.md, 2026-11-26 — 쌍 D 채점 쪽이라 고치지 않고 알고만 쓴다): bench/score/read.py `Finding`이 reason·confidence를 버린다(F-G06 사례 뽑기·확신별 정밀도에 필요하면 findings.json을 다시 읽거나 '요청'에) · bench/score/match.py `MatchResult.wrong`은 ㉰만 센다 — 정밀도 분모는 맞음이 아닌 결과 전부(중복·미끼 헛짚음·㉰)를 명세 F-G03대로 직접 셀 것 · `match_run`은 계약 상한(결과 100) 안에서만 선형에 가깝다.",
@@ -1873,7 +1873,7 @@
         "updatedAt": "2026-11-27T12:46:46.979Z"
       },
       {
-        "id": "28",
+        "id": 28,
         "title": "채점·측정: 표·그림과 사례 후보 (F-G04, F-G06)",
         "description": "Markdown 표, 표준 라이브러리 SVG 2~3장, B만 찾은 것·A만 찾은 것·B 미끼 헛짚음 목록(실행 ID·대화 위치)",
         "details": "영역: 채점·측정\n목적: 보고서에 조건별 숫자·그림과 'REA가 있어야만 찾은 것·헛짚은 것' 사례 후보를 원자료에서 그대로 싣는다 (요구사항 2절 3·4, R1)\n읽을 문서: 기능명세 F-G04·F-G06, 요구사항 2절, 설계 실험구조 2.1 F-G04·F-G06 줄, 2.6, 3.8\n고칠 파일: bench/score/tables.py, bench/score/svg.py, bench/score/cases.py, bench/score/__main__.py, bench/tests/score/fixtures/g04_g06/**, bench/tests/score/test_f_g04.py, bench/tests/score/test_f_g06.py, docs/보고서/그림/**\n계약: run.json·transcript.jsonl(stream-json, 3.8), T27 모은 지표(레인 안), 보고서 표식\n\n작업 쌍: C 한 세션 쪽 (solo-bench)\n크기: 예시 약 10 · 파일 약 6(+ 그림 출력) · 하위 작업 6\n취소(2026-11-24): 실험구조 8.3에서 T27에 합침 (같은 __main__.py·같은 원자료 꼴)",
@@ -1941,7 +1941,7 @@
         ]
       },
       {
-        "id": "29",
+        "id": 29,
         "title": "채점·측정: 작업 기록·작업 쌍 표·남은 결함 (F-M01~M04)",
         "description": "측정.csv의 늘린 칸(검토방식 포함)·커밋 시각·세션 기록 토큰 합, 쌍 비교 표(검토 방식 칸, 3쌍 미만이면 표 없음), 같은 검토인지 확인하고 심각도별로 세기, README 5분 시험 기록",
         "details": "영역: 채점·측정\n목적: 병렬 방식과 한 세션의 시간·사용량·반려·결함을 같은 자로 비교한 표를 원자료에서 다시 계산할 수 있게 한다 (요구사항 R2, 5.2 '기록'·'남은 결함')\n읽을 문서: 기능명세 F-M01~F-M04, 요구사항 4절 R2·R6, 5.2, 설계 실험구조 2.1 F-M 줄, 2.8, 8.1 '질문 2에 주는 영향'\n고칠 파일: bench/measure/**, bench/tests/measure/**\n계약: ops/측정.csv 칸(문서, 8.7 '검토방식' 칸), ops/검증/*.md 등급 표기(8.1 ②), Claude Code 세션 jsonl의 usage(추정 — 첫 하위 작업에서 실제 파일로 확인)\n\n작업 쌍: C 병렬 쪽 (lane-score + task-reviewer 하나 + 총괄, 병합 전 검토 방식 하나·새 — 실험구조 8.1 ①~⑤)\n세션 기록은 usage 칸만 읽고 메시지 본문은 출력·저장하지 않는다(CLAUDE.md '비밀값을 옮기지 않는다'). 본문을 시험 자료로 옮기지 않는다 — 공개 저장소로 샌다 (8.3 '어느 쪽을 병렬로')\n선행(문서): 문서가 ops/측정.csv 칸을 늘림(요구사항 5.2 '기록') + 칸 '검토방식'(둘·옛 / 하나·새), 기능명세 F-M02·F-M03 고침 — 쌍 표에 '병합 전 검토 방식' 칸, 독립 검토는 task-reviewer 하나(정의 sha256) (8.7)\n크기: 예시 약 14 · 파일 약 10 · 하위 작업 6\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤)\n쌍 A는 따로(8.1 '질문 2에 주는 영향'): 방향 판정(D-037 '세 번 같은 방향인가')은 같은 방식의 쌍 B·C·D로, 쌍 A는 '병합 전 검토: 둘(옛 방식)'으로 따로 한 줄 + 'A를 넣어도 방향이 같은가' 한 줄. 쌍 D를 못 하면 A·B·C로 판정하고 한계에 적는다",
@@ -2009,7 +2009,7 @@
         ]
       },
       {
-        "id": "30",
+        "id": 30,
         "title": "실행기: 실행 계획·실행 폴더·원자료 저장 (F-R01, F-R02, F-R06)",
         "description": "시드로 섞은 차례, 저장소 밖 실행 폴더·대상 복사·위쪽 CLAUDE.md 확인·settings.json 거절 규칙·허용 목록 환경, run.json·findings·transcript 저장, mine·빈·문지기 실행은 저장소 밖에만",
         "details": "영역: 실행기\n목적: 명령 하나로 다시 돌릴 수 있고 실행마다 원자료가 남게 하며, 내 앱 원자료는 저장소에 들어가지 않게 한다 (요구사항 R4, 6절)\n읽을 문서: 기능명세 F-R01·F-R02·F-R06, 설계 실험구조 2.4, 3.1, 3.2(문지기 빼고), 3.6, 3.8, 4절, 8.5, 8.8 1(계획 칸 first_repeat·source)\n고칠 파일: bench/run/__init__.py, bench/run/plan.py, bench/run/workdir.py, bench/run/env.py, bench/run/store.py, bench/run/mcp-A.json, bench/tests/run/test_f_r01.py, bench/tests/run/test_f_r02.py, bench/tests/run/test_f_r06.py\n계약: run.schema.json, 실행 ID 꼴(2.4), bench.common 지문·경로 정규화(T20), 8.5 빈·문지기 원자료 자리\n명세 기준: e393fb7\n\n작업 쌍: B 병렬 쪽 (lane-run + task-reviewer 하나 + 총괄, 병합 전 검토 방식 하나·새 — 실험구조 8.1 ①~⑤)\n선행(문서): 기능명세 F-R06 고침 — 빈·문지기 원자료는 저장소 밖, target_id 예약 ID (8.7)\n크기: 예시 약 19 · 파일 약 9 · 하위 작업 6\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤)\nT20 넘김(빈·문지기 실행의 target_id·저장 위치)은 설계 8.5가 정함: 원자료는 저장소에 넣지 않고 %LOCALAPPDATA%\\SelfAudit-bench-archive\\<배치 ID>\\<실행 ID>\\에 둔다. run_kind가 empty·gate이면 저장소 안 경로를 주면 거절(mine과 같은 꼴). run.json은 target_id = run_kind와 같은 예약 ID empty·gate(대상 목록에 넣지 않음), target_kind = planted, bundle_manifest_sha256 = 빈 실행은 format_manifest([])의 sha256, 문지기는 실행기가 만든 target 폴더의 지문. check_bench.py는 고치지 않는다",
@@ -2078,7 +2078,7 @@
         "updatedAt": "2026-11-26T10:42:48.592Z"
       },
       {
-        "id": "31",
+        "id": 31,
         "title": "실행기: MCP 거르개 (F-R04)",
         "description": "REA 도구 4개만 보이고 부르기, 인자 이름 허용 목록, 경로 칸은 realpath로 그 실행의 target 안만, trace의 application은 같은 세션 참조만, REA를 좁은 환경과 ㉠으로 띄우기",
         "details": "영역: 실행기\n목적: 조건 B가 REA 정적 분석 도구 4개만 그 실행의 대상 안에서 쓰게 해서, A·B가 REA 하나만 다르게 한다 (요구사항 5.1 '바꾸는 것', D-041)\n읽을 문서: 기능명세 F-R04, 설계 REA환경 6절(도구 표·인자·'F-R04 시험 꼴'), 4절 ㉠, 결정기록 D-041\n고칠 파일: bench/run/rea_mcp_filter.py, bench/run/mcp-B.json, bench/tests/run/test_f_r04.py, bench/tests/run/fake_rea/**\n계약: MCP stdio JSON-RPC tools/list·tools/call, REA 6.10.1 도구 4개의 인자(REA환경 6절 표), ops/scripts/rea_netguard.cjs(읽기만)\n명세 기준: 46b368f\n\n크기: 예시 약 27 · 파일 약 4 · 하위 작업 6. 쌍에 넣지 않은 근거: 예시가 다른 태스크의 1.5배가 넘어 맞출 짝이 없다. 또 작업 폴더 밖 읽기를 막는 경계라 병합 전 검토를 빼지 않는다(설계 반려 2 높음)",
@@ -2146,7 +2146,7 @@
         ]
       },
       {
-        "id": "32",
+        "id": 32,
         "title": "실행기: Claude Code 실행·조건 확인·네트워크 기록·문지기 (F-R03, F-R05, F-R07, F-R10)",
         "description": "A·B 명령줄(MCP 설정 파일만 다름)·셸 없이·시간·비용 상한, init 줄로 조건 확인, ㉡ REA 프로세스 나무 연결 기록·방화벽 상태, 작업 폴더 밖 표식으로 두 조건 모두 막히는지 본 뒤에만 배치",
         "details": "영역: 실행기\n목적: A·B 명령줄이 MCP 설정 파일 하나만 다르고, 조건이 다른 실행은 버리며, 작업 폴더 밖 읽기·바깥 연결이 막혔는지 배치마다 확인한다 (요구사항 3절 실패 ①, 5.1, 6절)\n읽을 문서: 기능명세 F-R03·F-R05·F-R07·F-R10, 설계 실험구조 2.3 '형식 강제', 3.1~3.4, 3.7, 3.10, 8.6, 8.9 1(실행 폴더·<LOCAL_REL>), 설계 REA환경 4절\n고칠 파일: bench/run/claude_cmd.py, bench/run/condition.py, bench/run/netwatch.py, bench/run/gate.py, bench/run/prompt.md, bench/run/prompt-gate.md, bench/tests/run/fake_claude/**, bench/tests/run/test_f_r03.py, bench/tests/run/test_f_r05.py, bench/tests/run/test_f_r07.py, bench/tests/run/test_f_r10.py\n계약: Claude Code 2.1.119 명령줄(3.3), stream-json init·result 줄(3.4·3.5, 필드 이름은 보정에서 확인), findings.schema.json, escape_cases.json(T31), 8.6 지시문 본문, rea_netguard.cjs 기록 꼴·netguard.jsonl·netstat.json(3.8), run.json settings.firewall_rule·네트워크 기록 수\n명세 기준: 2228907\n\n작업 쌍: D 병렬 쪽 (lane-run + task-reviewer 하나 + 총괄, 병합 전 검토 방식 하나·새 — 실험구조 8.1 ①~⑤)\n합친 것: 옛 T32(F-R03·R05) + 옛 T33(F-R07·R10) — 문지기는 실행·조건 확인으로 짧은 실행을 띄우는 것이라 같은 가짜 claude.exe·같은 시험 틀을 쓴다 (실험구조 8.3)\n지시문: prompt.md 본문은 설계 8.6을 그대로 옮긴다(초안 — 보정 배치 뒤 확정, 사용자 확인 8절 4). prompt-gate.md는 3.10 표의 꼴마다 읽어 보라는 글과 8.6 '지킬 것' 첫째·셋째 줄 — '작업 폴더 밖은 보지 않는다'는 넣지 않는다(막는 것은 권한 층, 8.6 표)\n선행(사람): 사용자 확인 7절(조건 A 도구, 모델·노력)\n선행(문서): 기능명세 F-R03이 지시문 본문(8.6)을 가리키는 줄, F-R10 문지기 원자료는 저장소 밖(8.5) (8.7)\n크기: 예시 약 22 · 파일 약 11 · 하위 작업 6\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤)\n총괄 판단(T31 넘김, 옛 T33): B 문지기에서는 target 안 정션(#12)을 두지 않고 #12는 A에서만 잰다. 근거: 거르개가 target 아래 재분석 지점이 있으면 REA를 띄우지 않아(두 층) B에 정션을 두면 늘 'MCP 연결 안 됨'이 되고, #12가 재는 것은 두 조건에 같은 Claude Code Read 권한이다. REA 쪽은 거르개의 띄우기 전 훑기가 막는다. 자리 표시(<P_DEVICE>·<P_NODRIVE> 등)는 T31 시험의 layout 픽스처를 본보기로 채운다.\n문지기 원자료는 저장소 밖(8.5): 문지기 실행의 run.json·대화 기록은 T30의 저장소 밖 보관 폴더로. 통과·실패는 대상 실행의 run.json settings.deny_rule_forms(2.10)에 남는다\n넘김(T30 레인 요청, 2026-11-26): run.json `versions.mcp_config_sha256`에는 쓴 mcp.json이 아니라 틀의 sha256(`bench/run/workdir.py` `McpConfig.template_sha256`)을 적는다 — 쓴 파일엔 실행 폴더 경로가 들어가 실행마다 sha256이 달라진다. 실행 폴더 자리는 설계 design/run-dir-1126(F-R02 ㉢ 부딪힘, 홈 밖으로 옮김) 병합 뒤 그대로 쓴다.\n넘김(설계 8.9 병합, 2026-11-27): 문지기가 escape_cases.json의 `<LOCAL_REL>`을 `os.path.relpath(LOCALAPPDATA, 드라이브 맨 위)`(`/` 구분)로 채우고, 채운 꼴이 미끼 표식에 실제로 닿는지 미리 확인(3.10) — 안 채우면 '없어서' 거절돼 #1 둘째 예가 아무것도 안 잰다. `expected_manifest(target)`은 인자 하나. 실행 폴더는 `%SystemDrive%\\SelfAudit-bench-runs`(bench/run/workdir.py `ensure_runs_root`).",
@@ -2216,7 +2216,7 @@
         "updatedAt": "2026-11-26T21:12:24.128Z"
       },
       {
-        "id": "33",
+        "id": 33,
         "title": "실행기: 네트워크 기록과 문지기 실행 (F-R07, F-R10)",
         "description": "㉡ REA 프로세스 나무 연결 보기(A는 0이어야 함), 기록이 있으면 배치 멈춤, 방화벽 상태, 작업 폴더 밖 표식 파일을 두고 두 조건 모두 막히는지 본 뒤에만 배치 시작",
         "details": "영역: 실행기\n목적: 작업 폴더 밖 읽기와 바깥 연결이 막혔는지 배치마다 확인해, 정답지·로그인 정보가 대상 에이전트에게 새지 않게 한다 (요구사항 6절, 3절 실패 ①)\n읽을 문서: 기능명세 F-R07·F-R10, 설계 실험구조 3.2 '문지기 실행', 3.7, 설계 REA환경 4절\n고칠 파일: bench/run/netwatch.py, bench/run/gate.py, bench/run/prompt-gate.md, bench/tests/run/test_f_r07.py, bench/tests/run/test_f_r10.py\n계약: run.json settings.firewall_rule·네트워크 기록 수, netguard.jsonl·netstat.json(3.8), rea_netguard.cjs 기록 꼴\n\n크기: 예시 약 9 · 파일 약 5 · 하위 작업 5. 쌍에 넣지 않은 근거: 크기는 T28·T34와 비슷하지만 작업 폴더 밖 읽기를 막는 경계라 한 세션 쪽(병합 전 검토 없음)으로 두지 않는다\n총괄 판단(T31 넘김): B 문지기에서는 target 안 정션(#12)을 두지 않고 #12는 A에서만 잰다. 근거: 거르개가 target 아래 재분석 지점이 있으면 REA를 띄우지 않아(두 층) B에 정션을 두면 늘 'MCP 연결 안 됨'이 되고, #12가 재는 것은 두 조건에 같은 Claude Code Read 권한이다. REA 쪽은 거르개의 띄우기 전 훑기가 막는다. 자리 표시(`<P_DEVICE>`·`<P_NODRIVE>` 등)는 T31 시험의 layout 픽스처를 본보기로 채운다.\n취소(2026-11-24): 실험구조 8.3에서 T32에 합침 (같은 가짜 claude.exe·같은 시험 틀)",
@@ -2275,7 +2275,7 @@
         ]
       },
       {
-        "id": "34",
+        "id": 34,
         "title": "실행기: 보정·배치 명령·계획 만들기 (F-R08, F-R09, F-R01 계획)",
         "description": "보정 계획(빈·문지기·대상 2~3), result 줄을 run.json 지표로, 24번 사용량 추정·상한 제안, python -m run batch --plan, 첫 실험 계획·덧붙임 계획을 만드는 plan 명령, 가짜 claude로 두 번 같은 숫자",
         "details": "영역: 실행기\n목적: 처음 몇 번으로 1번 비용을 재 상한을 정하고, 명령 하나로 배치·다시 채점·첫 실험 계획과 덧붙임 계획을 만든다 (요구사항 5.1 '첫 실험', R4)\n읽을 문서: 기능명세 F-R08·F-R09·F-R01, 설계 실험구조 3.5, 3.9, 8.2, 8.3 'T34'\n고칠 파일: bench/run/batch.py, bench/run/calibrate.py, bench/run/plan_cmd.py, bench/run/__main__.py, bench/run/plans/calibration.json, bench/run/prompt-empty.md, bench/tests/run/test_f_r08.py, bench/tests/run/test_f_r09.py\n계약: run.schema.json 지표 칸, 계획 파일 꼴(3.9), score 명령(T27)\n\n작업 쌍: C 한 세션 쪽 (solo-bench, 병합 전 검토 없음 — 사용자 확인 8절 12. 독립 검토는 보정 배치 전 — 실험구조 8.1 ⑦)\n합친 것: 옛 T34(F-R08·R09) + 옛 T35(첫 실험 계획 파일) — 계획은 보정 숫자에서 계산되는 값이라 명령 python -m run plan first --calibration <배치 ID> --model … --effort …(F-R08 상한 계산을 씀)으로 만든다. 같은 보정이면 같은 계획 바이트 (실험구조 8.3, R4)\n만들지 않는 것: bench/run/plans/first-*.json·덧붙임 계획 파일은 이 태스크가 커밋하지 않는다 — 보정 뒤 총괄이 사용자 확인 값(요구사항 8절 4·6, 옛 T35 선행)으로 명령을 돌려 나온 파일을 커밋 (8.3, 8.7 설계)\n실제 실행 없음: 시험은 가짜 claude.exe(T32의 bench/tests/run/fake_claude/**, 읽기만)로만. 실제 보정 배치는 T32 문지기를 지나야 하고 한 세션 쪽 독립 검토 뒤에 총괄이 돌린다 (8.3 '어느 쪽을 병렬로', 8.1 ⑦)\nN(8.2): 첫 실험 = 번들 6 × A·B × 2 = 24번. 덧붙임 계획 = 그 난이도 번들 둘 × A·B × 반복 차례 3, 새 순서 시드. 꼴은 3.9와 같다\nF-R01 계획 시험(test_F_R01_first_…)은 test_f_r09.py에 둔다 — test_f_r01.py는 T30 파일 (8.3 고칠 파일 칸에 test_f_r08·r09만 있음)\n선행(문서): 기능명세 F-R01·F-R09 계획 만들기 명령·같은 보정이면 같은 계획 바이트, F-R08 보정 요약은 총괄 커밋(8.5 3) (8.7)\n크기: 예시 약 12 · 파일 약 8 · 하위 작업 6\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤)\n넘김(설계 8.8 1, 2026-11-24): 계획 만들기 명령은 8.8 1 표대로(`plan first`·`plan extra`, 칸 first_repeat·source, 순서 시드 = order_seed 뺀 계획 sha256 앞 12자, 파일 first-/extra-<YYYYMMDD-HHMM>.json). F-R08 5의 0.01달러 올림은 decimal.Decimal(str(값))로 셈(실수 곱은 경계에서 한 푼 틀림).\n넘김(T32 검토, 2026-11-27): bench/run/claude_cmd.py·gate.py — 문지기 시도 수 A 82·B 129(설계 추정 24보다 많음, 보정 비용 뒤 줄일지), permission_denials·init 칸 이름·상대 경로 거절 꼴은 보정 첫 문지기에서 확인(틀리면 gate.DENIALS_KEY·_scan만).",
@@ -2344,7 +2344,7 @@
         ]
       },
       {
-        "id": "35",
+        "id": 35,
         "title": "실행기: 첫 실험 계획 파일 (F-R01·F-R09 적용)",
         "description": "번들 6 × A·B × N 3 = 36번 계획(모델·노력·상한·시드), 보정 뒤 사용자가 확인한 값으로",
         "details": "영역: 실행기\n목적: 첫 실험 36번을 계획 파일 하나로 돌리고 그 sha256을 원자료에 남긴다 (요구사항 R4, 5.1 '첫 실험')\n읽을 문서: 기능명세 F-R01·F-R09, 설계 실험구조 3.5 5번(상한), 3.9, 요구사항 5.1 '반복'·'첫 실험'\n고칠 파일: bench/run/plans/first-36.json, bench/tests/run/test_plan_first36.py\n계약: 계획 파일 꼴(3.9)\n\n선행(사람): 보정 배치 결과와 상한 사용자 확인(요구사항 8절 4·6)\n크기: 예시 약 3 · 파일 2 · 하위 작업 3\n취소(2026-11-24): 실험구조 8.3에서 T34에 합침 (계획 파일을 plan 명령으로)",
@@ -2385,7 +2385,7 @@
         ]
       },
       {
-        "id": "36",
+        "id": 36,
         "title": "번들·정답지: Juice Shop 정답지 (F-B06) — 첫 실험 뒤",
         "description": "공식 배포본을 버전·sha256으로 고정하고(실행하지 않음), 화면 번들에 흔적이 있는 과제만 정답지 꼴로(complete false, 별→난이도 바꾸기)",
         "details": "영역: 번들·정답지\n목적: 우리가 만들지 않은 바깥 정답지로 '내가 만든 번들이 REA에 유리하다'는 의심을 줄인다 (요구사항 R3, 5.1 대상 ②)\n읽을 문서: 기능명세 F-B06, 설계 실험구조 2.2 'complete'·'origin', 2.5 'Juice Shop', 2.7 'Juice Shop 정답지'\n고칠 파일: bench/sources/juice-shop/**, bench/answers/juice-shop.json, bench/targets.json, bench/tests/bundles/test_f_b06.py, 공통 요청: ops/scripts/setup_juiceshop.py(받기 스크립트, setup_rea.py 꼴)\n계약: answers.schema.json (origin practice, complete false)\n\n쌍 아님 (실험구조 8.3 — 첫 실험 뒤)\n선행(사람·설계): 첫 실험 뒤(요구사항 4절 차례 '넓히기(Juice Shop, N 늘리기)'), 받기 스크립트(설계), 사용자 확인 7절(Juice Shop 난이도)\n크기: 예시 약 7 · 파일 약 4(정답지 하나가 큼) · 하위 작업 5\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤)\nT20 넘김: Juice Shop 화면 번들도 bench/bundles/<id>에 둔다. 크기가 크면 git에 넣을지 이 태스크가 근거와 함께 정한다.\n설계 넘김(8.4 1 추정 확인): 받은 화면 번들에서 지역 이름 길이를 세어 '실제 빌드 도구의 기본 압축은 지역·모듈 이름을 줄이고 속성 이름은 남긴다'는 추정을 확인한다. 잰 숫자는 보고서 '잰 것'에",
@@ -2443,6 +2443,19 @@
             "parentId": "undefined"
           }
         ]
+      },
+      {
+        "id": 37,
+        "title": "채점: T27 고침 — 셋째 차례 범위·표식 정규식·tolerance (CR-010, 쌍 밖)",
+        "description": "쌍 D 한 세션 쪽 T27 독립 검토 중간 2와 CR-010을 고친다",
+        "details": "영역: 채점·측정\n목적: 첫 실험 보고서의 범위 숫자가 셋째 차례로 비틀리지 않고, 보고서 표식 검사가 긴 줄에서 멈추지 않게 한다 (CR-010, 요구사항 R5)\n읽을 문서: 기능명세 F-G03 5(CR-010)·F-G05·F-G06·F-R09 2, docs/변경/CR-010.md, ops/검증/T27.md '독립 검토'\n고칠 파일: bench/score/aggregate.py, bench/score/recompute.py, bench/score/__main__.py, bench/score/cases.py, bench/score/__init__.py, bench/tests/score/test_f_g03.py, bench/tests/score/test_f_g05.py, bench/tests/score/test_f_g06.py, bench/tests/score/fixtures/g03_g06/**\n계약: run.schema.json 상태 값, 보고서 표식 <!-- 표:<이름> --> … <!-- /표 -->\n명세 기준: 6e3899d\n변경: CR-010\n\n쌍 밖 고침(설계 8.1 ⑦): T27(쌍 D 한 세션 쪽)의 독립 검토 중간을 보정 전에 고친다. 측정에는 T27의 '남은 결함'으로만 센다.\n고칠 것: ① CR-010 F-G03 5 '넣는 차례' — 묶음(조건 전체·범주별=심은 번들 전부 / 난이도 d / Juice Shop complete:false)마다 그 묶음 대상이 모두 채점된 차례만 범위에, 뺀 차례는 요약.md에 '차례 뺌: <묶음> <조건> 차례 <r> (대상 m/n)', 넣을 차례가 없으면 '-' ② recompute.py `_MARK_HINT`(`<!--\\s*/?\\s*표`) 되돌림 제곱 → 되돌림 없는 꼴 ③ `--tolerance` 0 이상만, 음수면 끝 코드 2(F-R09 2) ④ cases.py findings.json 다시 읽을 때 결과 수가 다르면 ScoreError('읽은 뒤 바뀜') ⑤ bench/score/__init__.py 머리 문서에 T27 새 모듈 여섯과 `python -m score`(T27 레인 요청).\n후속(넣지 않음): F-G04 조건별 시간·비용 가운데에 셋째 차례 실행이 들어감(CR-010 밖, A·B 같은 수).",
+        "testStrategy": "test_F_G03_셋째차례는_조건전체·범주별에_안섞임(easy·hard 80% ×2, normal 20% ×3 → 조건별 60.0~60.0%, normal 난이도 20.0% 3회) / test_F_G03_대상이_다돌지않은_차례는_빼고_알림 / test_F_G05_표식힌트_긴공백_선형(공백 1만·2만·4만, 4N/N < 8) / test_F_R09_tolerance_음수면_끝코드2 / test_F_G06_findings_다시읽을때_길이다르면_멈춤. 기대값 변경: 없음(CR-010 확인)",
+        "status": "in-progress",
+        "dependencies": [
+          27
+        ],
+        "priority": "high",
+        "subtasks": []
       }
     ],
     "metadata": {
@@ -2452,7 +2465,10 @@
       "completedCount": 18,
       "tags": [
         "master"
-      ]
+      ],
+      "created": "2026-11-27T13:29:58.385Z",
+      "description": "Tasks for master context",
+      "updated": "2026-11-27T13:29:58.408Z"
     }
   }
 }
