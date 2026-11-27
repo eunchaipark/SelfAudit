@@ -1807,9 +1807,9 @@
         "id": "27",
         "title": "채점·측정: 지표·다시 계산·표·그림·사례 후보 (F-G03~F-G06)",
         "description": "재현율·정밀도·위치 정확도, 난이도·범주별, N=2 최소·가운데·최대와 셋째 권고, score 명령·보고서 표 대조, Markdown 표·SVG 2~3장, B만·A만 찾은 것·B 미끼 헛짚음 목록",
-        "details": "영역: 채점·측정\n목적: 같은 원자료면 늘 같은 숫자·표·그림이 나오고, 보고서 숫자와 'REA가 있어야만 찾은 것' 사례 후보를 원자료에서 다시 만든다 (요구사항 R5, R1, 2절 3·4)\n읽을 문서: 기능명세 F-G03~F-G06, 요구사항 4절 예시, 설계 실험구조 2.5 '재현율'~'N을 늘리는 기준', 2.6, 3.8, 3.9, 8.2\n고칠 파일: bench/score/metrics.py, bench/score/aggregate.py, bench/score/recompute.py, bench/score/tables.py, bench/score/svg.py, bench/score/cases.py, bench/score/__main__.py, bench/tests/score/fixtures/g03_g06/**, bench/tests/score/test_f_g03.py, bench/tests/score/test_f_g04.py, bench/tests/score/test_f_g05.py, bench/tests/score/test_f_g06.py, docs/보고서/그림/**\n계약: run.schema.json 상태 값, T26 맞춤 결과(레인 안), 보고서 표식 <!-- 표:<이름> --> … <!-- /표 -->, stream-json 대화 기록(3.8)\n\n작업 쌍: D 한 세션 쪽 (solo-bench, 병합 전 검토 없음 — 사용자 확인 8절 12. 독립 검토는 보정 배치 전 — 실험구조 8.1 ⑦)\n합친 것: 옛 T27(F-G03·G05) + 옛 T28(F-G04·G06) — 둘 다 'T26의 짝 → 숫자·표'이고 같은 __main__.py·같은 원자료 꼴을 쓴다 (실험구조 8.3)\n선행(사람): 사용자 확인 7절(모으기, Juice Shop 정밀도)\n선행(문서): 기능명세 F-G03 10의 N 기준을 8.2로 — 두 차례 재현율 차이가 20%p를 넘으면 그 난이도 셋째 권고 (8.7)\n크기: 예시 약 25 · 파일 약 13 · 하위 작업 6\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤)\nN 기준(8.2): 재현율은 그 난이도 번들 둘을 합친 짝 합 ÷ 정답 합. 어느 한 조건이라도 두 차례 차이가 20%p를 넘으면 그 난이도의 번들 둘을 A·B 모두 셋째로 권고. 셋째 뒤에도 범위가 20%p를 넘으면 더 권고하지 않고, A·B 범위가 겹치면 '차이를 말할 수 없음'\n넘김(쌍 B 독립 검토 ops/검증/T26.md, 2026-11-26 — 쌍 D 채점 쪽이라 고치지 않고 알고만 쓴다): bench/score/read.py `Finding`이 reason·confidence를 버린다(F-G06 사례 뽑기·확신별 정밀도에 필요하면 findings.json을 다시 읽거나 '요청'에) · bench/score/match.py `MatchResult.wrong`은 ㉰만 센다 — 정밀도 분모는 맞음이 아닌 결과 전부(중복·미끼 헛짚음·㉰)를 명세 F-G03대로 직접 셀 것 · `match_run`은 계약 상한(결과 100) 안에서만 선형에 가깝다.",
+        "details": "영역: 채점·측정\n목적: 같은 원자료면 늘 같은 숫자·표·그림이 나오고, 보고서 숫자와 'REA가 있어야만 찾은 것' 사례 후보를 원자료에서 다시 만든다 (요구사항 R5, R1, 2절 3·4)\n읽을 문서: 기능명세 F-G03~F-G06, 요구사항 4절 예시, 설계 실험구조 2.5 '재현율'~'N을 늘리는 기준', 2.6, 3.8, 3.9, 8.2\n고칠 파일: bench/score/metrics.py, bench/score/aggregate.py, bench/score/recompute.py, bench/score/tables.py, bench/score/svg.py, bench/score/cases.py, bench/score/__main__.py, bench/tests/score/fixtures/g03_g06/**, bench/tests/score/test_f_g03.py, bench/tests/score/test_f_g04.py, bench/tests/score/test_f_g05.py, bench/tests/score/test_f_g06.py, docs/보고서/그림/**\n계약: run.schema.json 상태 값, T26 맞춤 결과(레인 안), 보고서 표식 <!-- 표:<이름> --> … <!-- /표 -->, stream-json 대화 기록(3.8)\n명세 기준: e4ce098\n\n작업 쌍: D 한 세션 쪽 (solo-bench, 병합 전 검토 없음 — 사용자 확인 8절 12. 독립 검토는 보정 배치 전 — 실험구조 8.1 ⑦)\n합친 것: 옛 T27(F-G03·G05) + 옛 T28(F-G04·G06) — 둘 다 'T26의 짝 → 숫자·표'이고 같은 __main__.py·같은 원자료 꼴을 쓴다 (실험구조 8.3)\n선행(사람): 사용자 확인 7절(모으기, Juice Shop 정밀도)\n선행(문서): 기능명세 F-G03 10의 N 기준을 8.2로 — 두 차례 재현율 차이가 20%p를 넘으면 그 난이도 셋째 권고 (8.7)\n크기: 예시 약 25 · 파일 약 13 · 하위 작업 6\n보고 전에 스스로 잰다: 분석 대상·원자료·결과를 도는 함수의 처리량(입력 2·4배, 걸림 N 1만·2만 — 보안규칙 5장), 추정마다 확인 방법. 잰 숫자는 보고서 '잰 것'에 (실험구조 8.1 ⑤)\nN 기준(8.2): 재현율은 그 난이도 번들 둘을 합친 짝 합 ÷ 정답 합. 어느 한 조건이라도 두 차례 차이가 20%p를 넘으면 그 난이도의 번들 둘을 A·B 모두 셋째로 권고. 셋째 뒤에도 범위가 20%p를 넘으면 더 권고하지 않고, A·B 범위가 겹치면 '차이를 말할 수 없음'\n넘김(쌍 B 독립 검토 ops/검증/T26.md, 2026-11-26 — 쌍 D 채점 쪽이라 고치지 않고 알고만 쓴다): bench/score/read.py `Finding`이 reason·confidence를 버린다(F-G06 사례 뽑기·확신별 정밀도에 필요하면 findings.json을 다시 읽거나 '요청'에) · bench/score/match.py `MatchResult.wrong`은 ㉰만 센다 — 정밀도 분모는 맞음이 아닌 결과 전부(중복·미끼 헛짚음·㉰)를 명세 F-G03대로 직접 셀 것 · `match_run`은 계약 상한(결과 100) 안에서만 선형에 가깝다.",
         "testStrategy": "test_F_G03_정답6_결과5_맞음4_재현율66_7_정밀도80_0 (요구사항 4절 예시) / test_F_G03_other빼고_정밀도 / test_F_G03_위치정확도_T없이 / test_F_G03_형식실패_재현율0_정밀도없음 / test_F_G03_condition_mismatch_빼고_다시돌릴목록 / test_F_G03_난이도별·범주별 / test_F_G03_N2_최소가운데최대 / test_F_G03_조건전체_반복차례마다_짝합나누기정답합 / test_F_G03_juice_정밀도_하한 / test_F_G03_두차례차이20_1p면_셋째권고 / test_F_G03_범위20p는_그대로 / test_F_G05_파일차례바꿔도_같은숫자 / test_F_G05_보고서표_글자같으면_통과 / test_F_G05_한글자다르면_실패 / test_F_G05_표식없으면_실패 / test_F_G04_표_같은입력_같은글 / test_F_G04_백분율_소수한자리 / test_F_G04_SVG_같은입력_같은바이트 / test_F_G04_SVG_빈칸_빈막대 / test_F_G04_그림3장_이름 / test_F_G06_B만찾음_B1번이상_A0번 / test_F_G06_A만찾음 / test_F_G06_B미끼헛짚음_실행ID·대화줄 / test_F_G06_대화기록이_저장소밖이면_sha256만 / test_F_G06_목록차례_고정. 확인할 화면: 만든 SVG를 브라우저로 열어 1360·390px에서 글자가 겹치지 않는지",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [
           "26"
         ],
@@ -1869,7 +1869,8 @@
             "dependencies": [],
             "parentId": "undefined"
           }
-        ]
+        ],
+        "updatedAt": "2026-11-27T11:15:25.628Z"
       },
       {
         "id": "28",
@@ -2446,7 +2447,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-11-26T21:12:24.131Z",
+      "lastModified": "2026-11-27T11:15:25.641Z",
       "taskCount": 36,
       "completedCount": 17,
       "tags": [
