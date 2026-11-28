@@ -1,2 +1,0 @@
-const a=document.getElementById("app");const b="화분 목록을 불러오는 중입니다";const c="화면을 불러오지 못했습니다. 새로 고침해 주세요";function d(){const e=document.createElement("div");e.className="spinner";e.setAttribute("role","status");e.textContent=b;a.replaceChildren(e);}function f(){const g=document.createElement("button");g.className="retry";g.textContent=c;g.addEventListener("click",()=>location.reload());a.replaceChildren(g);}d();import("/assets/app-10a1224c.js").then((h)=>{a.replaceChildren();h.start(a);}).catch(f);
-//# sourceMappingURL=index-4a17fd58.js.map

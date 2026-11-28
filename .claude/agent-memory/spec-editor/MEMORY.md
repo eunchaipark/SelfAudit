@@ -1,3 +1,0 @@
-- [공유 main에서 커밋](feedback_commit_in_shared_main.md) — 새 파일은 add 후 경로 커밋, 병합 중엔 커밋 금지, newline='', 표 안 `\|`
-- [스크립트는 Write로](feedback_scripts_via_write.md) — heredoc이 `\\`를 바꿔 시제품 입력이 깨짐, Write → `python -I`, 백슬래시는 chr(92)
-- [총괄 판단은 tasks.json에](reference_lead_decisions_in_tasks.md) — 보고서의 '총괄 판단' 근거는 태스크 details에만, python으로 찾기

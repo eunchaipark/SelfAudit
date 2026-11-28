@@ -1,3 +1,0 @@
-- [거르개·공통 표 함정](filter_and_escape_cases.md) — python -I라 common import 불가, 가짜는 _base_executable, REA 참조 꼴, 루트 기준 경로 거절
-- [계획·실행 폴더·원자료 함정](run_plan_store.md) — ㉢ 때문에 실행 폴더는 홈 밖, 시험은 드라이브 맨 위 임시 폴더, 계획 칸 이름, StoreError·BatchStop
-- [명령줄·조건 확인·문지기 함정](run_claude_gate.md) — 시도 목록 파일, 거절 기록 칸 추정, 대소문자 꼴 가림, bytes += 제곱
