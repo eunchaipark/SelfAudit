@@ -1,0 +1,2 @@
+{"type":"user","sessionId":"sess-a","agentId":"abc","isSidechain":true,"timestamp":"2026-11-24T12:01:00.000Z","message":{"role":"user","content":"SECRET-BODY prompt"}}
+{"type":"assistant","sessionId":"sess-a","agentId":"abc","isSidechain":true,"timestamp":"2026-11-24T12:02:00.000Z","message":{"id":"msg_3","role":"assistant","content":[{"type":"text","text":"SECRET-BODY"}],"usage":{"input_tokens":5,"output_tokens":50,"cache_creation_input_tokens":500,"cache_read_input_tokens":5000}}}

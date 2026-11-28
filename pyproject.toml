@@ -1,0 +1,16 @@
+[project]
+name = "ccusage-lens"
+version = "0.1.0"
+description = "Claude Code 사용량을 프로젝트·세션·날짜·에이전트별로 나눠 보는 명령줄 도구"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

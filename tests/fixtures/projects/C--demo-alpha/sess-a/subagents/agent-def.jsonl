@@ -1,0 +1,1 @@
+{"type":"assistant","sessionId":"sess-a","agentId":"def","isSidechain":true,"timestamp":"2026-11-26T12:00:00.000Z","message":{"id":"msg_4","role":"assistant","content":[],"usage":{"input_tokens":2,"output_tokens":20,"cache_creation_input_tokens":200,"cache_read_input_tokens":2000}}}

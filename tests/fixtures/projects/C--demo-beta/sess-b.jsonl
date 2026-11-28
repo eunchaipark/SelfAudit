@@ -1,0 +1,2 @@
+{"type":"summary","summary":"SECRET-BODY"}
+{"type":"assistant","sessionId":"sess-b","timestamp":"2026-11-27T12:00:00.000Z","isSidechain":false,"message":{"id":"msg_5","role":"assistant","content":[],"usage":{"input_tokens":7,"output_tokens":70,"cache_creation_input_tokens":700,"cache_read_input_tokens":7000}}}

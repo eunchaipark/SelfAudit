@@ -11,6 +11,18 @@
 2. **보고서 한 장**: 같은 숫자를 그래프가 든 HTML 한 파일로(서버 없음).
 3. **결과와 잇기**: 같은 시간대의 git 커밋 수·바뀐 줄과 나란히 — "토큰 대비 완성된 것".
 
+## 쓰는 법 (1단계)
+```
+uv run python -m ccusage_lens                       # 프로젝트별, 상위 20개
+uv run python -m ccusage_lens --by agent --project SelfAudit --since 2026-11-24 --until 2026-11-28
+uv run python -m ccusage_lens --by day --json       # 숫자만 든 JSON
+uv run pytest                                       # 가짜 기록으로 시험
+```
+- `--by project|session|day|agent`, `--top N`(0이면 전부), `--root <폴더>`(기본 `~/.claude/projects`).
+- 날짜는 기록의 UTC 시각을 이 PC 시간대로 바꿔 나눈다.
+- 에이전트 이름: 부모 기록의 Task/Agent 호출 `subagent_type`(결과 줄의 `agentId`나 `meta.json`의 `toolUseId`로 이음). 못 찾으면 `meta.json`의 `agentType`. 하위 에이전트가 아닌 줄은 `main`.
+- 깨진 줄은 건너뛰고 몇 줄인지 표 밑에 적는다. 같은 `message.id`는 처음 본 한 줄만 센다.
+
 ## 지키는 것
 - 대화 본문은 읽어도 옮기지 않는다. 출력·저장소에는 숫자·이름·시각만 남긴다(기록에는 내 코드·경로가 들어 있다).
 - 시험은 가짜 기록 파일로만 한다. 진짜 기록은 저장소에 넣지 않는다.
